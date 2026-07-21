@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/count_correction.schema.json",
+  "title": "CountCorrection",
+  "description": "Authoritative count checkpoint (spec §12.5). Projection treats as override; back-infers unknown pitches where the math allows, marks inferences as such.",
+  "type": "object",
+  "properties": {
+    "balls":   { "type": "integer", "minimum": 0, "maximum": 3 },
+    "strikes": { "type": "integer", "minimum": 0, "maximum": 2 }
+  },
+  "required": ["balls", "strikes"],
+  "additionalProperties": false
+}

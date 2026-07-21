@@ -1,0 +1,76 @@
+# Diamond — CLAUDE.md
+
+Diamond is a tablet-first (phone-capable) baseball/fastpitch-softball coaching app: live pitch-by-pitch
+scoring with pitch calling (wristband codes), pitch locations (intended AND actual), batted-ball
+coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
+and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
+
+**The full spec is `docs/spec.md` (v0.11). It is authoritative. When this file and the spec disagree,
+the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
+
+## Architecture in five sentences
+
+1. A game is an **append-only stream of atomic events** (§1–§7). Events are never mutated; corrections
+   append (`corrects`), undo appends (`VoidEvent`). Plays are sequences of atomic events, never templates.
+2. **Everything else is a projection**: count, outs, score, box score, stats, heat maps, official errors,
+   earned runs — pure functions folding the stream (§5, §13, §17). Storing derived state in events is a bug.
+3. **Offline-first is the prime directive**: all projections run on-device against Drift/SQLite. No feature
+   may require connectivity to record or view anything during a game (§12.6, §19.1, §21.5).
+4. The scorer records **physics, not rulings** (§13): touch types are physical (`dropped`, `booted`,
+   `wild_throw`…); official error charging, hit-vs-error, and earned runs are derived, gated by one
+   scorer-judgment flag (`ordinaryEffort`).
+5. Multi-device uses **disjoint streams** (primary scores; secondaries annotate) so sync is a conflict-free
+   set union over pluggable transports (§12).
+
+## Non-negotiables (§21.5) — CI enforces these
+
+- The event schema is defined **once** in `schema/` (JSON Schema) and code-generated into Dart and TS.
+  Hand-written duplicate types are a build failure. Schema change protocol: edit schema → regenerate both
+  targets → update fixtures/tests → one atomic commit.
+- `fixtures/plays/*.json` (§14 acceptance plays) must pass in the Dart rules engine (and any server-side
+  validation) at all times. New weird plays become new fixtures, never special cases in code.
+- Anything computing a stat outside the projection engine is a bug.
+- The count/outs/base state is **never wrong** in real games (§11.2). Uncertainty is surfaced
+  (amber count, `unknown` outcome) and resolved via `CountCorrection` checkpoints (§12.5) — never guessed.
+  ObservationSessions (§19.5) explicitly relax this.
+
+## Repo map
+
+```
+docs/spec.md        authoritative spec (v0.11)
+schema/             JSON Schema source of truth (common/ + events/)
+tools/codegen/      schema → Dart + TS generation (see its README)
+app/                Flutter app (created by ticket DIA-001; Drift, rules engine, projections, UI)
+server/             Node/Express + Postgres (Milestone 2+; thin auth/ingest/relay only)
+fixtures/plays/     §14 acceptance plays as language-neutral JSON fixtures
+tickets/            markdown tickets; work them in ID order unless told otherwise
+```
+
+## Stack & conventions (§21)
+
+- **App:** Flutter/Dart, Drift (SQLite). State mgmt: Riverpod. Custom-drawn UI (`CustomPaint`) for zone
+  canvas, field canvas, call grid, heat maps — no platform-widget lookalikes needed.
+- **Server:** Node 20+/Express/TypeScript, Postgres (JSONB payloads). It is a thin service: auth,
+  membership, event ingest, websocket fan-out. If server code starts computing stats, stop — that's
+  the app's projection engine's job.
+- **Coordinates:** `ZoneCoord` normalized, catcher's view, absolute x (flip by handedness at render, §3.1).
+  `FieldCoord` in absolute feet, home plate origin, θ=0 at CF (§3.2). Never clamp foul territory.
+- Dart: `very_good_analysis` lints. TS: strict mode, eslint. Tests colocated per package convention.
+- Commits: conventional-ish, reference ticket IDs (e.g., `feat(rules): DIA-004 plays 01-03 passing`).
+
+## Working agreements with Mark
+
+- Mark reviews plans before large edits — propose, then build. Prefer vertical slices.
+- When a design question isn't answered by the spec, say so and ask; don't invent product decisions.
+- UI work follows the design language (§18.7): data-ink first, one accent, sunlight-glanceable,
+  every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
+- Softball vs. baseball differences always route through `RuleSet` config — never `if (softball)` scattered
+  in logic (§1, §4.4).
+- Youth-athlete data is sensitive: team-private by default, no sharing features without explicit
+  design (§19.5). Never log player names in telemetry.
+
+## Milestone 1 (current)
+
+**Score a half-inning of one game, locally, no backend:** event store + projection engine + rules engine
+passing all play fixtures + zone canvas + call screen + pitch loop + field canvas subset + one scripted
+end-to-end half-inning test. Tickets DIA-001 … DIA-009. Server work is out of scope until M2.

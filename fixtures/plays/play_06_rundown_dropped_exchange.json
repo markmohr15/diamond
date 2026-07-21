@@ -1,0 +1,20 @@
+{
+  "id": "play-06",
+  "title": "Pickoff rundown 3-6-3-4; last exchange dropped; runner safe back at 1st",
+  "specRef": "§14 Play #6",
+  "setup": { "outs": 1, "count": { "balls": 0, "strikes": 1 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "FielderTouch", "payload": { "ballInPlayEventId": "pickoff", "position": 3, "touchType": "received_throw" } },
+    { "id": "e2", "type": "FielderTouch", "payload": { "ballInPlayEventId": "pickoff", "position": 6, "touchType": "received_throw" } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "pickoff", "position": 3, "touchType": "received_throw" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "ballInPlayEventId": "pickoff", "position": 4, "touchType": "missed_catch", "ordinaryEffort": true } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 1, "reason": "error", "enabledByTouchId": "e4" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [ { "position": 4, "kind": "catching", "basis": "runner_survived" } ],
+    "runnerBases": { "r1": 1 },
+    "note": "from==to advance records surviving the rundown, attributed to the misplay. Engine must accept touch sequences with a non-BallInPlay reference (pickoff) — schema evolution candidate for M1: formalize a PickoffAttempt anchor event."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/pitch_thrown.schema.json",
+  "title": "PitchThrown",
+  "description": "One per pitch, always (spec §4.1). intended* = the call; actual* = reality. actualLocation required only when location capture is ON (§12.4).",
+  "type": "object",
+  "properties": {
+    "pitcherId":        { "type": "string" },
+    "batterId":         { "type": "string" },
+    "batterSide":       { "enum": ["L", "R"] },
+    "intendedType":     { "type": "string", "description": "PitchTypeId (team-configured)" },
+    "intendedZoneId":   { "type": "string", "description": "CallZone id (§10.1)" },
+    "intendedLocation": { "$ref": "../common/zone_coord.schema.json" },
+    "actualType":       { "type": "string" },
+    "actualLocation":   { "$ref": "../common/zone_coord.schema.json" },
+    "velocity":         { "type": "number", "description": "mph, optional" },
+    "outcome": {
+      "enum": ["ball", "called_strike", "swinging_strike", "swinging_strike_blocked",
+               "foul", "foul_tip", "foul_bunt", "in_play", "hit_by_pitch",
+               "ball_intentional", "illegal_pitch", "no_pitch", "unknown"]
+    }
+  },
+  "required": ["pitcherId", "batterId", "batterSide", "outcome"],
+  "additionalProperties": false
+}

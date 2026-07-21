@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/rule_call.schema.json",
+  "title": "RuleCall",
+  "description": "Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).",
+  "type": "object",
+  "properties": {
+    "callType": {
+      "enum": ["interference_batter", "interference_runner", "interference_catcher",
+               "interference_spectator", "obstruction", "infield_fly", "ground_rule",
+               "dead_ball_award", "look_back_violation", "illegal_pitch_ruling", "umpire_reversal"]
+    },
+    "againstPosition": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "runnerId":        { "type": "string" },
+    "location":        { "$ref": "../common/field_coord.schema.json" },
+    "note":            { "type": "string" }
+  },
+  "required": ["callType"],
+  "additionalProperties": false
+}

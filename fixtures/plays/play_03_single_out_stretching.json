@@ -1,0 +1,23 @@
+{
+  "id": "play-03",
+  "title": "Single; R3 scores; batter thrown out stretching 9-6",
+  "specRef": "§14 Play #3",
+  "setup": { "outs": 1, "count": { "balls": 2, "strikes": 1 }, "runners": { "3": "r3" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "L", "actualLocation": { "x": 0.6, "y": 0.4 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": 110, "y": 180 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 9, "touchType": "fielded" } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "r3", "from": 3, "to": 4, "reason": "batted_ball" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e6", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "received_throw" } },
+    { "id": "e7", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "tag_applied" } },
+    { "id": "e8", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 2, "how": "tag", "putoutTouchId": "e7" } }
+  ],
+  "expect": {
+    "outs": 2,
+    "runs": 1,
+    "officialErrors": [],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 1 },
+    "note": "A hit AND an out on the same play — the template-breaking combination."
+  }
+}

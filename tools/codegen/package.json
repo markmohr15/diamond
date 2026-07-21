@@ -1,0 +1,8 @@
+{
+  "name": "@diamond/codegen",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "codegen": "node generate.mjs"
+  }
+}

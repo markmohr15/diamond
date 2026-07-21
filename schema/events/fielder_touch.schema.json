@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/fielder_touch.schema.json",
+  "title": "FielderTouch",
+  "description": "Physical touch vocabulary — never official-scoring language (spec §4.2, §13). Official errors are DERIVED.",
+  "type": "object",
+  "properties": {
+    "ballInPlayEventId": { "type": "string" },
+    "fielderId":         { "type": "string", "description": "optional for opponents" },
+    "position":          { "type": "integer", "minimum": 1, "maximum": 10 },
+    "touchType": {
+      "enum": ["fielded", "caught", "received_throw", "deflected", "dropped",
+               "bobbled", "booted", "wild_throw", "missed_catch",
+               "tag_applied", "tag_missed"]
+    },
+    "ordinaryEffort":    { "type": "boolean", "description": "scorer judgment on misplays; inferred default, overridable post-hoc (§13.2)" },
+    "location":          { "$ref": "../common/field_coord.schema.json" }
+  },
+  "required": ["ballInPlayEventId", "position", "touchType"],
+  "additionalProperties": false
+}

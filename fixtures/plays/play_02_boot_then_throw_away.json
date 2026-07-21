@@ -1,0 +1,24 @@
+{
+  "id": "play-02",
+  "title": "Boot, then recovery throw sails; batter to third",
+  "specRef": "§14 Play #2",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 0 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.3, "y": 0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "landing": { "x": -50, "y": 95 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "booted", "ordinaryEffort": true } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "error", "enabledByTouchId": "e3" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "wild_throw", "ordinaryEffort": true } },
+    { "id": "e6", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 3, "reason": "wild_throw", "enabledByTouchId": "e5" } }
+  ],
+  "expect": {
+    "outs": 0,
+    "runs": 0,
+    "officialErrors": [ { "position": 6, "kind": "fielding" }, { "position": 6, "kind": "throwing" } ],
+    "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false },
+    "runnerBases": { "b1": 3 },
+    "earnedRunFlags": { "b1": "unearned_if_scores" },
+    "variant": "Flip e3.ordinaryEffort to false → single + E6 throwing only.",
+    "note": "Two misplays, one fielder, two errors (or one, per OE judgment)."
+  }
+}

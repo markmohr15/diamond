@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/ball_in_play.schema.json",
+  "title": "BallInPlay",
+  "description": "Batted ball incl. fouls with coordinates (spec §4.2, §3.2).",
+  "type": "object",
+  "properties": {
+    "pitchEventId":    { "type": "string" },
+    "fair":            { "type": "boolean" },
+    "trajectory":      { "enum": ["ground", "line", "fly", "popup", "bunt"] },
+    "contactQuality":  { "enum": ["weak", "average", "hard"] },
+    "landing":         { "$ref": "../common/field_coord.schema.json" },
+    "landingIsCaught": { "type": "boolean" }
+  },
+  "required": ["pitchEventId", "fair", "trajectory", "landing", "landingIsCaught"],
+  "additionalProperties": false
+}

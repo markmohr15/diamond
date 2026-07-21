@@ -1,0 +1,20 @@
+{
+  "id": "play-04",
+  "title": "Dropped foul pop; at-bat continues; E charged",
+  "specRef": "§14 Play #4",
+  "setup": { "outs": 0, "count": { "balls": 2, "strikes": 1 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.9, "y": 0.8 }, "outcome": "foul" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": false, "trajectory": "popup", "landing": { "x": -95, "y": 40 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 5, "touchType": "dropped", "ordinaryEffort": true } }
+  ],
+  "expect": {
+    "outs": 0,
+    "runs": 0,
+    "count": { "balls": 2, "strikes": 2 },
+    "sameBatterStillUp": true,
+    "officialErrors": [ { "position": 5, "kind": "catching", "basis": "prolonged_at_bat" } ],
+    "earnedRunFlags": { "b1": "unearned_if_scores_this_pa" },
+    "note": "Error with the at-bat continuing — count advances to 2-2 (foul with <2 strikes)."
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/common/field_coord.schema.json",
+  "title": "FieldCoord",
+  "description": "Field coordinate in absolute FEET (spec §3.2). Home plate = (0,0); +y toward second base/CF; bearing theta = atan2(x, y), negative = third-base side; |theta| > 45deg is foul territory (never clamp).",
+  "type": "object",
+  "properties": {
+    "x": { "type": "number" },
+    "y": { "type": "number" }
+  },
+  "required": ["x", "y"],
+  "additionalProperties": false
+}

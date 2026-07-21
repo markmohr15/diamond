@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/common/zone_coord.schema.json",
+  "title": "ZoneCoord",
+  "description": "Strike-zone coordinate, catcher's perspective, normalized to the batter's zone (spec §3.1). x: 0=middle of plate, -1/+1 = zone edges (negative = third-base side, absolute; flip by handedness at render). y: 0=bottom of zone, 1=top. Values outside [-1,1]/[0,1] are valid out-of-zone locations. Never clamp.",
+  "type": "object",
+  "properties": {
+    "x": { "type": "number", "minimum": -5, "maximum": 5 },
+    "y": { "type": "number", "minimum": -5, "maximum": 5 }
+  },
+  "required": ["x", "y"],
+  "additionalProperties": false
+}

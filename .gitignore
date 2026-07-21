@@ -1,0 +1,20 @@
+# Flutter/Dart
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/ios/Pods/
+app/android/.gradle/
+*.g.dart
+*.freezed.dart
+
+# Node
+node_modules/
+server/dist/
+*.log
+
+# Codegen output is committed (drift-checked in CI) — do NOT ignore generated types.
+
+# OS/editor
+.DS_Store
+.idea/
+*.iml

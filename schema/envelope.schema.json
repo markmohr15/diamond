@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/envelope.schema.json",
+  "title": "GameEvent",
+  "description": "Envelope shared by every event (spec §2). Append-only. Ordering: (wallClock, deviceId, seq).",
+  "type": "object",
+  "properties": {
+    "id":        { "type": "string", "description": "UUIDv7, generated on device" },
+    "gameId":    { "type": "string" },
+    "seq":       { "type": "integer", "minimum": 0, "description": "monotonic per-device" },
+    "deviceId":  { "type": "string" },
+    "createdBy": { "type": "string", "description": "userId of the scorer" },
+    "wallClock": { "type": "string", "format": "date-time" },
+    "type":      { "type": "string", "description": "discriminant; matches an events/*.schema.json title" },
+    "payload":   { "type": "object" },
+    "corrects":  { "type": "string", "description": "id of the event this supersedes (§6)" }
+  },
+  "required": ["id", "gameId", "seq", "deviceId", "createdBy", "wallClock", "type", "payload"],
+  "additionalProperties": false
+}

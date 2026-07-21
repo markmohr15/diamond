@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/void_event.schema.json",
+  "title": "VoidEvent",
+  "description": "Undo (spec §6): appending this voids targetId. Unlimited depth. When a committed play was emitted atomically, the UI voids the whole sequence.",
+  "type": "object",
+  "properties": {
+    "targetId": { "type": "string" }
+  },
+  "required": ["targetId"],
+  "additionalProperties": false
+}
