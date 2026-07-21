@@ -6,6 +6,9 @@ app/ios/Pods/
 app/android/.gradle/
 *.g.dart
 *.freezed.dart
+# Drift's own generated code is required to compile (app_database.dart has
+# `part 'app_database.g.dart'`) — Drift's convention is to commit it.
+!app/lib/**/*.g.dart
 
 # Node
 node_modules/
