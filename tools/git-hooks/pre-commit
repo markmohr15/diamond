@@ -1,0 +1,5 @@
+branch=$(git symbolic-ref --short HEAD)
+if [ "$branch" = "main" ]; then
+  echo "✗ Direct commits to main are blocked. Create a ticket branch: git switch -c dia-NNN-slug" >&2
+  exit 1
+fi

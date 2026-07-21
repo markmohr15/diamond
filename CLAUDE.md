@@ -30,8 +30,8 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 - `fixtures/plays/*.json` (§14 acceptance plays) must pass in the Dart rules engine (and any server-side
   validation) at all times. New weird plays become new fixtures, never special cases in code.
 - Anything computing a stat outside the projection engine is a bug.
-- The count/outs/base state is **never wrong** in real games (§11.2). Uncertainty is surfaced
-  (amber count, `unknown` outcome) and resolved via `CountCorrection` checkpoints (§12.5) — never guessed.
+- The count/outs/base state is **never wrong** in real games (§11.2). Uncertainty is surfaced visually (count HUD renders amber when an `unknown` pitch makes the count ambiguous) and
+  resolved via `CountCorrection` checkpoints (§12.5) — never guessed.
   ObservationSessions (§19.5) explicitly relax this.
 
 ## Repo map
@@ -68,6 +68,19 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
   in logic (§1, §4.4).
 - Youth-athlete data is sensitive: team-private by default, no sharing features without explicit
   design (§19.5). Never log player names in telemetry.
+
+## Git workflow
+
+- NEVER commit directly to `main`. Every ticket gets a branch: `dia-NNN-short-slug`
+  (e.g., `dia-002-codegen`). One ticket = one branch = one PR.
+- Open the PR with `gh pr create` when work begins (draft) or completes. PR title:
+  `DIA-NNN: <ticket title>`. Body: plan summary, spec sections consulted, how to test,
+  and anything that deviates from the ticket (flagged prominently).
+- Mark merges PRs. Never merge, never force-push, never rebase `main`.
+- Never use --no-verify or --force on any git operation.
+- Keep PRs ticket-sized. If a ticket grows past ~600 lines of meaningful diff,
+  stop and propose splitting it.
+- Before any commit, verify the current branch is dia-NNN-*; if on main, stop and create the ticket branch first — moving uncommitted work to a new branch is always the correct fix.
 
 ## Milestone 1 (current)
 
