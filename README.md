@@ -8,6 +8,7 @@ for the full specification.
 1. Read `CLAUDE.md`.
 2. `tickets/` contains Milestone 1. Start at `DIA-001`.
 3. Fixtures in `fixtures/plays/` are the rules-engine acceptance suite (§14) — they must always pass.
+4. Set up the pre-push and pre-commit hooks found in /tools/git-hooks inside .git/hooks. Remember to run `chmod +x` on both files.
 
 ## Layout
 See the repo map in `CLAUDE.md`.
