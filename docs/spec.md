@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.11)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.15)
 
-**Status:** Draft for review — v0.11 adds Technology Decisions (§21): the stack, the reasoning, and the decisions deferred to spikes
+**Status:** Draft for review — v0.15 adds per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -81,6 +81,15 @@ interface PitchThrown {
   actualLocation?: ZoneCoord;     // where it crossed the plate — required only when
                                   //   location capture is ON (§12.4); null = not captured
   velocity?: number;              // mph, optional (radar gun)
+  batterAction?:                  // observed offensive posture on THIS pitch, orthogonal
+    'showed_bunt'                 //   to outcome: squared, ball not offered at ⇒ pair with
+    | 'pulled_bunt'               //   ball/called_strike; squared then pulled back;
+    | 'slap'                      //   running-slap footwork (swing or not per outcome);
+    | 'fake_slap'                 //   slap footwork, no offer;
+    | 'slash';                    //   showed bunt → full swing (butcher boy).
+                                  // Absent = conventional AB posture. This records what
+                                  //   the batter DID, never what was called (§20.5 non-goal
+                                  //   stands: no offense-call tracking).
   outcome: PitchOutcome;
 }
 
@@ -120,7 +129,14 @@ interface BallInPlay {
   fair: boolean;                 // foul balls with coordinates welcome (§3.2)
   trajectory: 'ground' | 'line' | 'fly' | 'popup' | 'bunt';
   contactQuality?: 'weak' | 'average' | 'hard';   // scorer judgment, optional
-  landing: FieldCoord;           // where it landed / was first touched
+  landing: FieldCoord;           // FIRST contact: where it landed, hit the wall,
+                                 //   or met a glove — the spray-chart point
+  retrieved?: FieldCoord;        // where a fielder finally gained possession, when
+                                 //   meaningfully different (gap shot rolling to the
+                                 //   wall). Absent ⇒ same as landing. Throw origins
+                                 //   and roll analysis use retrieved ?? landing.
+  offWall?: boolean;             // hit the fence on the fly — auto-suggested when the
+                                 //   landing tap sits on the §16.2 fence spline
   landingIsCaught: boolean;      // caught in the air at that coordinate
 }
 
@@ -143,6 +159,12 @@ interface FielderTouch {
   ordinaryEffort?: boolean;      // scorer judgment on misplay types: would ordinary
                                  //   effort have made the play? Diamond infers a
                                  //   default (see §13.2); scorer can override.
+  receivedQuality?:              // on received_throw / missed_catch / dropped-of-a-throw:
+    'clean' | 'short_hop'        //   how the throw ARRIVED. Default 'clean'. Purely
+    | 'high' | 'wide';           //   developmental — never affects official scoring (§13);
+                                 //   a scooped short hop is still a clean play in the book,
+                                 //   but the thrower's Throw Map (§22.1) records the bounce
+                                 //   and the receiver's card records the scoop.
   location?: FieldCoord;         // where the touch happened, optional
 }
 ```
@@ -185,8 +207,18 @@ interface RunnerOut {
 type AdminEvent =
   | GameStart          // teams, rosters, RuleSet, FieldProfile (§16), weather
   | LineupSet          // initial batting order + positions, per team
+  | BattingOrderAdjusted // mid-game order surgery: remove (reason: injury | ejection |
+                        //   departed | entry_error), insert, or reorder. Vacated-slot
+                        //   policy comes from RuleSet: 'skip' | 'auto_out' | 'prompt'
+                        //   (sanctioning bodies differ; scrimmages allow anything).
+                        //   Batter-due projection honors the adjusted order from its seq.
   | DefensiveAlignmentSet  // fielder starting coordinates; sticky until changed (§16.4)
   | InningHalfStart    // derived state checkpoint boundary
+  | InningHalfEnd      // explicit half-inning close, INCLUDING before 3 outs:
+                        //   reason: 'three_outs' (implied/auto) | 'run_cap' | 'time_limit'
+                        //   | 'walkoff' | 'mercy' | 'coach_agreement' | 'suspended' | 'other'.
+                        //   Projection treats as authoritative; per-inning run caps in
+                        //   RuleSet can auto-suggest it when the cap is reached.
   | Substitution       // playerIn, playerOut, batting slot; RuleSet validates
                        //   re-entry (softball starters may re-enter once)
   | DPFlexChange       // softball DP/Flex state transitions
@@ -348,6 +380,7 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 ```
 
 - **Outcome suggestion logic:** location well out of zone → suggest `ball`; in zone → suggest `called_strike`; the override row always shows the full set (swinging, foul, foul tip, in play, HBP, illegal). Suggestion ≠ auto-commit — one tap is always required, because the ump's call is the truth, not the location.
+- **Batter-action chips:** a small optional row on the outcome step — `bunt` / `pulled` / `slap` / `fake` / `slash` — one tap when the batter showed something, untouched otherwise (absent = conventional posture). Also settable post-hoc from the pitch summary, since "wait, was she squared?" is a between-pitches realization. Sticky suggestion: if the previous pitch of the AB carried an action, the row pre-highlights it for quick repeat.
 - **Fielding sequence entry:** after the landing tap, a position diamond appears; the coach taps positions in order (6 → 4 → 3), long-press a position for the error variants. Runner resolution screen shows the bases with drag-to-advance / drag-to-out. This is the deepest sub-flow and gets its own spec section (v0.3) with every GameChanger-broken play as a test case.
 
 ### 11.2 The Mode Ladder (degradation under pressure)
@@ -518,7 +551,7 @@ The interaction model keeps what GC got right — dragging the ball around the f
 
 ### 15.1 The Canvas
 
-After the landing tap + trajectory (§11.1), the play canvas shows the field with fielders at their positions and the ball at its landing point.
+After the landing tap + trajectory (§11.1), the play canvas shows the field with fielders at their positions and the ball at its landing point. The landing entry itself is one gesture with two grips: a **tap** records `landing` alone (routine balls — retrieval assumed at the same spot), while a **tap-and-drag** records `landing` at touch-down and `retrieved` at release — the gap shot is one continuous motion tracing the ball's roll, no extra taps, no mode. A landing on the fence spline auto-suggests `offWall`.
 
 - **Tap a fielder** = that fielder touched the ball (`fielded`/`caught` inferred from trajectory + whether the landing was marked caught).
 - **Drag the ball** from the current fielder to another = a throw; the receiver gets `received_throw`.
@@ -533,7 +566,7 @@ As the sequence builds, a horizontal strip above the canvas renders it as nodes:
 
 Every node in the chain carries a small **"+" chip**. Tapping it opens a compact radial/sheet menu scoped to what makes sense *at that point in the sequence*:
 
-- **On a touch node:** the misplay set — `dropped`, `booted`, `bobbled`, `wild_throw` (converts the following drag's meaning), `missed_catch`, `tag_missed`. Selecting one recolors the node (misplays render amber) and, when the play commits, triggers the `ordinaryEffort` inference or prompt (§13.2).
+- **On a touch node:** the misplay set — `dropped`, `booted`, `bobbled`, `wild_throw` (converts the following drag's meaning), `missed_catch`, `tag_missed`. On a **receiving** node (`received_throw` and friends), the same chip also offers throw-arrival quality: `short hop` / `high` / `wide` — one tap, recorded as `receivedQuality`, zero effect on official scoring. Selecting a misplay recolors the node (misplays render amber; non-clean arrivals render with a subtle underline, not amber — they're information, not fault); on commit, misplays trigger the `ordinaryEffort` inference or prompt (§13.2).
 - **Between nodes / on a runner:** the `RuleCall` set — obstruction, interference variants, ground rule, dead-ball award. These insert a call node (rendered ⚖) into the chain at that position, and subsequent runner drags can link to it.
 - **On the ball's landing node:** infield fly, fair/foul dispute → `umpire_reversal`, spectator interference.
 
@@ -576,7 +609,7 @@ interface FieldProfile {
 }
 ```
 
-Resolution order at `GameStart`: **per-game override → team default → builtin(sport, age group)**. A team sets its default once; a coach at an unfamiliar tournament field adjusts five numbers (or picks a saved field — profiles for real parks are reusable and nameable) and everything downstream is correct.
+Resolution order at `GameStart`: **per-game override → team profile pick → builtin(sport, age group)**. Teams keep a **profile library, not a single default**: multiple named profiles ("Our 12U field", "Playing up — 14U", "Seymour Smith Field 3"), one marked default, all one tap at game creation. This is for the extremely common playing-up dynamic — same roster, different pitching distance and base paths depending on the tournament — and *every* dimension is per-profile: the five fence poles, `basePath`, `pitchingDistance`, backstop. A coach at an unfamiliar park adjusts the numbers once, names it, and it's in the library forever.
 
 **Builtin presets** — draft values, to be finalized with real sanctioning-body specs before ship (⚠ verify):
 
@@ -630,10 +663,12 @@ stat(filterSelect(allEvents)) → number
 - **Date range** — any start/end; presets: last 7/30 days, this month, custom
 - **Tournament/Event** — games carry an optional `tournamentId`; coaches think in tournaments, and "how did we hit at state?" should be one tap, not a date-picker exercise
 - **Season** — team-defined date-range container with a name
-- **Opponent**, **home/away**, **game type** (league/tournament/scrimmage — scrimmages excludable by default, toggleable)
+- **Opponent**, **home/away**
+- **Game type** — from a team-configurable taxonomy seeded with: league, tournament, exhibition/friendly, scrimmage, showcase (regional vocabularies differ; teams add their own). Each type carries a `countsTowardStats` default (scrimmage: off) — overridable per game, and every stat view can toggle excluded types back in.
+- **Tags** — freeform, multiple per game ("bracket play", "vs. lefty starter", "rain-shortened"). Filterable individually or in combination; tag vocabulary auto-completes from the team's history.
 
 **Split filters** (select events within games — the Diamond-only tier):
-- vs. batter/pitcher handedness · by count state (ahead/behind/even/2-strike/3-ball) · by pitch type · runners on / RISP / bases empty · by inning · times-through-the-order · by call zone
+- vs. batter/pitcher handedness · by count state (ahead/behind/even/2-strike/3-ball) · by pitch type · runners on / RISP / bases empty · by inning · times-through-the-order · by call zone · by batter action (showed bunt / slap / etc.)
 
 **Saved filters:** any combination is nameable and pinnable ("Fall vs. Elite teams", "2-strike ABs"). A saved filter + a stat view is a bookmark — the coach's dashboard is just pinned bookmarks.
 
@@ -862,3 +897,23 @@ The append-only, disjoint-stream event model (§12.1) makes sync a set union —
 2. No feature may require connectivity to record or view anything during a game (§12.6, §19.1).
 3. Projections are pure functions; anything computing a stat outside the projection engine is a bug.
 4. §14 acceptance plays run as fixtures in CI on both the Dart rules engine and any server-side validation.
+
+---
+
+## 22. Fielder Development View
+
+The §18 machinery pointed inward at defense: per-player, per-position development cards built from data Diamond already captures — `FielderTouch` (with locations), `BallInPlay` landings, `DefensiveAlignmentSet` starts, and the misplay ledger (§13). The full §17 filter model applies (date ranges answer "is she improving since June?").
+
+### 22.1 The Fielder Card
+
+Per player × position (a kid who plays SS and CF gets two):
+
+- **The chance map** — the "fielder heat map": a field-canvas rendering of every ball hit into her area of responsibility, colored by outcome — plays made (clean touches → outs/holds), misplays (amber, §13 vocabulary), and *unreached* balls that landed in her sector with no touch. Unreached is the quietly important category: it's range and positioning, invisible in any box score, and it's derivable because Diamond knows where every ball landed whether or not anyone touched it.
+- **The Throw Map** — every throw the player made, rendered as origin→target arrows on the field canvas, colored by how it arrived: clean, short-hopped, high, wide (from `receivedQuality` on the receiving touch), or wild (`wild_throw`). Origin resolution: the thrower's touch `location` when captured, else the `BallInPlay`'s `retrieved ?? landing` for the first touch, else the position's standard spot. The payoff is origin-conditioned arm scouting — Mark's exact case: *routine throws are fine, but from the hole, 40% bounce* — which is invisible in every conventional stat and jumps straight off this chart. Aggregation by origin region + target base, date-range comparable like everything else on the card.
+- **Range vectors** — when alignment capture was on (§16.4): start-position → touch-position arrows, giving literal measured range by direction. Left/right/in/back asymmetries jump off the chart ("she goes to her glove side beautifully and doesn't come in on anything").
+- **Hands & arm rows** — misplay breakdown by type over time (booted vs. dropped vs. wild_throw trends), throw outcomes (wild-throw rate per throw), receiving (missed_catch rate at her base), tags applied/missed. Positions get relevant panels only: middle infielders see receiving/tags, outfielders see range emphasis, catchers keep their §17.3 panel.
+- **Sector definition:** default responsibility sectors per position (profile-scaled), editable per team — a rec team's LF covers different ground than a travel team's. Sector edits recompute everything retroactively (projection, as always).
+
+### 22.2 Development Use
+
+Cards support side-by-side date-range comparison ("April vs. June"), and the `ScorerNote` rollup (incl. mental-error tags, §13.2) renders alongside the physical data. Explicit non-goal: no cross-player public leaderboards — this view exists for coaching conversations and practice planning, not shaming twelve-year-olds; sharing follows the §19.5 privacy defaults.
