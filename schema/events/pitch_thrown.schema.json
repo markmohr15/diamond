@@ -14,6 +14,10 @@
     "actualType":       { "type": "string" },
     "actualLocation":   { "$ref": "../common/zone_coord.schema.json" },
     "velocity":         { "type": "number", "description": "mph, optional" },
+    "batterAction": {
+      "enum": ["showed_bunt", "pulled_bunt", "slap", "fake_slap", "slash"],
+      "description": "observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent = conventional AB posture."
+    },
     "outcome": {
       "enum": ["ball", "called_strike", "swinging_strike", "swinging_strike_blocked",
                "foul", "foul_tip", "foul_bunt", "in_play", "hit_by_pitch",
