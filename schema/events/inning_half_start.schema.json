@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/inning_half_start.schema.json",
+  "title": "InningHalfStart",
+  "description": "Derived state checkpoint boundary (spec §4.4, §7). Marks the start of a half-inning; count/outs/bases always reset to empty here. The optional snapshot is a performance cache of cumulative state — never truth, always reproducible by folding from genesis.",
+  "type": "object",
+  "properties": {
+    "inning": { "type": "integer", "minimum": 1 },
+    "half": { "enum": ["top", "bottom"] },
+    "battingTeamId": { "type": "string" },
+    "snapshot": { "$ref": "../common/game_state_snapshot.schema.json" }
+  },
+  "required": ["inning", "half", "battingTeamId"],
+  "additionalProperties": false
+}

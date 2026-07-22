@@ -8,6 +8,9 @@
 //     final ballInPlay = ballInPlayFromJson(jsonString);
 //     final countCorrection = countCorrectionFromJson(jsonString);
 //     final fielderTouch = fielderTouchFromJson(jsonString);
+//     final inningHalfEnd = inningHalfEndFromJson(jsonString);
+//     final inningHalfStart = inningHalfStartFromJson(jsonString);
+//     final lineupSet = lineupSetFromJson(jsonString);
 //     final pitchThrown = pitchThrownFromJson(jsonString);
 //     final ruleCall = ruleCallFromJson(jsonString);
 //     final runnerAdvance = runnerAdvanceFromJson(jsonString);
@@ -31,6 +34,18 @@ String countCorrectionToJson(CountCorrection data) => json.encode(data.toJson())
 FielderTouch fielderTouchFromJson(String str) => FielderTouch.fromJson(json.decode(str));
 
 String fielderTouchToJson(FielderTouch data) => json.encode(data.toJson());
+
+InningHalfEnd inningHalfEndFromJson(String str) => InningHalfEnd.fromJson(json.decode(str));
+
+String inningHalfEndToJson(InningHalfEnd data) => json.encode(data.toJson());
+
+InningHalfStart inningHalfStartFromJson(String str) => InningHalfStart.fromJson(json.decode(str));
+
+String inningHalfStartToJson(InningHalfStart data) => json.encode(data.toJson());
+
+LineupSet lineupSetFromJson(String str) => LineupSet.fromJson(json.decode(str));
+
+String lineupSetToJson(LineupSet data) => json.encode(data.toJson());
 
 PitchThrown pitchThrownFromJson(String str) => PitchThrown.fromJson(json.decode(str));
 
@@ -63,6 +78,11 @@ class GameEvent {
     ///userId of the scorer
     final String createdBy;
     final String deviceId;
+    
+    ///id of the event this logically follows, when recorded later than it happened (§6 insert)
+    ///— e.g. a stolen base noticed two pitches late. Projections fold in this logical order,
+    ///not recording order.
+    final String? effectiveAfter;
     final String gameId;
     
     ///UUIDv7, generated on device
@@ -80,6 +100,7 @@ class GameEvent {
         this.corrects,
         required this.createdBy,
         required this.deviceId,
+        this.effectiveAfter,
         required this.gameId,
         required this.id,
         required this.payload,
@@ -92,6 +113,7 @@ class GameEvent {
         corrects: json["corrects"],
         createdBy: json["createdBy"],
         deviceId: json["deviceId"],
+        effectiveAfter: json["effectiveAfter"],
         gameId: json["gameId"],
         id: json["id"],
         payload: Map.from(json["payload"]).map((k, v) => MapEntry<String, dynamic>(k, v)),
@@ -104,6 +126,7 @@ class GameEvent {
         "corrects": corrects,
         "createdBy": createdBy,
         "deviceId": deviceId,
+        "effectiveAfter": effectiveAfter,
         "gameId": gameId,
         "id": id,
         "payload": Map.from(payload).map((k, v) => MapEntry<String, dynamic>(k, v)),
@@ -342,6 +365,151 @@ final touchTypeValues = EnumValues({
 });
 
 
+///Explicit half-inning close (spec §4.4). 'three_outs' is auto-implied by the fold once
+///outs reach 3 and doesn't require this event to appear. Any other reason is authoritative
+///and closes the half even with fewer than 3 outs.
+class InningHalfEnd {
+    final InningHalfEndReason reason;
+
+    InningHalfEnd({
+        required this.reason,
+    });
+
+    factory InningHalfEnd.fromJson(Map<String, dynamic> json) => InningHalfEnd(
+        reason: inningHalfEndReasonValues.map[json["reason"]]!,
+    );
+
+    Map<String, dynamic> toJson() => {
+        "reason": inningHalfEndReasonValues.reverse[reason],
+    };
+}
+
+enum InningHalfEndReason {
+    COACH_AGREEMENT,
+    MERCY,
+    OTHER,
+    RUN_CAP,
+    SUSPENDED,
+    THREE_OUTS,
+    TIME_LIMIT,
+    WALKOFF
+}
+
+final inningHalfEndReasonValues = EnumValues({
+    "coach_agreement": InningHalfEndReason.COACH_AGREEMENT,
+    "mercy": InningHalfEndReason.MERCY,
+    "other": InningHalfEndReason.OTHER,
+    "run_cap": InningHalfEndReason.RUN_CAP,
+    "suspended": InningHalfEndReason.SUSPENDED,
+    "three_outs": InningHalfEndReason.THREE_OUTS,
+    "time_limit": InningHalfEndReason.TIME_LIMIT,
+    "walkoff": InningHalfEndReason.WALKOFF
+});
+
+
+///Derived state checkpoint boundary (spec §4.4, §7). Marks the start of a half-inning;
+///count/outs/bases always reset to empty here. The optional snapshot is a performance cache
+///of cumulative state — never truth, always reproducible by folding from genesis.
+class InningHalfStart {
+    final String battingTeamId;
+    final Half half;
+    final int inning;
+    final GameStateSnapshot? snapshot;
+
+    InningHalfStart({
+        required this.battingTeamId,
+        required this.half,
+        required this.inning,
+        this.snapshot,
+    });
+
+    factory InningHalfStart.fromJson(Map<String, dynamic> json) => InningHalfStart(
+        battingTeamId: json["battingTeamId"],
+        half: halfValues.map[json["half"]]!,
+        inning: json["inning"],
+        snapshot: json["snapshot"] == null ? null : GameStateSnapshot.fromJson(json["snapshot"]),
+    );
+
+    Map<String, dynamic> toJson() => {
+        "battingTeamId": battingTeamId,
+        "half": halfValues.reverse[half],
+        "inning": inning,
+        "snapshot": snapshot?.toJson(),
+    };
+}
+
+enum Half {
+    BOTTOM,
+    TOP
+}
+
+final halfValues = EnumValues({
+    "bottom": Half.BOTTOM,
+    "top": Half.TOP
+});
+
+
+///Cumulative game state carried into a half-inning (spec §7). Cache only — always
+///reproducible by folding from genesis. Per-half state (count, outs, bases) is deliberately
+///excluded: it always resets to empty at a half-inning boundary, so caching it would be
+///redundant.
+class GameStateSnapshot {
+    
+    ///teamId -> index into that team's LineupSet.battingOrder for the next batter due
+    final Map<String, int> nextBatterIndexByTeam;
+    
+    ///pitcherId -> total pitches thrown so far this game
+    final Map<String, int> pitchCountByPitcher;
+    
+    ///teamId -> runs scored so far
+    final Map<String, int> runsByTeam;
+
+    GameStateSnapshot({
+        required this.nextBatterIndexByTeam,
+        required this.pitchCountByPitcher,
+        required this.runsByTeam,
+    });
+
+    factory GameStateSnapshot.fromJson(Map<String, dynamic> json) => GameStateSnapshot(
+        nextBatterIndexByTeam: Map.from(json["nextBatterIndexByTeam"]).map((k, v) => MapEntry<String, int>(k, v)),
+        pitchCountByPitcher: Map.from(json["pitchCountByPitcher"]).map((k, v) => MapEntry<String, int>(k, v)),
+        runsByTeam: Map.from(json["runsByTeam"]).map((k, v) => MapEntry<String, int>(k, v)),
+    );
+
+    Map<String, dynamic> toJson() => {
+        "nextBatterIndexByTeam": Map.from(nextBatterIndexByTeam).map((k, v) => MapEntry<String, dynamic>(k, v)),
+        "pitchCountByPitcher": Map.from(pitchCountByPitcher).map((k, v) => MapEntry<String, dynamic>(k, v)),
+        "runsByTeam": Map.from(runsByTeam).map((k, v) => MapEntry<String, dynamic>(k, v)),
+    };
+}
+
+
+///Initial batting order for one team (spec §4.4). Batter-due is derived from this plus
+///completed-plate-appearance counts on every fold — never cached positionally — so
+///BattingOrderAdjusted (M2) slots in without refactor.
+class LineupSet {
+    
+    ///playerIds in batting order
+    final List<String> battingOrder;
+    final String teamId;
+
+    LineupSet({
+        required this.battingOrder,
+        required this.teamId,
+    });
+
+    factory LineupSet.fromJson(Map<String, dynamic> json) => LineupSet(
+        battingOrder: List<String>.from(json["battingOrder"].map((x) => x)),
+        teamId: json["teamId"],
+    );
+
+    Map<String, dynamic> toJson() => {
+        "battingOrder": List<dynamic>.from(battingOrder.map((x) => x)),
+        "teamId": teamId,
+    };
+}
+
+
 ///One per pitch, always (spec §4.1). intended* = the call; actual* = reality.
 ///actualLocation required only when location capture is ON (§12.4).
 class PitchThrown {
@@ -568,7 +736,7 @@ class RunnerAdvance {
     ///FielderTouch that enabled this advance (§13.1)
     final String? enabledByTouchId;
     final int from;
-    final Reason reason;
+    final RunnerAdvanceReason reason;
     final String runnerId;
     final int to;
 
@@ -585,7 +753,7 @@ class RunnerAdvance {
         enabledByCallId: json["enabledByCallId"],
         enabledByTouchId: json["enabledByTouchId"],
         from: json["from"],
-        reason: reasonValues.map[json["reason"]]!,
+        reason: runnerAdvanceReasonValues.map[json["reason"]]!,
         runnerId: json["runnerId"],
         to: json["to"],
     );
@@ -594,13 +762,13 @@ class RunnerAdvance {
         "enabledByCallId": enabledByCallId,
         "enabledByTouchId": enabledByTouchId,
         "from": from,
-        "reason": reasonValues.reverse[reason],
+        "reason": runnerAdvanceReasonValues.reverse[reason],
         "runnerId": runnerId,
         "to": to,
     };
 }
 
-enum Reason {
+enum RunnerAdvanceReason {
     AWARDED,
     BALK,
     BATTED_BALL,
@@ -620,24 +788,24 @@ enum Reason {
     WILD_THROW
 }
 
-final reasonValues = EnumValues({
-    "awarded": Reason.AWARDED,
-    "balk": Reason.BALK,
-    "batted_ball": Reason.BATTED_BALL,
-    "catcher_interference": Reason.CATCHER_INTERFERENCE,
-    "defensive_indifference": Reason.DEFENSIVE_INDIFFERENCE,
-    "dropped_third_strike": Reason.DROPPED_THIRD_STRIKE,
-    "error": Reason.ERROR,
-    "fielders_choice": Reason.FIELDERS_CHOICE,
-    "ground_rule": Reason.GROUND_RULE,
-    "hbp": Reason.HBP,
-    "illegal_pitch": Reason.ILLEGAL_PITCH,
-    "obstruction": Reason.OBSTRUCTION,
-    "passed_ball": Reason.PASSED_BALL,
-    "stolen_base": Reason.STOLEN_BASE,
-    "walk": Reason.WALK,
-    "wild_pitch": Reason.WILD_PITCH,
-    "wild_throw": Reason.WILD_THROW
+final runnerAdvanceReasonValues = EnumValues({
+    "awarded": RunnerAdvanceReason.AWARDED,
+    "balk": RunnerAdvanceReason.BALK,
+    "batted_ball": RunnerAdvanceReason.BATTED_BALL,
+    "catcher_interference": RunnerAdvanceReason.CATCHER_INTERFERENCE,
+    "defensive_indifference": RunnerAdvanceReason.DEFENSIVE_INDIFFERENCE,
+    "dropped_third_strike": RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
+    "error": RunnerAdvanceReason.ERROR,
+    "fielders_choice": RunnerAdvanceReason.FIELDERS_CHOICE,
+    "ground_rule": RunnerAdvanceReason.GROUND_RULE,
+    "hbp": RunnerAdvanceReason.HBP,
+    "illegal_pitch": RunnerAdvanceReason.ILLEGAL_PITCH,
+    "obstruction": RunnerAdvanceReason.OBSTRUCTION,
+    "passed_ball": RunnerAdvanceReason.PASSED_BALL,
+    "stolen_base": RunnerAdvanceReason.STOLEN_BASE,
+    "walk": RunnerAdvanceReason.WALK,
+    "wild_pitch": RunnerAdvanceReason.WILD_PITCH,
+    "wild_throw": RunnerAdvanceReason.WILD_THROW
 });
 
 

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/common/game_state_snapshot.schema.json",
+  "title": "GameStateSnapshot",
+  "description": "Cumulative game state carried into a half-inning (spec §7). Cache only — always reproducible by folding from genesis. Per-half state (count, outs, bases) is deliberately excluded: it always resets to empty at a half-inning boundary, so caching it would be redundant.",
+  "type": "object",
+  "properties": {
+    "runsByTeam": {
+      "type": "object",
+      "description": "teamId -> runs scored so far",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "nextBatterIndexByTeam": {
+      "type": "object",
+      "description": "teamId -> index into that team's LineupSet.battingOrder for the next batter due",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "pitchCountByPitcher": {
+      "type": "object",
+      "description": "pitcherId -> total pitches thrown so far this game",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    }
+  },
+  "required": ["runsByTeam", "nextBatterIndexByTeam", "pitchCountByPitcher"],
+  "additionalProperties": false
+}
