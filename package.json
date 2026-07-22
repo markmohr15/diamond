@@ -1,0 +1,7 @@
+{
+  "name": "diamond",
+  "private": true,
+  "scripts": {
+    "codegen": "npm --prefix tools/codegen run codegen"
+  }
+}

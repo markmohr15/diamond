@@ -4,5 +4,8 @@
   "type": "module",
   "scripts": {
     "codegen": "node generate.mjs"
+  },
+  "devDependencies": {
+    "quicktype": "26.0.0"
   }
 }
