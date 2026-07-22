@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(app/test/**)",
+      "Write(app/test/**)",
+      "Edit(app/integration_test/**)",
+      "Write(app/integration_test/**)",
+      "Edit(server/test/**)",
+      "Write(server/test/**)"
+    ]
+  }
+}

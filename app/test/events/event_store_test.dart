@@ -1,6 +1,6 @@
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/event_store.dart';
-import 'package:diamond/src/events/temp_types.dart';
+import 'package:diamond/src/events/generated/events.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,8 +74,8 @@ void main() {
       _event(
         id: 'void-a',
         wallClock: t0.add(const Duration(seconds: 2)),
-        type: EventTypes.voidEvent,
-        payload: const VoidEventPayload(targetId: 'a').toJson(),
+        type: 'VoidEvent',
+        payload: VoidEvent(targetId: 'a').toJson(),
       ),
     );
 
@@ -151,8 +151,8 @@ void main() {
         _event(
           id: 'void-b',
           wallClock: t0.add(const Duration(seconds: 2)),
-          type: EventTypes.voidEvent,
-          payload: const VoidEventPayload(targetId: 'b').toJson(),
+          type: 'VoidEvent',
+          payload: VoidEvent(targetId: 'b').toJson(),
         ),
       );
 

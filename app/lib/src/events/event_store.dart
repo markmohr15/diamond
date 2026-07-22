@@ -1,13 +1,15 @@
 import 'dart:convert';
 
 import 'package:diamond/src/events/database/app_database.dart';
-import 'package:diamond/src/events/temp_types.dart';
+import 'package:diamond/src/events/generated/events.dart';
 import 'package:drift/drift.dart';
 
 /// Append-only event store (spec §2, §6). Wraps [AppDatabase]; exposes only
 /// append + read — there is no update or delete, by design.
 class EventStore {
   EventStore(this._db);
+
+  static const _voidEventType = 'VoidEvent';
 
   final AppDatabase _db;
 
@@ -88,8 +90,8 @@ class EventStore {
 
     final voidedRoots = <String>{};
     for (final e in ordered) {
-      if (e.type == EventTypes.voidEvent) {
-        final target = VoidEventPayload.fromJson(e.payload).targetId;
+      if (e.type == _voidEventType) {
+        final target = VoidEvent.fromJson(e.payload).targetId;
         if (byId.containsKey(target)) {
           voidedRoots.add(rootOf(target));
         }
@@ -98,7 +100,7 @@ class EventStore {
 
     final resolved = <GameEvent>[];
     for (final e in ordered) {
-      if (e.type == EventTypes.voidEvent) continue;
+      if (e.type == _voidEventType) continue;
       if (e.corrects != null) continue; // only shown via its chain's root
       if (voidedRoots.contains(e.id)) continue;
       resolved.add(byId[headOf(e.id)]!);

@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/event_store.dart';
-import 'package:diamond/src/events/temp_types.dart';
+import 'package:diamond/src/events/generated/events.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;

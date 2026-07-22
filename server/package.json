@@ -1,0 +1,11 @@
+{
+  "name": "@diamond/server",
+  "private": true,
+  "description": "Milestone 2+. Thin auth/ingest/relay service — see CLAUDE.md. This package.json exists early so CI can type-check codegen's generated TypeScript output (DIA-002); real server scaffolding lands in M2.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

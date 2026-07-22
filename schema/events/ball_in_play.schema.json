@@ -9,7 +9,9 @@
     "fair":            { "type": "boolean" },
     "trajectory":      { "enum": ["ground", "line", "fly", "popup", "bunt"] },
     "contactQuality":  { "enum": ["weak", "average", "hard"] },
-    "landing":         { "$ref": "../common/field_coord.schema.json" },
+    "landing":         { "$ref": "../common/field_coord.schema.json", "description": "first contact: where it landed, hit the wall, or met a glove (§15.1)" },
+    "retrieved":       { "$ref": "../common/field_coord.schema.json", "description": "where a fielder finally gained possession, when meaningfully different from landing (§15.1). Absent = same as landing." },
+    "offWall":         { "type": "boolean", "description": "hit the fence on the fly (§15.1, §16.2)" },
     "landingIsCaught": { "type": "boolean" }
   },
   "required": ["pitchEventId", "fair", "trajectory", "landing", "landingIsCaught"],

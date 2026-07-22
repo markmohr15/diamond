@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  codegen-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install codegen dependencies
+        run: npm ci
+        working-directory: tools/codegen
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Run codegen
+        run: npm run codegen
+
+      - name: Fail if codegen output drifted from committed files
+        run: git diff --exit-code -- app/lib/src/events/generated server/src/events/generated
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: flutter pub get
+        run: flutter pub get
+        working-directory: app
+
+      - name: flutter analyze
+        run: flutter analyze
+        working-directory: app
+
+      - name: flutter test
+        run: flutter test
+        working-directory: app
+
+      - name: TypeScript type-check generated server types
+        run: npm run typecheck
+        working-directory: server
