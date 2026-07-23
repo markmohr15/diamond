@@ -67,6 +67,8 @@ GameState _foldInningHalfStart(GameState state, GameEvent event) {
     strikes: 0,
     uncertainCount: false,
     pendingSpanEvents: const [],
+    spanStartBalls: 0,
+    spanStartStrikes: 0,
     outs: 0,
     inning: payload.inning,
     half: payload.half,
@@ -87,6 +89,8 @@ GameState _foldInningHalfStart(GameState state, GameEvent event) {
       nextBatterIndexByTeam:
           Map<String, int>.from(snapshot.nextBatterIndexByTeam),
       pitchCountByPitcher: Map<String, int>.from(snapshot.pitchCountByPitcher),
+      inferredPitchEffects:
+          Map<String, InferredPitchEffect>.from(snapshot.inferredPitchEffects),
     );
   }
 
@@ -109,6 +113,8 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
       strikes: 0,
       uncertainCount: false,
       pendingSpanEvents: const [],
+      spanStartBalls: 0,
+      spanStartStrikes: 0,
       currentBatterId: payload.batterId,
     );
   }
@@ -149,6 +155,8 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
       strikes: 0,
       uncertainCount: false,
       pendingSpanEvents: const [],
+      spanStartBalls: 0,
+      spanStartStrikes: 0,
       currentBatterId: null,
     );
   }
@@ -159,10 +167,12 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
 GameState _foldCountCorrection(GameState state, GameEvent event) {
   final payload = CountCorrection.fromJson(event.payload);
 
+  // Replay starts at the span's certain base — state.balls/strikes already
+  // include the span's known pitches, which the replay applies itself.
   final inferred = inferBackward(
     span: state.pendingSpanEvents,
-    startBalls: state.balls,
-    startStrikes: state.strikes,
+    startBalls: state.spanStartBalls,
+    startStrikes: state.spanStartStrikes,
     checkpointBalls: payload.balls,
     checkpointStrikes: payload.strikes,
   );
@@ -176,6 +186,8 @@ GameState _foldCountCorrection(GameState state, GameEvent event) {
     strikes: payload.strikes,
     uncertainCount: false,
     pendingSpanEvents: const [],
+    spanStartBalls: payload.balls,
+    spanStartStrikes: payload.strikes,
     inferredPitchEffects: effects,
   );
 }

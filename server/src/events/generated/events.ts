@@ -176,6 +176,12 @@ export type Half = "top" | "bottom";
  */
 export interface GameStateSnapshot {
     /**
+     * pitch event id -> count effect that a CountCorrection's back-inference resolved uniquely
+     * (spec §12.5). Cumulative across halves like the other fields; empty when no inference has
+     * occurred.
+     */
+    inferredPitchEffects: { [key: string]: InferredPitchEffect };
+    /**
      * teamId -> index into that team's LineupSet.battingOrder for the next batter due
      */
     nextBatterIndexByTeam: { [key: string]: number };
@@ -188,6 +194,8 @@ export interface GameStateSnapshot {
      */
     runsByTeam: { [key: string]: number };
 }
+
+export type InferredPitchEffect = "ball" | "strike_effect";
 
 /**
  * Initial batting order for one team (spec §4.4). Batter-due is derived from this plus
@@ -614,6 +622,7 @@ const typeMap: any = {
         { json: "snapshot", js: "snapshot", typ: u(undefined, r("GameStateSnapshot")) },
     ], false),
     "GameStateSnapshot": o([
+        { json: "inferredPitchEffects", js: "inferredPitchEffects", typ: m(r("InferredPitchEffect")) },
         { json: "nextBatterIndexByTeam", js: "nextBatterIndexByTeam", typ: m(0) },
         { json: "pitchCountByPitcher", js: "pitchCountByPitcher", typ: m(0) },
         { json: "runsByTeam", js: "runsByTeam", typ: m(0) },
@@ -708,6 +717,10 @@ const typeMap: any = {
     "Half": [
         "bottom",
         "top",
+    ],
+    "InferredPitchEffect": [
+        "ball",
+        "strike_effect",
     ],
     "BatterAction": [
         "fake_slap",

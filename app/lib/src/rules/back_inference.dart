@@ -1,5 +1,4 @@
 import 'package:diamond/src/events/generated/events.dart';
-import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
 
 /// Attempts to retroactively resolve every `unknown`-outcome pitch in
@@ -11,6 +10,11 @@ import 'package:diamond/src/rules/pitch_count_effect.dart';
 /// start, or the previous `CountCorrection` in this AB) up to and including
 /// the pitch immediately before the checkpoint, in logical order — knowns
 /// and unknowns interleaved exactly as they occurred.
+///
+/// [startBalls]/[startStrikes] are the certain count at the *start* of
+/// [span], before any span event (known or unknown) has been applied — the
+/// replay applies the span's known pitches itself, so passing a count that
+/// already includes them would apply those knowns twice.
 ///
 /// ## Why enumerate instead of a closed-form check
 ///
@@ -50,9 +54,9 @@ import 'package:diamond/src/rules/pitch_count_effect.dart';
 /// Returns `null` when inference isn't possible or isn't safe to record —
 /// including the rare case where the one matching candidate assigns a
 /// pitch to a no-effect foul (at 2 strikes already): there's no count
-/// effect to record for that pitch (see [InferredCountEffect]), so rather
+/// effect to record for that pitch (see [InferredPitchEffect]), so rather
 /// than record a partial answer, this refuses the whole span.
-Map<String, InferredCountEffect>? inferBackward({
+Map<String, InferredPitchEffect>? inferBackward({
   required List<GameEvent> span,
   required int startBalls,
   required int startStrikes,
@@ -101,7 +105,7 @@ class _Candidate {
 
   final int balls;
   final int strikes;
-  final Map<String, InferredCountEffect> effects;
+  final Map<String, InferredPitchEffect> effects;
   final bool hasUnrecordableNoOp;
 }
 
@@ -116,7 +120,7 @@ _Candidate? _replay({
   required int balls,
   required int strikes,
 }) {
-  final effects = <String, InferredCountEffect>{};
+  final effects = <String, InferredPitchEffect>{};
   var hasUnrecordableNoOp = false;
   var runningBalls = balls;
   var runningStrikes = strikes;
@@ -136,9 +140,9 @@ _Candidate? _replay({
 
     if (isUnknown) {
       if (outcome == Outcome.BALL) {
-        effects[event.id] = InferredCountEffect.ball;
+        effects[event.id] = InferredPitchEffect.BALL;
       } else if (effect.strikesAdvanced) {
-        effects[event.id] = InferredCountEffect.strikeEffect;
+        effects[event.id] = InferredPitchEffect.STRIKE_EFFECT;
       } else {
         hasUnrecordableNoOp = true;
       }

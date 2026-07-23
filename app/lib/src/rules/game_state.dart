@@ -1,11 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
 
-/// The count-effect a retroactively-inferred unknown pitch is assigned
-/// (spec §12.5). Never a fabricated [PitchThrown] outcome — we don't claim
-/// to know whether it was a called strike, a swinging strike, or a foul,
-/// only which side of the count it moved.
-enum InferredCountEffect { ball, strikeEffect }
-
 /// Occupied bases, keyed by runner. Cleared/moved only by [RunnerOut] and
 /// [RunnerAdvance] — never inferred from a [PitchThrown] outcome.
 class BaseState {
@@ -42,6 +36,7 @@ class BaseState {
 
   /// Field-by-field comparison — not `operator ==`, so this class doesn't
   /// need an `@immutable` annotation (and the `meta` dependency that'd add).
+  /// Test-only: not used by production code, only by projector assertions.
   bool sameAs(BaseState other) =>
       first == other.first && second == other.second && third == other.third;
 
@@ -62,6 +57,8 @@ class GameState {
     this.strikes = 0,
     this.uncertainCount = false,
     this.pendingSpanEvents = const [],
+    this.spanStartBalls = 0,
+    this.spanStartStrikes = 0,
     this.inferredPitchEffects = const {},
     this.outs = 0,
     this.inning = 1,
@@ -91,8 +88,20 @@ class GameState {
   /// cleared at the next AB boundary or CountCorrection either way.
   final List<GameEvent> pendingSpanEvents;
 
-  /// Pitch event ids a CountCorrection's back-inference resolved uniquely.
-  final Map<String, InferredCountEffect> inferredPitchEffects;
+  /// The certain count at the start of [pendingSpanEvents]: 0-0 at an AB
+  /// boundary, the checkpoint's values after a CountCorrection. Back-
+  /// inference must replay the span from here — not from [balls]/[strikes],
+  /// which already include every known pitch in the span, so replaying
+  /// from them would apply those knowns twice.
+  final int spanStartBalls;
+  final int spanStartStrikes;
+
+  /// Pitch event ids a CountCorrection's back-inference resolved uniquely,
+  /// to the schema-defined [InferredPitchEffect] (spec §12.5). Never a
+  /// fabricated [PitchThrown] outcome — we don't claim to know whether it
+  /// was a called strike, a swinging strike, or a foul, only which side of
+  /// the count it moved.
+  final Map<String, InferredPitchEffect> inferredPitchEffects;
 
   final int outs;
   final int inning;
@@ -130,7 +139,9 @@ class GameState {
     int? strikes,
     bool? uncertainCount,
     List<GameEvent>? pendingSpanEvents,
-    Map<String, InferredCountEffect>? inferredPitchEffects,
+    int? spanStartBalls,
+    int? spanStartStrikes,
+    Map<String, InferredPitchEffect>? inferredPitchEffects,
     int? outs,
     int? inning,
     Object? half = _unset,
@@ -150,6 +161,8 @@ class GameState {
       strikes: strikes ?? this.strikes,
       uncertainCount: uncertainCount ?? this.uncertainCount,
       pendingSpanEvents: pendingSpanEvents ?? this.pendingSpanEvents,
+      spanStartBalls: spanStartBalls ?? this.spanStartBalls,
+      spanStartStrikes: spanStartStrikes ?? this.spanStartStrikes,
       inferredPitchEffects: inferredPitchEffects ?? this.inferredPitchEffects,
       outs: outs ?? this.outs,
       inning: inning ?? this.inning,

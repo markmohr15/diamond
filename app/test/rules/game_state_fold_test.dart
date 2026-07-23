@@ -1,5 +1,4 @@
 import 'package:diamond/src/events/generated/events.dart';
-import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -314,8 +313,103 @@ void main() {
       );
       expect(
         state.inferredPitchEffects['b-unknown'],
-        InferredCountEffect.ball,
+        InferredPitchEffect.BALL,
       );
+    },
+  );
+
+  test(
+    'back-inference replays known span pitches from the span-start count, '
+    'not the current count',
+    () {
+      // 0-0: unknown pitch, then a KNOWN called strike (count now 0-1,
+      // both pitches in the span). Checkpoint 1-1 — from the span start of
+      // 0-0, only u1=ball explains it: ball -> 1-0, strike -> 1-1.
+      // Regression: replaying from the current count (0-1) applies the
+      // known strike twice and wrongly refuses to infer.
+      final b = EventBuilder();
+      final events = [
+        b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
+        b.inningHalfStart(
+          id: 'half1',
+          inning: 1,
+          half: Half.BOTTOM,
+          battingTeamId: 'home',
+        ),
+        b.pitch(
+          id: 'u1',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.UNKNOWN,
+        ),
+        b.pitch(
+          id: 'k1',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.CALLED_STRIKE,
+        ),
+        b.countCorrection(id: 'cc', balls: 1, strikes: 1),
+      ];
+
+      final state = foldGameState(events);
+
+      expect(state.inferredPitchEffects['u1'], InferredPitchEffect.BALL);
+      expect(state.balls, 1);
+      expect(state.strikes, 1);
+      expect(state.uncertainCount, isFalse);
+    },
+  );
+
+  test(
+    'known-foul path-dependence through the full fold: two histories '
+    'reach the checkpoint, so nothing is inferred',
+    () {
+      // Known called strike (0-1), unknown, known foul, unknown,
+      // checkpoint 1-2. From the span start of 0-0 two histories fit:
+      // u1=foul -> 0-2, foul no-ops, u2=ball -> 1-2; or u1=ball -> 1-1,
+      // foul counts -> 1-2, u2=no-op foul -> 1-2. Must refuse both.
+      final b = EventBuilder();
+      final events = [
+        b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
+        b.inningHalfStart(
+          id: 'half1',
+          inning: 1,
+          half: Half.BOTTOM,
+          battingTeamId: 'home',
+        ),
+        b.pitch(
+          id: 'k0',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.CALLED_STRIKE,
+        ),
+        b.pitch(
+          id: 'u1',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.UNKNOWN,
+        ),
+        b.pitch(
+          id: 'kf',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.FOUL,
+        ),
+        b.pitch(
+          id: 'u2',
+          batterId: 'h1',
+          pitcherId: 'p',
+          outcome: Outcome.UNKNOWN,
+        ),
+        b.countCorrection(id: 'cc', balls: 1, strikes: 2),
+      ];
+
+      final state = foldGameState(events);
+
+      expect(state.inferredPitchEffects, isEmpty);
+      expect(state.balls, 1);
+      expect(state.strikes, 2);
+      expect(state.uncertainCount, isFalse, reason: 'checkpoint clears it');
     },
   );
 
@@ -336,6 +430,7 @@ void main() {
           runsByTeam: const {'home': 4, 'away': 2},
           nextBatterIndexByTeam: const {'home': 2},
           pitchCountByPitcher: const {'p': 37},
+          inferredPitchEffects: const {'u9': InferredPitchEffect.BALL},
         ),
       ),
     ];
@@ -345,6 +440,7 @@ void main() {
     expect(state.runsByTeam['home'], 4);
     expect(state.runsByTeam['away'], 2);
     expect(state.pitchCountByPitcher['p'], 37);
+    expect(state.inferredPitchEffects['u9'], InferredPitchEffect.BALL);
     // Per-half state still resets regardless of the snapshot.
     expect(state.outs, 0);
     expect(state.balls, 0);

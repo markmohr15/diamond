@@ -40,7 +40,30 @@ List<GameEvent> _gameEvents(EventBuilder b) {
       battingTeamId: 'away',
     ),
 
-    ...strikeout('a1', 'p1', 'a1-out'),
+    // a1: an unknown first pitch resolved by a checkpoint — from 0-0 only
+    // a foul reaches 0-1, so back-inference marks it strike_effect. This
+    // inferred effect must survive into the snapshot fast path below.
+    b.pitch(
+      id: 'a1-u',
+      batterId: 'a1',
+      pitcherId: 'p1',
+      outcome: Outcome.UNKNOWN,
+    ),
+    b.countCorrection(id: 'a1-cc', balls: 0, strikes: 1),
+    b.pitch(
+      id: 'a1-s2',
+      batterId: 'a1',
+      pitcherId: 'p1',
+      outcome: Outcome.CALLED_STRIKE,
+    ),
+    b.pitch(
+      id: 'a1-s3',
+      batterId: 'a1',
+      pitcherId: 'p1',
+      outcome: Outcome.CALLED_STRIKE,
+    ),
+    b.runnerOut(id: 'a1-out', runnerId: 'a1', atBase: 1, how: How.STRIKEOUT),
+
     ...strikeout('a2', 'p1', 'a2-out'),
     // a3's strikeout is the third out — the half ends automatically.
     ...strikeout('a3', 'p1', 'a3-out'),
@@ -59,6 +82,9 @@ List<GameEvent> _gameEvents(EventBuilder b) {
         runsByTeam: const {'away': 0},
         nextBatterIndexByTeam: const {'away': 3},
         pitchCountByPitcher: const {'p1': 9},
+        inferredPitchEffects: const {
+          'a1-u': InferredPitchEffect.STRIKE_EFFECT,
+        },
       ),
     ),
 

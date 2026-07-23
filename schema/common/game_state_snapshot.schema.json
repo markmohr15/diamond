@@ -19,8 +19,13 @@
       "type": "object",
       "description": "pitcherId -> total pitches thrown so far this game",
       "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "inferredPitchEffects": {
+      "type": "object",
+      "description": "pitch event id -> count effect that a CountCorrection's back-inference resolved uniquely (spec §12.5). Cumulative across halves like the other fields; empty when no inference has occurred.",
+      "additionalProperties": { "type": "string", "enum": ["ball", "strike_effect"] }
     }
   },
-  "required": ["runsByTeam", "nextBatterIndexByTeam", "pitchCountByPitcher"],
+  "required": ["runsByTeam", "nextBatterIndexByTeam", "pitchCountByPitcher", "inferredPitchEffects"],
   "additionalProperties": false
 }

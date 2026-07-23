@@ -1,6 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/rules/back_inference.dart';
-import 'package:diamond/src/rules/game_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'test_helpers.dart';
@@ -33,8 +32,8 @@ void main() {
       );
 
       expect(result, {
-        'u1': InferredCountEffect.strikeEffect,
-        'u2': InferredCountEffect.strikeEffect,
+        'u1': InferredPitchEffect.STRIKE_EFFECT,
+        'u2': InferredPitchEffect.STRIKE_EFFECT,
       });
     },
   );
@@ -147,7 +146,7 @@ void main() {
         checkpointStrikes: 2,
       );
 
-      expect(result, {'u1': InferredCountEffect.strikeEffect});
+      expect(result, {'u1': InferredPitchEffect.STRIKE_EFFECT});
     },
   );
 }

@@ -455,6 +455,11 @@ final halfValues = EnumValues({
 ///redundant.
 class GameStateSnapshot {
     
+    ///pitch event id -> count effect that a CountCorrection's back-inference resolved uniquely
+    ///(spec §12.5). Cumulative across halves like the other fields; empty when no inference has
+    ///occurred.
+    final Map<String, InferredPitchEffect> inferredPitchEffects;
+    
     ///teamId -> index into that team's LineupSet.battingOrder for the next batter due
     final Map<String, int> nextBatterIndexByTeam;
     
@@ -465,23 +470,36 @@ class GameStateSnapshot {
     final Map<String, int> runsByTeam;
 
     GameStateSnapshot({
+        required this.inferredPitchEffects,
         required this.nextBatterIndexByTeam,
         required this.pitchCountByPitcher,
         required this.runsByTeam,
     });
 
     factory GameStateSnapshot.fromJson(Map<String, dynamic> json) => GameStateSnapshot(
+        inferredPitchEffects: Map.from(json["inferredPitchEffects"]).map((k, v) => MapEntry<String, InferredPitchEffect>(k, inferredPitchEffectValues.map[v]!)),
         nextBatterIndexByTeam: Map.from(json["nextBatterIndexByTeam"]).map((k, v) => MapEntry<String, int>(k, v)),
         pitchCountByPitcher: Map.from(json["pitchCountByPitcher"]).map((k, v) => MapEntry<String, int>(k, v)),
         runsByTeam: Map.from(json["runsByTeam"]).map((k, v) => MapEntry<String, int>(k, v)),
     );
 
     Map<String, dynamic> toJson() => {
+        "inferredPitchEffects": Map.from(inferredPitchEffects).map((k, v) => MapEntry<String, dynamic>(k, inferredPitchEffectValues.reverse[v])),
         "nextBatterIndexByTeam": Map.from(nextBatterIndexByTeam).map((k, v) => MapEntry<String, dynamic>(k, v)),
         "pitchCountByPitcher": Map.from(pitchCountByPitcher).map((k, v) => MapEntry<String, dynamic>(k, v)),
         "runsByTeam": Map.from(runsByTeam).map((k, v) => MapEntry<String, dynamic>(k, v)),
     };
 }
+
+enum InferredPitchEffect {
+    BALL,
+    STRIKE_EFFECT
+}
+
+final inferredPitchEffectValues = EnumValues({
+    "ball": InferredPitchEffect.BALL,
+    "strike_effect": InferredPitchEffect.STRIKE_EFFECT
+});
 
 
 ///Initial batting order for one team (spec §4.4). Batter-due is derived from this plus
