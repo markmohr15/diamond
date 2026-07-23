@@ -5,7 +5,7 @@ scoring with pitch calling (wristband codes), pitch locations (intended AND actu
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.16). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.17). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -37,7 +37,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.16)
+docs/spec.md        authoritative spec (v0.17)
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)
 app/                Flutter app (created by ticket DIA-001; Drift, rules engine, projections, UI)
@@ -86,5 +86,6 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 ## Milestone 1 (current)
 
 **Score a half-inning of one game, locally, no backend:** event store + projection engine + rules engine
-passing all play fixtures + zone canvas + call screen + pitch loop + field canvas subset + one scripted
-end-to-end half-inning test. Tickets DIA-001 … DIA-009. Server work is out of scope until M2.
+passing all play fixtures + scoring overrides + zone canvas + call screen + pitch loop + field canvas
+subset + one scripted end-to-end half-inning test. Tickets DIA-001 … DIA-010. Server work is out of scope
+until M2.

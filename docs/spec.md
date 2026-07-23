@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.16)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.17)
 
-**Status:** Draft for review — v0.16 specifies two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -231,6 +231,11 @@ type AdminEvent =
   | RoleChanged         // primary/secondary transfer or capability grant (§12.2)
   | CaptureSettingsChanged  // toggles pitch-calling / location capture mid-game (§12.4)
   | CountCorrection     // authoritative count checkpoint: { balls, strikes } (§12.5)
+  | EarnedRunOverride   // scorer judgment overriding §13.3's earned/unearned
+                        //   derivation for one scored run: { runEventId, earned,
+                        //   note? } (§13.5)
+  | RbiOverride         // scorer judgment overriding RBI credit for one scored
+                        //   run: { runEventId, rbi, note? } (§13.5)
   | ScorerNote;         // free-text or tagged note pinned to the last event —
                         //   "squared up the rise ball", "limping after that AB"
 ```
@@ -487,7 +492,7 @@ v1 ships single-device (primary only) with capture toggles and count checkpoints
 |---|---|---|
 | **Physical record** | FielderTouch types, RunnerAdvance/Out links | dropped, booted, wild_throw; "runner took third *on that throw*" |
 | **Judgment** | one flag: `ordinaryEffort` on misplay touches | "she should have had it" vs. "diving attempt, no play" |
-| **Official scoring** | projection output, never entered | E5, hit vs. E, earned vs. unearned runs, 6-3 |
+| **Official scoring** | projection output, never entered *(narrow exception: §13.5)* | E5, hit vs. E, earned vs. unearned runs, 6-3 |
 
 The scorer's in-game workload is layer 1 plus an occasional one-tap override on layer 2. Layer 3 is free.
 
@@ -508,6 +513,15 @@ Earned-run determination requires reconstructing the inning as if errors and pas
 ### 13.4 Multi-Misplay Plays
 
 Nothing special is needed — that's the point. Booted grounder, then the recovery throw sails into the fence, batter ends up on third: `booted(SS)` → `wild_throw(SS)` → advances linked to each touch respectively. Two misplays, one fielder, correctly two errors (or one, if the boot gets judged a hit). The "Little League home run" is the same pattern with more links. Entry is just taps in sequence on the position diamond; attribution defaults to the most recent misplay and is adjustable by tapping the advance arrow then the enabling touch.
+
+### 13.5 Scoring Overrides
+
+§13.3's reconstruction covers the mechanically derivable cases, but earned-run and RBI rulings sometimes come down to a judgment call the rule book leaves to the official scorer's discretion — no amount of physical-record modeling reaches those, because there's nothing left to derive; a human has to decide. Rather than special-case those scenarios into the reconstruction algorithm (each one bends the "removes error-enabled advances" logic differently, and the list is open-ended), Diamond gives the scorer the same override pattern already established for the count (§12.5's `CountCorrection`): a narrow, explicit exception to "derive everything" (§1.3), entered as an event, not a mutation.
+
+- **`EarnedRunOverride { runEventId, earned, note? }`** — `runEventId` is the id of the scoring `RunnerAdvance{to: 4}` event. The projection uses the latest visible override for a given `runEventId` in place of the §13.3 derivation; with no override, derivation is untouched. Like every other event, it's flippable via the standard `corrects` chain and undoable via `VoidEvent` — no separate "clear override" mechanism needed.
+- **`RbiOverride { runEventId, rbi, note? }`** — same anchor and mechanics, for RBI credit on that specific run. Per-run rather than per-batter-total: a multi-run play can need one run's credit corrected without disturbing the others (a real official-scoring pattern — e.g. a run controversially ruled non-RBI on a play that still drove in a teammate).
+
+Both are deliberately **narrow**: they override one specific run's ruling, not a batter's whole line or a box-score total, and they carry forward the same guarantees as §13.1's derived layers — recomputable, explainable (the event inspector shows "overridden by scorer, see note" the same way it shows "unearned because E6"), and reversible. This is not a general-purpose box-score editor; a projection output that needs routine hand-correction is a sign the derivation itself is wrong and should be fixed, not routed around. These events exist for the genuine edge the rule book hands to judgment, not as an escape hatch from building the derivation correctly.
 
 ---
 
