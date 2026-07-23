@@ -116,6 +116,46 @@ class EventBuilder {
     );
   }
 
+  GameEvent ballInPlay({
+    required String id,
+    required String pitchEventId,
+    bool fair = true,
+    Trajectory trajectory = Trajectory.GROUND,
+    FieldCoord? landing,
+    bool landingIsCaught = false,
+  }) {
+    return make(
+      id: id,
+      type: 'BallInPlay',
+      payload: BallInPlay(
+        pitchEventId: pitchEventId,
+        fair: fair,
+        trajectory: trajectory,
+        landing: landing ?? FieldCoord(x: 0, y: 100),
+        landingIsCaught: landingIsCaught,
+      ).toJson(),
+    );
+  }
+
+  GameEvent fielderTouch({
+    required String id,
+    required String anchorEventId,
+    required int position,
+    required TouchType touchType,
+    bool? ordinaryEffort,
+  }) {
+    return make(
+      id: id,
+      type: 'FielderTouch',
+      payload: FielderTouch(
+        ballInPlayEventId: anchorEventId,
+        position: position,
+        touchType: touchType,
+        ordinaryEffort: ordinaryEffort,
+      ).toJson(),
+    );
+  }
+
   GameEvent lineupSet({
     required String id,
     required String teamId,
