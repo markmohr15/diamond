@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/inning_half_end.schema.json",
+  "title": "InningHalfEnd",
+  "description": "Explicit half-inning close (spec §4.4). 'three_outs' is auto-implied by the fold once outs reach 3 and doesn't require this event to appear. Any other reason is authoritative and closes the half even with fewer than 3 outs.",
+  "type": "object",
+  "properties": {
+    "reason": {
+      "enum": ["three_outs", "run_cap", "time_limit", "walkoff", "mercy", "coach_agreement", "suspended", "other"]
+    }
+  },
+  "required": ["reason"],
+  "additionalProperties": false
+}

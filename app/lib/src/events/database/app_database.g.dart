@@ -99,6 +99,17 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _effectiveAfterMeta = const VerificationMeta(
+    'effectiveAfter',
+  );
+  @override
+  late final GeneratedColumn<String> effectiveAfter = GeneratedColumn<String>(
+    'effective_after',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -110,6 +121,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type,
     payload,
     corrects,
+    effectiveAfter,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -190,6 +202,15 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         corrects.isAcceptableOrUnknown(data['corrects']!, _correctsMeta),
       );
     }
+    if (data.containsKey('effective_after')) {
+      context.handle(
+        _effectiveAfterMeta,
+        effectiveAfter.isAcceptableOrUnknown(
+          data['effective_after']!,
+          _effectiveAfterMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -235,6 +256,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.string,
         data['${effectivePrefix}corrects'],
       ),
+      effectiveAfter: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}effective_after'],
+      ),
     );
   }
 
@@ -254,6 +279,7 @@ class Event extends DataClass implements Insertable<Event> {
   final String type;
   final String payload;
   final String? corrects;
+  final String? effectiveAfter;
   const Event({
     required this.id,
     required this.gameId,
@@ -264,6 +290,7 @@ class Event extends DataClass implements Insertable<Event> {
     required this.type,
     required this.payload,
     this.corrects,
+    this.effectiveAfter,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -278,6 +305,9 @@ class Event extends DataClass implements Insertable<Event> {
     map['payload'] = Variable<String>(payload);
     if (!nullToAbsent || corrects != null) {
       map['corrects'] = Variable<String>(corrects);
+    }
+    if (!nullToAbsent || effectiveAfter != null) {
+      map['effective_after'] = Variable<String>(effectiveAfter);
     }
     return map;
   }
@@ -295,6 +325,9 @@ class Event extends DataClass implements Insertable<Event> {
       corrects: corrects == null && nullToAbsent
           ? const Value.absent()
           : Value(corrects),
+      effectiveAfter: effectiveAfter == null && nullToAbsent
+          ? const Value.absent()
+          : Value(effectiveAfter),
     );
   }
 
@@ -313,6 +346,7 @@ class Event extends DataClass implements Insertable<Event> {
       type: serializer.fromJson<String>(json['type']),
       payload: serializer.fromJson<String>(json['payload']),
       corrects: serializer.fromJson<String?>(json['corrects']),
+      effectiveAfter: serializer.fromJson<String?>(json['effectiveAfter']),
     );
   }
   @override
@@ -328,6 +362,7 @@ class Event extends DataClass implements Insertable<Event> {
       'type': serializer.toJson<String>(type),
       'payload': serializer.toJson<String>(payload),
       'corrects': serializer.toJson<String?>(corrects),
+      'effectiveAfter': serializer.toJson<String?>(effectiveAfter),
     };
   }
 
@@ -341,6 +376,7 @@ class Event extends DataClass implements Insertable<Event> {
     String? type,
     String? payload,
     Value<String?> corrects = const Value.absent(),
+    Value<String?> effectiveAfter = const Value.absent(),
   }) => Event(
     id: id ?? this.id,
     gameId: gameId ?? this.gameId,
@@ -351,6 +387,9 @@ class Event extends DataClass implements Insertable<Event> {
     type: type ?? this.type,
     payload: payload ?? this.payload,
     corrects: corrects.present ? corrects.value : this.corrects,
+    effectiveAfter: effectiveAfter.present
+        ? effectiveAfter.value
+        : this.effectiveAfter,
   );
   Event copyWithCompanion(EventsCompanion data) {
     return Event(
@@ -363,6 +402,9 @@ class Event extends DataClass implements Insertable<Event> {
       type: data.type.present ? data.type.value : this.type,
       payload: data.payload.present ? data.payload.value : this.payload,
       corrects: data.corrects.present ? data.corrects.value : this.corrects,
+      effectiveAfter: data.effectiveAfter.present
+          ? data.effectiveAfter.value
+          : this.effectiveAfter,
     );
   }
 
@@ -377,7 +419,8 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('wallClock: $wallClock, ')
           ..write('type: $type, ')
           ..write('payload: $payload, ')
-          ..write('corrects: $corrects')
+          ..write('corrects: $corrects, ')
+          ..write('effectiveAfter: $effectiveAfter')
           ..write(')'))
         .toString();
   }
@@ -393,6 +436,7 @@ class Event extends DataClass implements Insertable<Event> {
     type,
     payload,
     corrects,
+    effectiveAfter,
   );
   @override
   bool operator ==(Object other) =>
@@ -406,7 +450,8 @@ class Event extends DataClass implements Insertable<Event> {
           other.wallClock == this.wallClock &&
           other.type == this.type &&
           other.payload == this.payload &&
-          other.corrects == this.corrects);
+          other.corrects == this.corrects &&
+          other.effectiveAfter == this.effectiveAfter);
 }
 
 class EventsCompanion extends UpdateCompanion<Event> {
@@ -419,6 +464,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String> type;
   final Value<String> payload;
   final Value<String?> corrects;
+  final Value<String?> effectiveAfter;
   final Value<int> rowid;
   const EventsCompanion({
     this.id = const Value.absent(),
@@ -430,6 +476,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.type = const Value.absent(),
     this.payload = const Value.absent(),
     this.corrects = const Value.absent(),
+    this.effectiveAfter = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EventsCompanion.insert({
@@ -442,6 +489,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     required String type,
     required String payload,
     this.corrects = const Value.absent(),
+    this.effectiveAfter = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        gameId = Value(gameId),
@@ -461,6 +509,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? type,
     Expression<String>? payload,
     Expression<String>? corrects,
+    Expression<String>? effectiveAfter,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -473,6 +522,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (type != null) 'type': type,
       if (payload != null) 'payload': payload,
       if (corrects != null) 'corrects': corrects,
+      if (effectiveAfter != null) 'effective_after': effectiveAfter,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -487,6 +537,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<String>? type,
     Value<String>? payload,
     Value<String?>? corrects,
+    Value<String?>? effectiveAfter,
     Value<int>? rowid,
   }) {
     return EventsCompanion(
@@ -499,6 +550,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       type: type ?? this.type,
       payload: payload ?? this.payload,
       corrects: corrects ?? this.corrects,
+      effectiveAfter: effectiveAfter ?? this.effectiveAfter,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -533,6 +585,9 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (corrects.present) {
       map['corrects'] = Variable<String>(corrects.value);
     }
+    if (effectiveAfter.present) {
+      map['effective_after'] = Variable<String>(effectiveAfter.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -551,6 +606,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('type: $type, ')
           ..write('payload: $payload, ')
           ..write('corrects: $corrects, ')
+          ..write('effectiveAfter: $effectiveAfter, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -579,6 +635,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       required String type,
       required String payload,
       Value<String?> corrects,
+      Value<String?> effectiveAfter,
       Value<int> rowid,
     });
 typedef $$EventsTableUpdateCompanionBuilder =
@@ -592,6 +649,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<String> type,
       Value<String> payload,
       Value<String?> corrects,
+      Value<String?> effectiveAfter,
       Value<int> rowid,
     });
 
@@ -646,6 +704,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get corrects => $composableBuilder(
     column: $table.corrects,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get effectiveAfter => $composableBuilder(
+    column: $table.effectiveAfter,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -703,6 +766,11 @@ class $$EventsTableOrderingComposer
     column: $table.corrects,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get effectiveAfter => $composableBuilder(
+    column: $table.effectiveAfter,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EventsTableAnnotationComposer
@@ -740,6 +808,11 @@ class $$EventsTableAnnotationComposer
 
   GeneratedColumn<String> get corrects =>
       $composableBuilder(column: $table.corrects, builder: (column) => column);
+
+  GeneratedColumn<String> get effectiveAfter => $composableBuilder(
+    column: $table.effectiveAfter,
+    builder: (column) => column,
+  );
 }
 
 class $$EventsTableTableManager
@@ -779,6 +852,7 @@ class $$EventsTableTableManager
                 Value<String> type = const Value.absent(),
                 Value<String> payload = const Value.absent(),
                 Value<String?> corrects = const Value.absent(),
+                Value<String?> effectiveAfter = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventsCompanion(
                 id: id,
@@ -790,6 +864,7 @@ class $$EventsTableTableManager
                 type: type,
                 payload: payload,
                 corrects: corrects,
+                effectiveAfter: effectiveAfter,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -803,6 +878,7 @@ class $$EventsTableTableManager
                 required String type,
                 required String payload,
                 Value<String?> corrects = const Value.absent(),
+                Value<String?> effectiveAfter = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventsCompanion.insert(
                 id: id,
@@ -814,6 +890,7 @@ class $$EventsTableTableManager
                 type: type,
                 payload: payload,
                 corrects: corrects,
+                effectiveAfter: effectiveAfter,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

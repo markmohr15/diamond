@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/lineup_set.schema.json",
+  "title": "LineupSet",
+  "description": "Initial batting order for one team (spec §4.4). Batter-due is derived from this plus completed-plate-appearance counts on every fold — never cached positionally — so BattingOrderAdjusted (M2) slots in without refactor.",
+  "type": "object",
+  "properties": {
+    "teamId": { "type": "string" },
+    "battingOrder": {
+      "type": "array",
+      "description": "playerIds in batting order",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "required": ["teamId", "battingOrder"],
+  "additionalProperties": false
+}

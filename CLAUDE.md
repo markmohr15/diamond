@@ -5,7 +5,7 @@ scoring with pitch calling (wristband codes), pitch locations (intended AND actu
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.15). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.16). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -37,7 +37,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.15)
+docs/spec.md        authoritative spec (v0.16)
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)
 app/                Flutter app (created by ticket DIA-001; Drift, rules engine, projections, UI)
@@ -56,18 +56,20 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 - **Coordinates:** `ZoneCoord` normalized, catcher's view, absolute x (flip by handedness at render, §3.1).
   `FieldCoord` in absolute feet, home plate origin, θ=0 at CF (§3.2). Never clamp foul territory.
 - Dart: `very_good_analysis` lints. TS: strict mode, eslint. Tests colocated per package convention.
+- A method/field used only by the test suite (not by any production code path) gets a doc comment saying so at its definition.
 - Commits: conventional-ish, reference ticket IDs (e.g., `feat(rules): DIA-004 plays 01-03 passing`).
 
 ## Working agreements with Mark
 
 - Mark reviews plans before large edits — propose, then build. Prefer vertical slices.
 - When a design question isn't answered by the spec, say so and ask; don't invent product decisions.
-- UI work follows the design language (§18.7): data-ink first, one accent, sunlight-glanceable,
-  every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
-- Softball vs. baseball differences always route through `RuleSet` config — never `if (softball)` scattered
-  in logic (§1, §4.4).
-- Youth-athlete data is sensitive: team-private by default, no sharing features without explicit
-  design (§19.5). Never log player names in telemetry.
+- Writing or modifying code requires an explicit go-ahead from Mark. The ONLY approval phrases are: "approved", "go ahead", or "proceed". Nothing else is approval — not silence, not questions, not "makes sense", not discussion of your plan, not agreement with parts of it.
+- If Mark's reply contains ANY change, correction, or new requirement, the previous approval is REVOKED. Restate the amended plan (delta only, briefly) and wait for a fresh approval phrase.
+- Approval covers exactly the stated plan. Discovering mid-build that the plan must change — new refactor, new schema edit, new dependency, scope growth — means STOP and re-propose the delta before continuing.
+- Exempt (no approval needed): reading files, running existing tests, searches, and answering questions. When unsure whether something needs approval, ask — asking is always free.
+- UI work follows the design language (§18.7): data-ink first, one accent, sunlight-glanceable, every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
+- Softball vs. baseball differences always route through `RuleSet` config — never `if (softball)` scattered in logic (§1, §4.4).
+- Youth-athlete data is sensitive: team-private by default, no sharing features without explicit design (§19.5). Never log player names in telemetry.
 
 ## Git workflow
 
@@ -78,8 +80,7 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
   and anything that deviates from the ticket (flagged prominently).
 - Mark merges PRs. Never merge, never force-push, never rebase `main`.
 - Never use --no-verify or --force on any git operation.
-- Keep PRs ticket-sized. If a ticket grows past ~600 lines of meaningful diff,
-  stop and propose splitting it.
+- Keep PRs ticket-sized. If a ticket grows past ~600 lines of meaningful diff, stop and propose splitting it.
 - Before any commit, verify the current branch is dia-NNN-*; if on main, stop and create the ticket branch first — moving uncommitted work to a new branch is always the correct fix.
 
 ## Milestone 1 (current)

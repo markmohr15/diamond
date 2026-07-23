@@ -2,14 +2,13 @@ import 'dart:convert';
 
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/rules/logical_order.dart';
 import 'package:drift/drift.dart';
 
 /// Append-only event store (spec §2, §6). Wraps [AppDatabase]; exposes only
 /// append + read — there is no update or delete, by design.
 class EventStore {
   EventStore(this._db);
-
-  static const _voidEventType = 'VoidEvent';
 
   final AppDatabase _db;
 
@@ -25,15 +24,23 @@ class EventStore {
         type: event.type,
         payload: jsonEncode(event.payload),
         corrects: Value(event.corrects),
+        effectiveAfter: Value(event.effectiveAfter),
       ),
     );
   }
 
-  /// Reads the resolved stream for [gameId]: ordered by
-  /// `(wallClock, deviceId, seq)` (§2), with voided events hidden and
-  /// correction chains (§6) collapsed to their latest version, surfaced at
-  /// the position of the chain's original (earliest) event.
+  /// Reads the visible, logically-ordered stream for [gameId] (§5, §6, §7):
+  /// backdated inserts repositioned, voided events hidden, correction chains
+  /// collapsed to their latest version. See [resolveVisibleLogicalOrder].
   Future<List<GameEvent>> readStream(String gameId) async {
+    return resolveVisibleLogicalOrder(await readRawStream(gameId));
+  }
+
+  /// Reads every event for [gameId] — including voided and superseded ones
+  /// — ordered purely by `(wallClock, deviceId, seq)` (§2). This is the raw
+  /// log; projections that need to resolve `effectiveAfter` anchors against
+  /// events that are no longer visible (voided or corrected) start here.
+  Future<List<GameEvent>> readRawStream(String gameId) async {
     final query = _db.select(_db.events)
       ..where((tbl) => tbl.gameId.equals(gameId))
       ..orderBy([
@@ -42,7 +49,7 @@ class EventStore {
         (tbl) => OrderingTerm.asc(tbl.seq),
       ]);
     final rows = await query.get();
-    return _resolve(rows.map(_toGameEvent).toList());
+    return rows.map(_toGameEvent).toList();
   }
 
   GameEvent _toGameEvent(Event row) => GameEvent(
@@ -55,56 +62,6 @@ class EventStore {
         type: row.type,
         payload: jsonDecode(row.payload) as Map<String, dynamic>,
         corrects: row.corrects,
+        effectiveAfter: row.effectiveAfter,
       );
-
-  List<GameEvent> _resolve(List<GameEvent> ordered) {
-    final byId = {for (final e in ordered) e.id: e};
-
-    // Chronological order means the last write for a given target is the
-    // active correction — matches "projections use the latest version".
-    final latestChildOf = <String, GameEvent>{};
-    for (final e in ordered) {
-      final target = e.corrects;
-      if (target != null) {
-        latestChildOf[target] = e;
-      }
-    }
-
-    String headOf(String id) {
-      var current = id;
-      while (latestChildOf.containsKey(current)) {
-        current = latestChildOf[current]!.id;
-      }
-      return current;
-    }
-
-    String rootOf(String id) {
-      var current = id;
-      var next = byId[current]?.corrects;
-      while (next != null && byId.containsKey(next)) {
-        current = next;
-        next = byId[current]?.corrects;
-      }
-      return current;
-    }
-
-    final voidedRoots = <String>{};
-    for (final e in ordered) {
-      if (e.type == _voidEventType) {
-        final target = VoidEvent.fromJson(e.payload).targetId;
-        if (byId.containsKey(target)) {
-          voidedRoots.add(rootOf(target));
-        }
-      }
-    }
-
-    final resolved = <GameEvent>[];
-    for (final e in ordered) {
-      if (e.type == _voidEventType) continue;
-      if (e.corrects != null) continue; // only shown via its chain's root
-      if (voidedRoots.contains(e.id)) continue;
-      resolved.add(byId[headOf(e.id)]!);
-    }
-    return resolved;
-  }
 }

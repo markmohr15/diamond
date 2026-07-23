@@ -4,12 +4,15 @@
 
 // To parse this data:
 //
-//   import { Convert, GameEvent, BallInPlay, CountCorrection, FielderTouch, PitchThrown, RuleCall, RunnerAdvance, RunnerOut, VoidEvent } from "./events";
+//   import { Convert, GameEvent, BallInPlay, CountCorrection, FielderTouch, InningHalfEnd, InningHalfStart, LineupSet, PitchThrown, RuleCall, RunnerAdvance, RunnerOut, VoidEvent } from "./events";
 //
 //   const gameEvent = Convert.toGameEvent(json);
 //   const ballInPlay = Convert.toBallInPlay(json);
 //   const countCorrection = Convert.toCountCorrection(json);
 //   const fielderTouch = Convert.toFielderTouch(json);
+//   const inningHalfEnd = Convert.toInningHalfEnd(json);
+//   const inningHalfStart = Convert.toInningHalfStart(json);
+//   const lineupSet = Convert.toLineupSet(json);
 //   const pitchThrown = Convert.toPitchThrown(json);
 //   const ruleCall = Convert.toRuleCall(json);
 //   const runnerAdvance = Convert.toRunnerAdvance(json);
@@ -33,7 +36,13 @@ export interface GameEvent {
      */
     createdBy: string;
     deviceId:  string;
-    gameId:    string;
+    /**
+     * id of the event this logically follows, when recorded later than it happened (§6 insert)
+     * — e.g. a stolen base noticed two pitches late. Projections fold in this logical order,
+     * not recording order.
+     */
+    effectiveAfter?: string;
+    gameId:          string;
     /**
      * UUIDv7, generated on device
      */
@@ -135,6 +144,73 @@ export type ReceivedQuality = "clean" | "short_hop" | "high" | "wide";
 export type TouchType = "fielded" | "caught" | "received_throw" | "deflected" | "dropped" | "bobbled" | "booted" | "wild_throw" | "missed_catch" | "tag_applied" | "tag_missed";
 
 /**
+ * Explicit half-inning close (spec §4.4). 'three_outs' is auto-implied by the fold once
+ * outs reach 3 and doesn't require this event to appear. Any other reason is authoritative
+ * and closes the half even with fewer than 3 outs.
+ */
+export interface InningHalfEnd {
+    reason: InningHalfEndReason;
+}
+
+export type InningHalfEndReason = "three_outs" | "run_cap" | "time_limit" | "walkoff" | "mercy" | "coach_agreement" | "suspended" | "other";
+
+/**
+ * Derived state checkpoint boundary (spec §4.4, §7). Marks the start of a half-inning;
+ * count/outs/bases always reset to empty here. The optional snapshot is a performance cache
+ * of cumulative state — never truth, always reproducible by folding from genesis.
+ */
+export interface InningHalfStart {
+    battingTeamId: string;
+    half:          Half;
+    inning:        number;
+    snapshot?:     GameStateSnapshot;
+}
+
+export type Half = "top" | "bottom";
+
+/**
+ * Cumulative game state carried into a half-inning (spec §7). Cache only — always
+ * reproducible by folding from genesis. Per-half state (count, outs, bases) is deliberately
+ * excluded: it always resets to empty at a half-inning boundary, so caching it would be
+ * redundant.
+ */
+export interface GameStateSnapshot {
+    /**
+     * pitch event id -> count effect that a CountCorrection's back-inference resolved uniquely
+     * (spec §12.5). Cumulative across halves like the other fields; empty when no inference has
+     * occurred.
+     */
+    inferredPitchEffects: { [key: string]: InferredPitchEffect };
+    /**
+     * teamId -> index into that team's LineupSet.battingOrder for the next batter due
+     */
+    nextBatterIndexByTeam: { [key: string]: number };
+    /**
+     * pitcherId -> total pitches thrown so far this game
+     */
+    pitchCountByPitcher: { [key: string]: number };
+    /**
+     * teamId -> runs scored so far
+     */
+    runsByTeam: { [key: string]: number };
+}
+
+export type InferredPitchEffect = "ball" | "strike_effect";
+
+/**
+ * Initial batting order for one team (spec §4.4). Batter-due is derived from this plus
+ * completed-plate-appearance counts on every fold — never cached positionally — so
+ * BattingOrderAdjusted (M2) slots in without refactor.
+ */
+export interface LineupSet {
+    /**
+     * playerIds in batting order
+     */
+    battingOrder: [string, ...string[]];
+    teamId:       string;
+}
+
+/**
  * One per pitch, always (spec §4.1). intended* = the call; actual* = reality.
  * actualLocation required only when location capture is ON (§12.4).
  */
@@ -213,12 +289,12 @@ export interface RunnerAdvance {
      */
     enabledByTouchId?: string;
     from:              number;
-    reason:            Reason;
+    reason:            RunnerAdvanceReason;
     runnerId:          string;
     to:                number;
 }
 
-export type Reason = "batted_ball" | "walk" | "hbp" | "stolen_base" | "wild_pitch" | "passed_ball" | "balk" | "illegal_pitch" | "error" | "fielders_choice" | "defensive_indifference" | "dropped_third_strike" | "catcher_interference" | "obstruction" | "wild_throw" | "ground_rule" | "awarded";
+export type RunnerAdvanceReason = "batted_ball" | "walk" | "hbp" | "stolen_base" | "wild_pitch" | "passed_ball" | "balk" | "illegal_pitch" | "error" | "fielders_choice" | "defensive_indifference" | "dropped_third_strike" | "catcher_interference" | "obstruction" | "wild_throw" | "ground_rule" | "awarded";
 
 /**
  * spec §4.3.
@@ -277,6 +353,30 @@ export class Convert {
 
     public static fielderTouchToJson(value: FielderTouch): string {
         return JSON.stringify(uncast(value, r("FielderTouch")), null, 2);
+    }
+
+    public static toInningHalfEnd(json: string): InningHalfEnd {
+        return cast(JSON.parse(json), r("InningHalfEnd"));
+    }
+
+    public static inningHalfEndToJson(value: InningHalfEnd): string {
+        return JSON.stringify(uncast(value, r("InningHalfEnd")), null, 2);
+    }
+
+    public static toInningHalfStart(json: string): InningHalfStart {
+        return cast(JSON.parse(json), r("InningHalfStart"));
+    }
+
+    public static inningHalfStartToJson(value: InningHalfStart): string {
+        return JSON.stringify(uncast(value, r("InningHalfStart")), null, 2);
+    }
+
+    public static toLineupSet(json: string): LineupSet {
+        return cast(JSON.parse(json), r("LineupSet"));
+    }
+
+    public static lineupSetToJson(value: LineupSet): string {
+        return JSON.stringify(uncast(value, r("LineupSet")), null, 2);
     }
 
     public static toPitchThrown(json: string): PitchThrown {
@@ -477,6 +577,7 @@ const typeMap: any = {
         { json: "corrects", js: "corrects", typ: u(undefined, "") },
         { json: "createdBy", js: "createdBy", typ: "" },
         { json: "deviceId", js: "deviceId", typ: "" },
+        { json: "effectiveAfter", js: "effectiveAfter", typ: u(undefined, "") },
         { json: "gameId", js: "gameId", typ: "" },
         { json: "id", js: "id", typ: "" },
         { json: "payload", js: "payload", typ: m("any") },
@@ -511,6 +612,25 @@ const typeMap: any = {
         { json: "receivedQuality", js: "receivedQuality", typ: u(undefined, r("ReceivedQuality")) },
         { json: "touchType", js: "touchType", typ: r("TouchType") },
     ], false),
+    "InningHalfEnd": o([
+        { json: "reason", js: "reason", typ: r("InningHalfEndReason") },
+    ], false),
+    "InningHalfStart": o([
+        { json: "battingTeamId", js: "battingTeamId", typ: "" },
+        { json: "half", js: "half", typ: r("Half") },
+        { json: "inning", js: "inning", typ: 0 },
+        { json: "snapshot", js: "snapshot", typ: u(undefined, r("GameStateSnapshot")) },
+    ], false),
+    "GameStateSnapshot": o([
+        { json: "inferredPitchEffects", js: "inferredPitchEffects", typ: m(r("InferredPitchEffect")) },
+        { json: "nextBatterIndexByTeam", js: "nextBatterIndexByTeam", typ: m(0) },
+        { json: "pitchCountByPitcher", js: "pitchCountByPitcher", typ: m(0) },
+        { json: "runsByTeam", js: "runsByTeam", typ: m(0) },
+    ], false),
+    "LineupSet": o([
+        { json: "battingOrder", js: "battingOrder", typ: a("") },
+        { json: "teamId", js: "teamId", typ: "" },
+    ], false),
     "PitchThrown": o([
         { json: "actualLocation", js: "actualLocation", typ: u(undefined, r("ZoneCoord")) },
         { json: "actualType", js: "actualType", typ: u(undefined, "") },
@@ -539,7 +659,7 @@ const typeMap: any = {
         { json: "enabledByCallId", js: "enabledByCallId", typ: u(undefined, "") },
         { json: "enabledByTouchId", js: "enabledByTouchId", typ: u(undefined, "") },
         { json: "from", js: "from", typ: 0 },
-        { json: "reason", js: "reason", typ: r("Reason") },
+        { json: "reason", js: "reason", typ: r("RunnerAdvanceReason") },
         { json: "runnerId", js: "runnerId", typ: "" },
         { json: "to", js: "to", typ: 0 },
     ], false),
@@ -584,6 +704,24 @@ const typeMap: any = {
         "tag_missed",
         "wild_throw",
     ],
+    "InningHalfEndReason": [
+        "coach_agreement",
+        "mercy",
+        "other",
+        "run_cap",
+        "suspended",
+        "three_outs",
+        "time_limit",
+        "walkoff",
+    ],
+    "Half": [
+        "bottom",
+        "top",
+    ],
+    "InferredPitchEffect": [
+        "ball",
+        "strike_effect",
+    ],
     "BatterAction": [
         "fake_slap",
         "pulled_bunt",
@@ -623,7 +761,7 @@ const typeMap: any = {
         "obstruction",
         "umpire_reversal",
     ],
-    "Reason": [
+    "RunnerAdvanceReason": [
         "awarded",
         "balk",
         "batted_ball",

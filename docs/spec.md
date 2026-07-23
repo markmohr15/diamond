@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.15)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.16)
 
-**Status:** Draft for review — v0.15 adds per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.16 specifies two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -452,7 +452,11 @@ interface CaptureSettings {
 Reality: the scorer looks up and the count changed. Two mechanisms keep the book honest:
 
 - **`outcome: 'unknown'`** — "a pitch happened, I don't know what it was." Keeps pitch count accurate but leaves the ball/strike count ambiguous, so the projection marks derived count **uncertain** (rendered with a visual flag, e.g., amber count display).
-- **`CountCorrection { balls, strikes }`** — an authoritative checkpoint: "the scoreboard says 2-1, make it so." Entered via long-press on the count display → set the count → done. The projection treats it as an override from that point forward and clears the uncertainty flag. Retroactively, unknown pitches between the last known state and the checkpoint can be inferred (2 unknowns + checkpoint at 2-1 from 1-0 = one ball, one strike) — inferred outcomes are marked as such and excluded from pitch-quality analytics, included in pitch counts.
+- **`CountCorrection { balls, strikes }`** — an authoritative checkpoint: "the scoreboard says 2-1, make it so." Entered via long-press on the count display → set the count → done. The projection treats it as an override from that point forward and clears the uncertainty flag. Retroactively, unknown pitches between the last certain state and the checkpoint are resolved by replaying candidate histories through the real count logic (aggregate arithmetic is insufficient — a known foul's count effect depends on the strike count at that exact moment), at two conservative tiers:
+  - **Per-pitch:** an unknown pitch is assigned an inferred count effect only when exactly one candidate history explains the checkpoint. Inference never ties a result to a specific pitch — and to that pitch's recorded call/location data — unless it is unique in this sense; unresolved pitches keep `outcome: 'unknown'` forever.
+  - **Aggregate:** when several histories match but all agree on the *multiset* of effects (2 unknowns + checkpoint at 2-1 from 1-0 = one ball and one strike, in either order), that multiset is creditable to the span as a whole — and to a pitcher only if every matching history implies the same per-pitcher multiset (mid-AB pitching changes make this non-automatic). Aggregate-tier derivation is deferred until a stat actually consumes it; the stream permanently retains everything needed to derive it later.
+
+  Inferred effects at either tier are derived projection outputs, never synthetic events — marked as inferred, excluded from pitch-quality analytics, included in pitch counts.
 - This is deliberately a narrow exception to §5's "derive everything": corrections of *reality-capture gaps* get checkpoint events (`CountCorrection` now; `BaseStateCorrection` reserved for the same pattern if field testing demands it). The projection remains a pure fold — checkpoints are just events with override semantics.
 
 ### 12.6 Transport Ladder

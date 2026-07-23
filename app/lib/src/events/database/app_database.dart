@@ -19,6 +19,7 @@ class Events extends Table {
   TextColumn get type => text()();
   TextColumn get payload => text()();
   TextColumn get corrects => text().nullable()();
+  TextColumn get effectiveAfter => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
