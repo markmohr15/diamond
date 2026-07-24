@@ -49,6 +49,7 @@ dev_dependencies:
   build_runner: ^2.4.13
   drift_dev: ^2.23.0
   very_good_analysis: ^7.0.0
+  alchemist: ^0.14.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
