@@ -13,6 +13,7 @@
     "intendedLocation": { "$ref": "../common/zone_coord.schema.json" },
     "actualType":       { "type": "string" },
     "actualLocation":   { "$ref": "../common/zone_coord.schema.json" },
+    "bounceLocation":   { "$ref": "../common/bounce_coord.schema.json", "description": "set when the pitch hit the dirt before reaching the catcher (§3.3); mutually exclusive with an observed actualLocation. Actual only — never a call." },
     "velocity":         { "type": "number", "description": "mph, optional" },
     "batterAction": {
       "enum": ["showed_bunt", "pulled_bunt", "slap", "fake_slap", "slash"],
