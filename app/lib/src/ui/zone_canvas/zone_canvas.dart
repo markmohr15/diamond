@@ -344,8 +344,13 @@ class _ZoneCanvasBackgroundPainter extends CustomPainter {
       oldDelegate.zoneRect != zoneRect || oldDelegate.brightness != brightness;
 }
 
-/// Zone-rect border stroke only. Painted above the underlay so it stays
-/// crisp regardless of what the underlay draws underneath it.
+/// Zone-rect border stroke, plus the 3×3 in-zone grid lines (§10.1's default
+/// `CallZone` layout) for visual reference. Painted above the underlay so it
+/// stays crisp regardless of what the underlay draws underneath it.
+///
+/// The grid here is presentational only — no centroid/snapping logic, no
+/// `callZoneId`. That's DIA-006/007's tap-tap `CallZone` grid, a separate
+/// widget; this canvas stays freeform per DIA-005.
 class _ZoneBorderPainter extends CustomPainter {
   const _ZoneBorderPainter({required this.zoneRect});
 
@@ -353,6 +358,28 @@ class _ZoneBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final gridLine = Paint()
+      ..color = _accentColor.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    final colWidth = zoneRect.width / 3;
+    final rowHeight = zoneRect.height / 3;
+    for (var i = 1; i < 3; i++) {
+      final x = zoneRect.left + colWidth * i;
+      canvas.drawLine(
+        Offset(x, zoneRect.top),
+        Offset(x, zoneRect.bottom),
+        gridLine,
+      );
+      final y = zoneRect.top + rowHeight * i;
+      canvas.drawLine(
+        Offset(zoneRect.left, y),
+        Offset(zoneRect.right, y),
+        gridLine,
+      );
+    }
+
     final zoneBorder = Paint()
       ..color = _accentColor
       ..style = PaintingStyle.stroke
