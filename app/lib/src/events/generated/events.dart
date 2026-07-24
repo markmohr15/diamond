@@ -539,6 +539,10 @@ class PitchThrown {
     final BatterAction? batterAction;
     final String batterId;
     final BatterSide batterSide;
+    
+    ///set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
+    ///an observed actualLocation. Actual only — never a call.
+    final BounceCoord? bounceLocation;
     final ZoneCoord? intendedLocation;
     
     ///PitchTypeId (team-configured)
@@ -558,6 +562,7 @@ class PitchThrown {
         this.batterAction,
         required this.batterId,
         required this.batterSide,
+        this.bounceLocation,
         this.intendedLocation,
         this.intendedType,
         this.intendedZoneId,
@@ -572,6 +577,7 @@ class PitchThrown {
         batterAction: batterActionValues.map[json["batterAction"]],
         batterId: json["batterId"],
         batterSide: batterSideValues.map[json["batterSide"]]!,
+        bounceLocation: json["bounceLocation"] == null ? null : BounceCoord.fromJson(json["bounceLocation"]),
         intendedLocation: json["intendedLocation"] == null ? null : ZoneCoord.fromJson(json["intendedLocation"]),
         intendedType: json["intendedType"],
         intendedZoneId: json["intendedZoneId"],
@@ -586,6 +592,7 @@ class PitchThrown {
         "batterAction": batterActionValues.reverse[batterAction],
         "batterId": batterId,
         "batterSide": batterSideValues.reverse[batterSide],
+        "bounceLocation": bounceLocation?.toJson(),
         "intendedLocation": intendedLocation?.toJson(),
         "intendedType": intendedType,
         "intendedZoneId": intendedZoneId,
@@ -648,6 +655,37 @@ final batterSideValues = EnumValues({
     "L": BatterSide.L,
     "R": BatterSide.R
 });
+
+
+///set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
+///an observed actualLocation. Actual only — never a call.
+///
+///Landing spot of a pitch that hit the dirt before reaching the plate (spec §3.3). x: SAME
+///normalized lateral axis as ZoneCoord.x (absolute, catcher's view; flip by handedness at
+///render). depth: absolute FEET from the front edge of the plate; positive = toward the
+///pitcher (bounced out front), 0 = front edge, negative = past the back edge (skipped).
+///Absolute feet, not normalized, because ground geometry does not vary with batter height.
+///Never clamp. Only ever an actual location, never a call (intendedLocation stays a
+///ZoneCoord).
+class BounceCoord {
+    final double depth;
+    final double x;
+
+    BounceCoord({
+        required this.depth,
+        required this.x,
+    });
+
+    factory BounceCoord.fromJson(Map<String, dynamic> json) => BounceCoord(
+        depth: json["depth"]?.toDouble(),
+        x: json["x"]?.toDouble(),
+    );
+
+    Map<String, dynamic> toJson() => {
+        "depth": depth,
+        "x": x,
+    };
+}
 
 enum Outcome {
     BALL,

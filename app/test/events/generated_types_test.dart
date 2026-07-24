@@ -66,4 +66,34 @@ void main() {
       });
     }
   }
+
+  // BounceCoord (§3.3) is exercised by no §14 acceptance play (none of the
+  // six involve a pitch in the dirt), so it gets direct round-trip coverage
+  // here rather than a fixture with invented projection expectations.
+  group('BounceCoord (§3.3) round-trips through the generated types', () {
+    test('a bare BounceCoord survives fromJson->toJson, both depth signs', () {
+      for (final json in const [
+        {'x': 0.4, 'depth': 3.5}, // bounced out front, arm-side
+        {'x': -0.2, 'depth': -1.4}, // skipped past the back edge
+      ]) {
+        expect(BounceCoord.fromJson(json).toJson(), json);
+      }
+    });
+
+    test('a PitchThrown carrying bounceLocation round-trips exactly', () {
+      final payload = <String, dynamic>{
+        'pitcherId': 'p1',
+        'batterId': 'b1',
+        'batterSide': 'R',
+        'bounceLocation': {'x': -0.3, 'depth': 2.0},
+        'outcome': 'ball',
+      };
+      final withNullsStripped = Map<String, dynamic>.fromEntries(
+        PitchThrown.fromJson(
+          payload,
+        ).toJson().entries.where((e) => e.value != null),
+      );
+      expect(withNullsStripped, payload);
+    });
+  });
 }

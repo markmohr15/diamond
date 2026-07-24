@@ -221,9 +221,14 @@ export interface PitchThrown {
      * observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent =
      * conventional AB posture.
      */
-    batterAction?:     BatterAction;
-    batterId:          string;
-    batterSide:        BatterSide;
+    batterAction?: BatterAction;
+    batterId:      string;
+    batterSide:    BatterSide;
+    /**
+     * set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
+     * an observed actualLocation. Actual only — never a call.
+     */
+    bounceLocation?:   BounceCoord;
     intendedLocation?: ZoneCoord;
     /**
      * PitchTypeId (team-configured)
@@ -259,6 +264,23 @@ export interface ZoneCoord {
 export type BatterAction = "showed_bunt" | "pulled_bunt" | "slap" | "fake_slap" | "slash";
 
 export type BatterSide = "L" | "R";
+
+/**
+ * set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
+ * an observed actualLocation. Actual only — never a call.
+ *
+ * Landing spot of a pitch that hit the dirt before reaching the plate (spec §3.3). x: SAME
+ * normalized lateral axis as ZoneCoord.x (absolute, catcher's view; flip by handedness at
+ * render). depth: absolute FEET from the front edge of the plate; positive = toward the
+ * pitcher (bounced out front), 0 = front edge, negative = past the back edge (skipped).
+ * Absolute feet, not normalized, because ground geometry does not vary with batter height.
+ * Never clamp. Only ever an actual location, never a call (intendedLocation stays a
+ * ZoneCoord).
+ */
+export interface BounceCoord {
+    depth: number;
+    x:     number;
+}
 
 export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
 
@@ -637,6 +659,7 @@ const typeMap: any = {
         { json: "batterAction", js: "batterAction", typ: u(undefined, r("BatterAction")) },
         { json: "batterId", js: "batterId", typ: "" },
         { json: "batterSide", js: "batterSide", typ: r("BatterSide") },
+        { json: "bounceLocation", js: "bounceLocation", typ: u(undefined, r("BounceCoord")) },
         { json: "intendedLocation", js: "intendedLocation", typ: u(undefined, r("ZoneCoord")) },
         { json: "intendedType", js: "intendedType", typ: u(undefined, "") },
         { json: "intendedZoneId", js: "intendedZoneId", typ: u(undefined, "") },
@@ -647,6 +670,10 @@ const typeMap: any = {
     "ZoneCoord": o([
         { json: "x", js: "x", typ: 3.14 },
         { json: "y", js: "y", typ: 3.14 },
+    ], false),
+    "BounceCoord": o([
+        { json: "depth", js: "depth", typ: 3.14 },
+        { json: "x", js: "x", typ: 3.14 },
     ], false),
     "RuleCall": o([
         { json: "againstPosition", js: "againstPosition", typ: u(undefined, 0) },
