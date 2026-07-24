@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.18)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.24)
 
-**Status:** Draft for review — v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.24 records the canvas fidelity question as an open golden-test decision rather than a settled directive (§11.4); v0.23 specified the pitch canvas composition for both planes — plate anchor, batter's boxes, lateral registration, dirt band (§11.4); v0.22 derives chase intent from zone position instead of storing a flag (§10.1, §17.4); v0.21 unified command classification on call-zone resolution (freeform taps resolve to the containing zone, so one rubric covers both producers) and replaced "waste" terminology (§10.1, §17.4); v0.20 replaced miss-distance magnitude with command classification (executed / competitive miss / uncompetitive, plus miss direction) (§17.4); v0.19 adds `BounceCoord` (§3.3) and `bounceLocation` on `PitchThrown` (§4.1) for pitches that hit the dirt before reaching the plate, captured via the dirt-band hinge interaction (§11.1); v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -64,6 +64,23 @@ interface FieldCoord {
 - **Cross-park comparability is derived, not stored:** projections compute `fenceRelativeDepth = r / fenceDistanceAt(θ)` using the game's fence model (§16.2). This beats the old CF-normalization — a 200-foot fly ball is a fence-scraper down the line and a routine out to center, and normalizing along the actual bearing captures that.
 - **Foul territory is first-class.** No clamping at ±45°. A foul pop caught behind first base and a foul ball ripped just wide of the third-base bag are both real data points (foul tendencies are scouting gold — a hitter fouling everything off to the opposite field is late).
 
+### 3.3 Pitch Bounce (`BounceCoord`)
+
+For a pitch that hits the dirt before reaching the plate — a physically distinct question from "how low," which `ZoneCoord.y` already answers for pitches that arrive in the air.
+
+```typescript
+interface BounceCoord {
+  x: number;      // SAME normalized lateral axis as ZoneCoord.x (absolute, catcher's view)
+  depth: number;  // FEET from the front edge of the plate; positive = toward the pitcher
+                   // (bounced out front), 0 = front edge, negative = past the back edge
+                   // (skipped). Sign convention stated here on purpose.
+}
+```
+
+- **Absolute feet, not normalized** — unlike `ZoneCoord.y`, which is normalized because the strike zone varies with batter height, ground geometry doesn't: the plate is 17 inches for everyone, and a bounce four feet out front is four feet out front regardless of who's standing in the box. This makes `depth` directly comparable across batters, pitchers, and games with no transformation.
+- **`x` is shared with `ZoneCoord`, not re-derived.** `ZoneCoord.x` is already normalized against the fixed 17″ plate width, not batter height (only `y` varies by batter), so the two coordinate spaces register on the same lateral axis — "she misses arm-side and in the dirt" is one query across both, and a dirt strip renders in lateral register with the zone above it.
+- Two planes, not a 3D position: `ZoneCoord` is the frontal plane (lateral × height) a pitch is tapped into when it reaches the plate in the air; `BounceCoord` is the top-down plane (lateral × depth) a pitch is tapped into when it hits the dirt first. They share the lateral axis and nothing else — no perspective projection, no inferred 3D point.
+
 ## 4. Event Catalog
 
 ### 4.1 Pitch Events
@@ -79,7 +96,12 @@ interface PitchThrown {
   intendedLocation?: ZoneCoord;   // the call — where the coach/catcher wanted it
   actualType?: PitchTypeId;       // what was actually thrown (may differ from call)
   actualLocation?: ZoneCoord;     // where it crossed the plate — required only when
-                                  //   location capture is ON (§12.4); null = not captured
+                                  //   location capture is ON (§12.4); null = not captured,
+                                  //   or the pitch bounced first (see bounceLocation)
+  bounceLocation?: BounceCoord;   // set when the pitch hit the dirt before reaching the
+                                  //   plate (§3.3, §11.1's dirt-band hinge). Mutually
+                                  //   exclusive with an observed actualLocation — a pitch
+                                  //   either arrives in the air or bounces first, never both.
   velocity?: number;              // mph, optional (radar gun)
   batterAction?:                  // observed offensive posture on THIS pitch, orthogonal
     'showed_bunt'                 //   to outcome: squared, ball not offered at ⇒ pair with
@@ -117,9 +139,10 @@ interface PitchTypeDef {
 ```
 
 Design notes:
-- **Intended vs. actual is the killer feature.** `intendedLocation` + `actualLocation` gives you a *command* metric no consumer app has: miss distance per pitch type, per pitcher, over time. `intendedType` vs `actualType` catches crossed-up signals and "she can't land the drop ball today."
+- **Intended vs. actual is the killer feature.** `intendedLocation` + `actualLocation` gives you a *command* metric no consumer app has: per-pitch command classification (§17.4) by pitch type, pitcher, count, and inning. `intendedType` vs `actualType` catches crossed-up signals and "she can't land the drop ball today."
 - Both intended fields are optional so scoring doesn't stall when nobody's calling pitches (opponent scouting mode: you don't know their calls).
 - Non-swing dead-ball weirdness (catcher's interference, batter interference on the swing) is handled by follow-up events, not more outcome variants.
+- **`bounceLocation` without `actualLocation` isn't a data gap.** Per Core Principle #3, the event never fabricates a `ZoneCoord` to fill the hole — projections derive a conventional below-zone coordinate (shared `x`, a fixed low `y`) from `bounceLocation` at read time, same treatment as §12.5's inferred pitches: included in coarse analytics (chase %, "how often is she in the dirt") so dirt pitches don't silently vanish from heat maps, marked as derived and never used as the basis of a command judgment, since that `y` is a convention, not an observation. Command classification reads `bounceLocation` directly instead (§17.4: bounced ⇒ uncompetitive, direction `down`).
 
 ### 4.2 Batted Ball Events
 
@@ -291,7 +314,7 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 |---|---|
 | Live scorebook / box score | all events |
 | Pitch location heat maps (by pitcher, type, count, batter side) | PitchThrown |
-| **Command charts** (intended vs. actual miss vectors) | PitchThrown |
+| **Command classification** (executed / competitive / uncompetitive + direction, §17.4) | PitchThrown |
 | Spray charts incl. foul tendencies | BallInPlay |
 | Batter heat maps (swing %, whiff %, contact quality by zone) | PitchThrown + BallInPlay |
 | Count-state tendencies (first-pitch swing %, 2-strike approach) | PitchThrown |
@@ -321,15 +344,21 @@ Coaches call *zones*, not coordinates. Each team configures a **call-zone layout
 ```typescript
 interface CallZone {
   id: string;
-  label: string;          // "Up-In", "Low-Away", "Waste-Up", ...
-  centroid: ZoneCoord;    // canonical target for command-chart math
-  bounds: ZoneRect;       // hit region on the calling grid
+  label: string;          // "Up-In", "Low-Away", "Chase-High", "Bury-Down", ...
+  centroid: ZoneCoord;    // canonical target; classification reference (§17.4)
+  bounds: ZoneRect;       // hit region on the calling grid; also the "executed"
+                          //   region for command classification (§17.4). Whether
+                          //   this is a strike call or a chase call is DERIVED from
+                          //   where it sits (centroid outside the zone rect ⇒ chase),
+                          //   never stored — see below.
 }
 ```
 
-- Default layout: 3×3 in-zone grid + 4 out-of-zone "waste" spots (up, down, in, out). Teams can simplify (5-spot: in/out/up/down/middle) or extend.
-- `PitchThrown.intendedLocation` stores the zone's `centroid`; a new optional field `intendedZoneId` stores the zone identity so projections can aggregate by call zone directly. Miss distance = actual − centroid.
-- **Freeform intent capture (v0.18).** The zone-grid flow above is one producer of `intendedLocation`/`intendedZoneId`, not the only one. Contexts without a wristband-code call — solo scoring, a coach calling verbally, observation mode (§19.5) where the opponent's zone layout isn't yours to know — may instead capture `intendedLocation` as a raw freeform tap on the same canvas, leaving `intendedZoneId` null. Both fields are already optional/unconstrained, so no schema change is required. Because `intendedLocation` is no longer guaranteed to equal a zone's stored centroid, miss-distance projections should compute `actual − intendedLocation` directly rather than looking up a centroid via `intendedZoneId`.
+- Default layout: 3×3 in-zone grid + 4 chase zones (high, low/bury, in, out), the latter with outward-unbounded `bounds` so they cover everything beyond the zone in their direction. Teams can simplify (5-spot: in/out/up/down/middle) or extend.
+- **There is no such thing as a waste pitch.** A pitch deliberately thrown off the plate is doing a job — drawing a chase, changing eye level, burying a drop ball on 0-2 — and executing one is execution, not waste. The distinction is load-bearing: it decides whether the pitch counts as a hit target or a miss (§17.4).
+- **Chase intent needs no flag — the call's position states it.** A zone whose `centroid` falls outside the strike-zone rect (§3.1) is by definition a call for a ball; one inside is a call for a strike. Nobody calls a location inside the zone hoping for a ball, or outside it hoping for a strike, so a stored `objective` field would be redundant state that can silently contradict the geometry the moment a team redraws a zone. Derived, it can't (Core Principle #3). Centroid, not bounds, decides straddling zones on the corners.
+- `PitchThrown.intendedLocation` stores the zone's `centroid`; a new optional field `intendedZoneId` stores the zone identity so projections can aggregate by call zone directly, and so command classification can read the zone's `bounds` (§17.4).
+- **Freeform intent capture (v0.18).** The zone-grid flow above is one producer of `intendedLocation`/`intendedZoneId`, not the only one. Contexts without a wristband-code call — solo scoring, a coach calling verbally, observation mode (§19.5) where the opponent's zone layout isn't yours to know — may instead capture `intendedLocation` as a raw freeform tap on the same canvas, leaving `intendedZoneId` null. Both fields are already optional/unconstrained, so no schema change is required. Because `intendedLocation` is no longer guaranteed to equal a zone's stored centroid, projections must not resolve intent by looking up a centroid via `intendedZoneId`. Command classification instead resolves *any* intent point back to a call zone by containment (§17.4) — a freeform tap almost always lands inside one, since the layout covers out-of-zone space too — so one rubric serves both producers.
 
 ### 10.2 Code System
 
@@ -361,7 +390,7 @@ interface CodeEntry {
 
 ### 10.3 Calling UI
 
-The call screen is two taps: **pitch type** (button row, team's configured arsenal, color-coded) then **zone** (the grid). On the second tap, the code renders **huge** — 120pt+, readable at arm's length in sunlight — with the call echoed underneath in small text ("Rise · Up-In · #539"). A re-roll gesture (swipe the code) picks a different code for the same call without re-tapping. Tap-and-hold a zone = "ball, don't care where" waste pitch shortcut.
+The call screen is two taps: **pitch type** (button row, team's configured arsenal, color-coded) then **zone** (the grid). On the second tap, the code renders **huge** — 120pt+, readable at arm's length in sunlight — with the call echoed underneath in small text ("Rise · Up-In · #539"). A re-roll gesture (swipe the code) picks a different code for the same call without re-tapping. Tap-and-hold a zone = "off the plate that way, don't care exactly where" — resolves to the chase zone in that direction.
 
 The pending call persists on screen until the pitch result is entered, then the flow returns to the call screen for the next pitch. Shake-off reality: if the coach changes the call, tapping a new type/zone simply replaces the pending call — nothing is committed to the event stream until the pitch actually happens.
 
@@ -374,7 +403,9 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 ```
 ┌─► [CALL]    tap type → tap zone → CODE DISPLAYED (yell it)
 │   [PITCH HAPPENS]
-│   [ACTUAL]  one tap on the zone canvas = actualLocation
+│   [ACTUAL]  one tap on the zone canvas = actualLocation; a release in
+│             the dirt band hinges the view to a top-down plate plane —
+│             a second tap there = bounceLocation (§3.3)
 │             Diamond suggests an outcome from context (tap location,
 │             count, swing inference impossible → suggestion only):
 │             big confirm button + small override row
@@ -389,6 +420,7 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 - **Outcome suggestion logic:** location well out of zone → suggest `ball`; in zone → suggest `called_strike`; the override row always shows the full set (swinging, foul, foul tip, in play, HBP, illegal). Suggestion ≠ auto-commit — one tap is always required, because the ump's call is the truth, not the location.
 - **Batter-action chips:** a small optional row on the outcome step — `bunt` / `pulled` / `slap` / `fake` / `slash` — one tap when the batter showed something, untouched otherwise (absent = conventional posture). Also settable post-hoc from the pitch summary, since "wait, was she squared?" is a between-pitches realization. Sticky suggestion: if the previous pitch of the AB carried an action, the row pre-highlights it for quick repeat.
 - **Fielding sequence entry:** after the landing tap, a position diamond appears; the coach taps positions in order (6 → 4 → 3), long-press a position for the error variants. Runner resolution screen shows the bases with drag-to-advance / drag-to-out. This is the deepest sub-flow and gets its own spec section (v0.3) with every GameChanger-broken play as a test case.
+- **Dirt-band hinge (§3.3, composition in §11.4):** the zone canvas extends below the zone rect into a visually distinct dirt band (plate graphic + dirt below it — the trigger is the visual target, not a stored coordinate threshold; sizing it against the still-airborne low-pitch region above it is a tablet layout/golden-test call, not anthropometry). A release inside that band hinges the canvas to a top-down plate/dirt plane sharing `ZoneCoord`'s lateral axis; a second tap there sets `bounceLocation`'s depth. The swap happens **on release, not on arm** — the entire press-drag-preview stays in the frontal plane, so the existing arm-low-drag-up-to-correct grammar keeps working (coordinate spaces never change mid-gesture); only a release landing in the dirt band triggers the hinge, and the second placement is its own independent gesture. Skipping the second tap and using the skip-location affordance (§11.2) records "in the dirt, depth unknown" — no separate tap-vs-drag heuristic needed.
 
 ### 11.2 The Mode Ladder (degradation under pressure)
 
@@ -404,6 +436,35 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 ### 11.3 State the Loop Manages Automatically
 
 Batter advance (from lineup projection), count reset, inning flip, pitcher's pitch count, forced-runner suggestions on walks (auto-generate `RunnerAdvance` events, coach confirms), courtesy-runner prompts when the pitcher/catcher reaches base (RuleSet-gated), and D3K arming (uncaught third strike with first base open / two outs → Diamond prompts the runner resolution instead of assuming the out). Undo is always one tap, top-level, unlimited depth (§6).
+
+---
+
+### 11.4 Pitch Canvas Composition
+
+The canvas is not a bare rectangle. Both planes are anchored by home plate, because the plate is what tells a coach at a glance what she is looking at, which way is inside, and where the dirt begins. Composition is specified here; §18.7's design language governs how it's drawn.
+
+**Frontal plane (default view).** Catcher's perspective, matching the spatial arrangement coaches already know from broadcast K-zone graphics:
+
+- **Home plate anchors the bottom**, drawn in perspective — 17″ edge toward the pitcher (up-screen), point toward the catcher (down-screen).
+- **Lateral registration is exact, not decorative.** `ZoneCoord.x` is normalized against the fixed 17″ plate width (§3.3), so `x = ±1` must align with the plate's 17″ edge. The zone rect sits directly above the plate it describes; a pitch tapped at the zone's right edge is visibly over the plate's right edge.
+- **Batter's boxes flank the plate** as outlines, with the box the current batter occupies subtly filled from `batterSide`. This orients inside/outside without a single label, and it updates per batter — the canvas itself never mirrors, since `x` is absolute (§3.1).
+- **The zone rect carries the call grid** when calling is on (§10.1's layout), and extends above and below it for out-of-zone airborne pitches — enough room that shin-high, ankle-high, and eye-level are comfortably distinguishable.
+- **The dirt band** sits between the low-pitch region and the plate: visually distinct ground treatment, the hinge trigger (§11.1). Its height is a tablet layout call, tuned against the airborne region above it.
+
+**Top-down plane (after the hinge).** Deliberately unmistakable at a glance — if the two views could be confused, the hinge design fails:
+
+- **Plate from directly above**, true pentagon, no perspective; the 17″ edge is the `depth = 0` line and the hinge seam.
+- **Depth grows up-screen** toward the pitcher, matching the frontal plane's sense of "away from the catcher," with labeled bands (0–2 ft, 2–4 ft, 4 ft+). Negative depth — balls that skipped past the back edge — extends below the plate toward the catcher.
+- **Batter's boxes and a catcher position** flank and sit behind, again with the occupied box shaded. Lateral axis stays in register with the frontal plane above it.
+
+**Fidelity is an open question, settled by field test — not by argument.** The composition matches a broadcast K-zone; how richly it should be *rendered* is genuinely contested and both positions have merit:
+
+- **For richness:** visual craft signals a serious product. A canvas that looks thrown together undermines trust in everything behind it, and "serviceable" is the failure bar (§18.7). Broadcast and video-game K-zones look authoritative for a reason.
+- **For restraint:** the entry canvas is used ~120 times a game, in sunlight, on a clock. Every decorated pixel competes with the tap markers and grid that carry the actual information.
+
+The likely resolution, to be validated rather than assumed: a **dimensional, materially real plate and dirt** — chalk with weight, texture, honest shading — on a **neutral background**, since the contrast cost lives in a busy backdrop behind the grid, not in the plate in front of it. Note also that what reads as "serious" in a reference image is mostly *precision* — correct plate perspective, confident proportions, exact lateral registration (above) — not photographic detail; craft and busyness are separable.
+
+**Fidelity is per-surface.** Review and scouting screens (§18) are used at leisure, indoors, with markers already placed — full richness is right there and is where a coach forms their impression of the product. The entry canvas is the one surface where decoration competes with a job. Build both fidelities of the entry canvas behind the same coordinate mapping and compare them on a real tablet in daylight (DIA-011 golden tests).
 
 ---
 
@@ -452,7 +513,7 @@ interface CaptureSettings {
 ```
 
 - Toggling location capture OFF removes the zone-canvas step entirely — outcome buttons come first. The per-pitch skip affordance (§11.2) still exists when capture is ON; the toggle is for "this whole game, we're not doing that."
-- Projections handle sparse data by design: heat maps aggregate whatever locations exist; command charts require both intended and actual and simply show coverage ("41 of 87 pitches charted") so nobody mistakes sparse for complete.
+- Projections handle sparse data by design: heat maps aggregate whatever locations exist; command classification requires both intended and actual and simply shows coverage ("41 of 87 pitches charted") so nobody mistakes sparse for complete.
 
 ### 12.5 The `unknown` Outcome & Count Checkpoints
 
@@ -711,14 +772,46 @@ Softball rendering nuances via `RuleSet`: 7-inning ERA normalization, tie games,
 |---|---|
 | Plate discipline | swing %, chase % (swings out of zone), whiff %, contact %, first-pitch swing %, pitches/PA |
 | Batted ball | GB/LD/FB/PU %, hard-hit % (contactQuality), avg distance, pull/center/oppo %, foul-ball direction tendencies |
-| Pitcher command | strike %, first-pitch strike %, **miss distance by pitch type (intended vs. actual)**, zone % by count, called-strike edge % |
+| Pitcher command | strike %, first-pitch strike %, **execution rate / uncompetitive rate by pitch type (§17.4)**, miss-direction bias, zone % by count, called-strike edge % |
 | Pitch mix | usage % by type, by count, by batter side; velocity if captured |
 | Catcher | blocks per D3K opportunity, D3K conversion against |
 | Defense | misplays (charged-or-not, §13), range (landing − start, §16.4) |
 
 Tier 2 stats degrade gracefully with capture gaps (§12.4): each shows its denominator coverage ("41 of 87 pitches located") so sparse never masquerades as complete.
 
-### 17.4 Performance Model
+### 17.4 Command Classification
+
+**Why not miss distance.** Intent is a region, not a point. `intendedLocation` is a call zone's centroid or a finger-tap standing in for one (§10.1) — either way the real target is inches wide, before any tap error on a moving object. The honest error bar on any single miss is inches, so "average miss: 7.2 in" is false precision wearing an authoritative face. Diamond therefore classifies command into buckets wider than the noise, and reports direction separately.
+
+**The three buckets**, judged against the call, not against the strike zone alone:
+
+| Bucket | Meaning |
+|---|---|
+| **Executed** | hit the target region |
+| **Competitive miss** | missed the target, but the pitch still plays — in the zone or on its edges; a hitter has to respect it |
+| **Uncompetitive** | no realistic strike and no realistic chase — nobody is swinging |
+
+**One rubric, via zone resolution** (§10.1). The target region is always a call zone's `bounds`, resolved in this order:
+
+1. `intendedZoneId` is set (grid call) → that zone.
+2. `intendedZoneId` is null (freeform tap) → the zone whose `bounds` contain `intendedLocation`. Because the layout covers out-of-zone space as well as the strike zone, a freeform tap lands inside a zone nearly every time — the coach pointing at "low and away off the plate" is pointing at a region that exists.
+3. No zone contains the point (a tap well outside everything) → nearest zone by centroid, **marked as inferred** wherever the resolution changes a bucket.
+
+Executed = `actualLocation` inside the resolved zone's `bounds`. Freeform capture is therefore no coarser than grid capture in the common case; the honest gap is only at step 3, and it announces itself.
+
+The team's own layout serves as the measuring grid even when charting an opponent's pitcher (§19.5) — it's a yardstick, not a claim about what they called.
+
+**Miss direction** is reported alongside and stays coarse: arm-side / glove-side / up / down, handedness-resolved per §3.1 so "arm-side" means the same thing for every pitcher. Direction survives noise that magnitude doesn't — "she misses arm-side late in games" is a real observation at this resolution.
+
+**Chase-call inversion.** When the resolved zone is a chase call — its centroid sits outside the strike-zone rect, derived not stored (§10.1) — the rubric inverts: burying the 0-2 drop ball or running one off the outside corner *is* execution, and catching too much plate is the miss — a chase pitch that leaks over the plate is the dangerous outcome, and gets classified as such. Because resolution (above) yields a zone for freeform taps too, this is determined the same way for both producers; no guessing is required. Nothing in the data model changes — this is entirely projection.
+
+**Bounced pitches** (§3.3) are read from `bounceLocation` directly — no cross-plane magnitude is computed, because none is needed. Against a strike call, a bounce is uncompetitive with direction `down`. Against a chase call meant to be buried, it is execution: the pitch did exactly what it was asked to do. Bounce depth stays where it's genuinely informative: catcher blocking difficulty (§17.3), and how far short a developing drop ball is finishing.
+
+**Reported as:** execution rate and uncompetitive rate, sliceable by pitch type, count state, inning, and time through the order (§17.2) — "fine through four, then uncompetitive on 30% of drop balls" is a pitch-count conversation; "uncompetitive rate spikes when behind" is a confidence conversation. Neither needs an inch.
+
+**Thresholds are tunable, forever.** Bucket boundaries live in projection config, not in events, so field-testing what "competitive" means recomputes every game ever charted. Ship with defaults, expect to revise them, never migrate data to do it.
+
+### 17.5 Performance Model
 
 Per-game aggregate snapshots are cached at `GameEnd` (and invalidated by corrections). Scope filters fold cached per-game aggregates — a season of date-range queries is summing ~40 small structs. Split filters that cut *within* games replay events, but a game is only ~250 events; a full season replay is <10⁴ events, trivially interactive on-device. No server round-trip required for any stat view: the stats engine runs entirely on the local store, which is what "works at a field with no signal" demands anyway.
 
