@@ -51,11 +51,6 @@ const double _referenceZoneHeightInches = 23;
 const double _inchesPerXUnit = _referencePlateWidthInches / 2;
 const double _inchesPerYUnit = _referenceZoneHeightInches / 1;
 
-const double _canvasAspectRatio =
-    (zoneCanvasExtentMaxX - zoneCanvasExtentMinX) *
-    _inchesPerXUnit /
-    ((zoneCanvasExtentMaxY - zoneCanvasExtentMinY) * _inchesPerYUnit);
-
 // Placeholder palette — no app theme exists yet (pending a dedicated theming
 // ticket). One accent, per §18.7; light/dark surface pair for the margin vs.
 // zone-rect contrast.
@@ -70,30 +65,112 @@ const double _dragFingerOffset = 56;
 // 120+ pitches a game not to feel laggy.
 const Duration zoneCanvasArmDuration = Duration(milliseconds: 180);
 
-/// Maps a local point within a canvas of [size] to a [ZoneCoord], using the
-/// full widget bounds → [zoneCanvasExtentMinX]..[zoneCanvasExtentMaxY] extent.
-ZoneCoord zoneCoordFromLocal(Offset local, Size size) {
-  final fx = local.dx / size.width;
-  final fy = local.dy / size.height;
-  final x =
-      zoneCanvasExtentMinX + fx * (zoneCanvasExtentMaxX - zoneCanvasExtentMinX);
-  // Canvas y grows downward; ZoneCoord.y grows upward (0 = bottom, 1 = top).
-  final y =
-      zoneCanvasExtentMaxY - fy * (zoneCanvasExtentMaxY - zoneCanvasExtentMinY);
-  return ZoneCoord(x: x, y: y);
+/// One coordinate plane the canvas can present (§3.3, §11.4): a linear map
+/// between local pixels and the plane's own `(x, v)` space, plus its render
+/// aspect ratio, reference rect, and background/foreground painters.
+///
+/// The widget holds the active plane and can swap it at runtime (§11.1's
+/// dirt-band hinge) without rebuilding — the coordinate mapping and the
+/// background are the plane's, never hardcoded to the zone rectangle. This is
+/// the seam DIA-011 (1/2)'s design constraint asked for and DIA-005 left
+/// unmet; DIA-011 (2/2) adds the top-down `BounceCoord` plane as the second
+/// implementation, so until then [_FrontalPlane] is the only one wired.
+///
+/// `v` is the plane's second axis and grows UP-screen (canvas y is inverted):
+/// frontal `v` is `ZoneCoord.y`; top-down `v` will be `BounceCoord.depth`.
+abstract class _CanvasPlane {
+  const _CanvasPlane();
+
+  /// Capture-extent bounds: a release inside `[minX, maxX] × [minV, maxV]`
+  /// commits; outside cancels.
+  double get minX;
+  double get maxX;
+  double get minV;
+  double get maxV;
+
+  /// Physical inches per unit on each axis — the axes aren't the same scale,
+  /// so the render aspect ratio corrects for it (reference sizes above).
+  double get inchesPerXUnit;
+  double get inchesPerVUnit;
+
+  double get aspectRatio =>
+      (maxX - minX) * inchesPerXUnit / ((maxV - minV) * inchesPerVUnit);
+
+  /// Local pixel → the plane's `(x, v)` coordinate.
+  ({double x, double v}) fromLocal(Offset local, Size size) {
+    final fx = local.dx / size.width;
+    final fy = local.dy / size.height;
+    return (x: minX + fx * (maxX - minX), v: maxV - fy * (maxV - minV));
+  }
+
+  /// Inverse of [fromLocal]: the plane's `(x, v)` → local pixel.
+  Offset toLocal(double x, double v, Size size) {
+    final fx = (x - minX) / (maxX - minX);
+    final fy = (maxV - v) / (maxV - minV);
+    return Offset(fx * size.width, fy * size.height);
+  }
+
+  /// The plane's reference rectangle in local pixels — the strike-zone rect
+  /// (frontal) or the plate/depth region (top-down). Bounds the underlay and
+  /// the foreground border.
+  Rect referenceRect(Size size);
+
+  /// Background beneath the underlay and markers.
+  CustomPainter background(Rect referenceRect, Brightness brightness);
+
+  /// Foreground (border/grid) above the underlay, so it stays crisp over
+  /// whatever the underlay draws.
+  CustomPainter foreground(Rect referenceRect);
 }
 
-/// Inverse of [zoneCoordFromLocal]: maps a [ZoneCoord] to a local point within
-/// a canvas of [size].
-Offset localFromZoneCoord(ZoneCoord coord, Size size) {
-  final fx =
-      (coord.x - zoneCanvasExtentMinX) /
-      (zoneCanvasExtentMaxX - zoneCanvasExtentMinX);
-  final fy =
-      (zoneCanvasExtentMaxY - coord.y) /
-      (zoneCanvasExtentMaxY - zoneCanvasExtentMinY);
-  return Offset(fx * size.width, fy * size.height);
+/// Frontal (catcher's-view) plane: the strike-zone rectangle plus its
+/// out-of-zone capture margin, mapping to a [ZoneCoord] (§3.1).
+class _FrontalPlane extends _CanvasPlane {
+  const _FrontalPlane();
+
+  @override
+  double get minX => zoneCanvasExtentMinX;
+  @override
+  double get maxX => zoneCanvasExtentMaxX;
+  @override
+  double get minV => zoneCanvasExtentMinY;
+  @override
+  double get maxV => zoneCanvasExtentMaxY;
+  @override
+  double get inchesPerXUnit => _inchesPerXUnit;
+  @override
+  double get inchesPerVUnit => _inchesPerYUnit;
+
+  @override
+  Rect referenceRect(Size size) => Rect.fromPoints(
+    toLocal(zoneMinX, zoneMaxY, size),
+    toLocal(zoneMaxX, zoneMinY, size),
+  );
+
+  @override
+  CustomPainter background(Rect referenceRect, Brightness brightness) =>
+      _ZoneCanvasBackgroundPainter(
+        zoneRect: referenceRect,
+        brightness: brightness,
+      );
+
+  @override
+  CustomPainter foreground(Rect referenceRect) =>
+      _ZoneBorderPainter(zoneRect: referenceRect);
 }
+
+const _CanvasPlane _frontalPlane = _FrontalPlane();
+
+/// Maps a local point within a canvas of [size] to a [ZoneCoord] via the
+/// frontal plane's mapping. Thin wrapper kept for call sites and tests.
+ZoneCoord zoneCoordFromLocal(Offset local, Size size) {
+  final c = _frontalPlane.fromLocal(local, size);
+  return ZoneCoord(x: c.x, y: c.v);
+}
+
+/// Inverse of [zoneCoordFromLocal].
+Offset localFromZoneCoord(ZoneCoord coord, Size size) =>
+    _frontalPlane.toLocal(coord.x, coord.y, size);
 
 bool _isInside(Offset local, Size size) =>
     local.dx >= 0 &&
@@ -160,6 +237,10 @@ class ZoneCanvas extends StatefulWidget {
 class _ZoneCanvasState extends State<ZoneCanvas> {
   Offset? _dragLocal;
 
+  // The active coordinate plane. Frontal only until DIA-011 (2/2) wires the
+  // top-down BounceCoord plane and the hinge that swaps to it at runtime.
+  _CanvasPlane get _plane => _frontalPlane;
+
   void _handleLongPressStart(LongPressStartDetails details) {
     setState(() => _dragLocal = details.localPosition);
   }
@@ -181,17 +262,16 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final plane = _plane;
+        final aspectRatio = plane.aspectRatio;
         var width = constraints.maxWidth;
-        var height = width / _canvasAspectRatio;
+        var height = width / aspectRatio;
         if (height > constraints.maxHeight) {
           height = constraints.maxHeight;
-          width = height * _canvasAspectRatio;
+          width = height * aspectRatio;
         }
         final size = Size(width, height);
-        final zoneRect = Rect.fromPoints(
-          localFromZoneCoord(ZoneCoord(x: zoneMinX, y: zoneMaxY), size),
-          localFromZoneCoord(ZoneCoord(x: zoneMaxX, y: zoneMinY), size),
-        );
+        final zoneRect = plane.referenceRect(size);
 
         return Center(
           child: SizedBox(
@@ -226,9 +306,9 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                     },
                     child: CustomPaint(
                       size: size,
-                      painter: _ZoneCanvasBackgroundPainter(
-                        zoneRect: zoneRect,
-                        brightness: Theme.of(context).brightness,
+                      painter: plane.background(
+                        zoneRect,
+                        Theme.of(context).brightness,
                       ),
                     ),
                   ),
@@ -243,7 +323,7 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 IgnorePointer(
                   child: CustomPaint(
                     size: size,
-                    painter: _ZoneBorderPainter(zoneRect: zoneRect),
+                    painter: plane.foreground(zoneRect),
                   ),
                 ),
                 // A neutral starting marker at zone center, shown only
