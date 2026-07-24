@@ -225,8 +225,8 @@ export interface PitchThrown {
     batterId:      string;
     batterSide:    BatterSide;
     /**
-     * set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
-     * an observed actualLocation. Actual only — never a call.
+     * set when the pitch hit the dirt before reaching the catcher (§3.3); mutually exclusive
+     * with an observed actualLocation. Actual only — never a call.
      */
     bounceLocation?:   BounceCoord;
     intendedLocation?: ZoneCoord;
@@ -266,20 +266,26 @@ export type BatterAction = "showed_bunt" | "pulled_bunt" | "slap" | "fake_slap" 
 export type BatterSide = "L" | "R";
 
 /**
- * set when the pitch hit the dirt before reaching the plate (§3.3); mutually exclusive with
- * an observed actualLocation. Actual only — never a call.
+ * set when the pitch hit the dirt before reaching the catcher (§3.3); mutually exclusive
+ * with an observed actualLocation. Actual only — never a call.
  *
- * Landing spot of a pitch that hit the dirt before reaching the plate (spec §3.3). x: SAME
- * normalized lateral axis as ZoneCoord.x (absolute, catcher's view; flip by handedness at
- * render). depth: absolute FEET from the front edge of the plate; positive = toward the
- * pitcher (bounced out front), 0 = front edge, negative = past the back edge (skipped).
- * Absolute feet, not normalized, because ground geometry does not vary with batter height.
- * Never clamp. Only ever an actual location, never a call (intendedLocation stays a
- * ZoneCoord).
+ * Landing spot of a pitch that hit the dirt before reaching the catcher, whether it bounced
+ * in front of the plate or between the plate and the catcher (spec §3.3). Only ever an
+ * actual location, never a call (intendedLocation stays a ZoneCoord).
  */
 export interface BounceCoord {
+    /**
+     * Absolute FEET from the front edge of the plate. Positive = toward the pitcher (bounced
+     * out front); 0 = front edge; negative = behind the front edge toward the catcher (a short
+     * hop between the plate and the catcher, or skipped past the back). Absolute feet, not
+     * normalized, because ground geometry does not vary with batter height. Never clamp.
+     */
     depth: number;
-    x:     number;
+    /**
+     * SAME normalized lateral axis as ZoneCoord.x: absolute, catcher's view, flip by handedness
+     * at render.
+     */
+    x: number;
 }
 
 export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";

@@ -2,11 +2,19 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://diamond.app/schema/common/bounce_coord.schema.json",
   "title": "BounceCoord",
-  "description": "Landing spot of a pitch that hit the dirt before reaching the plate (spec §3.3). x: SAME normalized lateral axis as ZoneCoord.x (absolute, catcher's view; flip by handedness at render). depth: absolute FEET from the front edge of the plate; positive = toward the pitcher (bounced out front), 0 = front edge, negative = past the back edge (skipped). Absolute feet, not normalized, because ground geometry does not vary with batter height. Never clamp. Only ever an actual location, never a call (intendedLocation stays a ZoneCoord).",
+  "description": "Landing spot of a pitch that hit the dirt before reaching the catcher, whether it bounced in front of the plate or between the plate and the catcher (spec §3.3). Only ever an actual location, never a call (intendedLocation stays a ZoneCoord).",
   "type": "object",
   "properties": {
-    "x": { "type": "number", "minimum": -5, "maximum": 5 },
-    "depth": { "type": "number" }
+    "x": {
+      "type": "number",
+      "minimum": -5,
+      "maximum": 5,
+      "description": "SAME normalized lateral axis as ZoneCoord.x: absolute, catcher's view, flip by handedness at render."
+    },
+    "depth": {
+      "type": "number",
+      "description": "Absolute FEET from the front edge of the plate. Positive = toward the pitcher (bounced out front); 0 = front edge; negative = behind the front edge toward the catcher (a short hop between the plate and the catcher, or skipped past the back). Absolute feet, not normalized, because ground geometry does not vary with batter height. Never clamp."
+    }
   },
   "required": ["x", "depth"],
   "additionalProperties": false

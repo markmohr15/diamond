@@ -1,6 +1,6 @@
 # Diamond — Event Taxonomy & Pitch Entry Spec (v0.25)
 
-**Status:** Draft for review — v0.25 clarifies that a bounce is only ever an *actual*, never a call: `intendedLocation` stays a `ZoneCoord` and the dirt-band hinge (§11.1) is actual-only (§4.1) (provisional — whether a bounce can be deliberately called is still open); v0.24 records the canvas fidelity question as an open golden-test decision rather than a settled directive (§11.4); v0.23 specified the pitch canvas composition for both planes — plate anchor, batter's boxes, lateral registration, dirt band (§11.4); v0.22 derives chase intent from zone position instead of storing a flag (§10.1, §17.4); v0.21 unified command classification on call-zone resolution (freeform taps resolve to the containing zone, so one rubric covers both producers) and replaced "waste" terminology (§10.1, §17.4); v0.20 replaced miss-distance magnitude with command classification (executed / competitive miss / uncompetitive, plus miss direction) (§17.4); v0.19 adds `BounceCoord` (§3.3) and `bounceLocation` on `PitchThrown` (§4.1) for pitches that hit the dirt before reaching the plate, captured via the dirt-band hinge interaction (§11.1); v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.25 clarifies that a bounce is only ever an *actual*, never a call: `intendedLocation` stays a `ZoneCoord` and the dirt-band hinge (§11.1) is actual-only (§4.1) (provisional — whether a bounce can be deliberately called is still open); v0.24 records the canvas fidelity question as an open golden-test decision rather than a settled directive (§11.4); v0.23 specified the pitch canvas composition for both planes — plate anchor, batter's boxes, lateral registration, dirt band (§11.4); v0.22 derives chase intent from zone position instead of storing a flag (§10.1, §17.4); v0.21 unified command classification on call-zone resolution (freeform taps resolve to the containing zone, so one rubric covers both producers) and replaced "waste" terminology (§10.1, §17.4); v0.20 replaced miss-distance magnitude with command classification (executed / competitive miss / uncompetitive, plus miss direction) (§17.4); v0.19 adds `BounceCoord` (§3.3) and `bounceLocation` on `PitchThrown` (§4.1) for pitches that hit the dirt before reaching the catcher, captured via the dirt-band hinge interaction (§11.1); v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -66,7 +66,7 @@ interface FieldCoord {
 
 ### 3.3 Pitch Bounce (`BounceCoord`)
 
-For a pitch that hits the dirt before reaching the plate — a physically distinct question from "how low," which `ZoneCoord.y` already answers for pitches that arrive in the air.
+For a pitch that hits the dirt before reaching the catcher — in front of the plate or between the plate and the catcher — a physically distinct question from "how low," which `ZoneCoord.y` already answers for pitches that reach the catcher in the air.
 
 ```typescript
 interface BounceCoord {
@@ -79,7 +79,7 @@ interface BounceCoord {
 
 - **Absolute feet, not normalized** — unlike `ZoneCoord.y`, which is normalized because the strike zone varies with batter height, ground geometry doesn't: the plate is 17 inches for everyone, and a bounce four feet out front is four feet out front regardless of who's standing in the box. This makes `depth` directly comparable across batters, pitchers, and games with no transformation.
 - **`x` is shared with `ZoneCoord`, not re-derived.** `ZoneCoord.x` is already normalized against the fixed 17″ plate width, not batter height (only `y` varies by batter), so the two coordinate spaces register on the same lateral axis — "she misses arm-side and in the dirt" is one query across both, and a dirt strip renders in lateral register with the zone above it.
-- Two planes, not a 3D position: `ZoneCoord` is the frontal plane (lateral × height) a pitch is tapped into when it reaches the plate in the air; `BounceCoord` is the top-down plane (lateral × depth) a pitch is tapped into when it hits the dirt first. They share the lateral axis and nothing else — no perspective projection, no inferred 3D point.
+- Two planes, not a 3D position: `ZoneCoord` is the frontal plane (lateral × height) a pitch is tapped into when it reaches the catcher in the air (measured where it crossed the plate); `BounceCoord` is the top-down plane (lateral × depth) a pitch is tapped into when it hits the dirt first. They share the lateral axis and nothing else — no perspective projection, no inferred 3D point.
 
 ## 4. Event Catalog
 
@@ -99,9 +99,10 @@ interface PitchThrown {
                                   //   location capture is ON (§12.4); null = not captured,
                                   //   or the pitch bounced first (see bounceLocation)
   bounceLocation?: BounceCoord;   // set when the pitch hit the dirt before reaching the
-                                  //   plate (§3.3, §11.1's dirt-band hinge). Mutually
+                                  //   catcher (§3.3, §11.1's dirt-band hinge) — in front of
+                                  //   the plate or between the plate and the catcher. Mutually
                                   //   exclusive with an observed actualLocation — a pitch
-                                  //   either arrives in the air or bounces first, never both.
+                                  //   either reaches the catcher in the air or bounces first.
   velocity?: number;              // mph, optional (radar gun)
   batterAction?:                  // observed offensive posture on THIS pitch, orthogonal
     'showed_bunt'                 //   to outcome: squared, ball not offered at ⇒ pair with
