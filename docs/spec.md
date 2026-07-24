@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.17)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.18)
 
-**Status:** Draft for review — v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -306,6 +306,7 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 4. **Trajectory granularity:** is ground/line/fly/popup/bunt enough, or do you want launch-angle-ish buckets (e.g., low line vs. high line)?
 5. ~~**Multi-device roles in v1:**~~ **RESOLVED (v0.3):** flexible one- or two-device operation with a primary/secondary model, full per-event provenance, and per-capability capture toggles. See §12.
 6. **Tag vocabulary for ScorerNote:** want to draft the starter set now (e.g., `chased`, `late`, `early`, `squared_up`, `bad_baserunning`, `great_play`)?
+7. **Call-entry interaction for the freeform path (§10.1 v0.18):** does the coach pick a zone off the grid (snapping `intendedLocation` to its centroid) and then optionally drag/nudge further from there, or is freeform entry a fully separate gesture from zone-grid selection? Under consideration for the call-screen ticket; not yet decided.
 
 ---
 
@@ -328,6 +329,7 @@ interface CallZone {
 
 - Default layout: 3×3 in-zone grid + 4 out-of-zone "waste" spots (up, down, in, out). Teams can simplify (5-spot: in/out/up/down/middle) or extend.
 - `PitchThrown.intendedLocation` stores the zone's `centroid`; a new optional field `intendedZoneId` stores the zone identity so projections can aggregate by call zone directly. Miss distance = actual − centroid.
+- **Freeform intent capture (v0.18).** The zone-grid flow above is one producer of `intendedLocation`/`intendedZoneId`, not the only one. Contexts without a wristband-code call — solo scoring, a coach calling verbally, observation mode (§19.5) where the opponent's zone layout isn't yours to know — may instead capture `intendedLocation` as a raw freeform tap on the same canvas, leaving `intendedZoneId` null. Both fields are already optional/unconstrained, so no schema change is required. Because `intendedLocation` is no longer guaranteed to equal a zone's stored centroid, miss-distance projections should compute `actual − intendedLocation` directly rather than looking up a centroid via `intendedZoneId`.
 
 ### 10.2 Code System
 
