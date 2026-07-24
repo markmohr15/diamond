@@ -1,15 +1,14 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// Canvas sized to exactly match the widget's fixed aspect ratio
-// ((zoneCanvasExtentMaxX - zoneCanvasExtentMinX) / (zoneCanvasExtentMaxY -
-// zoneCanvasExtentMinY) == 3.2 / 2.2), so the rendered canvas fills this
-// SizedBox exactly with no letterboxing and the top-left of the SizedBox is
-// the coordinate-mapping origin.
-const _canvasSize = Size(320, 220);
+// Canvas sized to exactly match the widget's fixed aspect ratio (extent
+// width/height in units, scaled by the inches-per-unit reference on each
+// axis: (3.2 * 8.5) / (2.2 * 23) == 27.2 / 50.6), so the rendered canvas
+// fills this SizedBox exactly with no letterboxing and the top-left of the
+// SizedBox is the coordinate-mapping origin.
+const _canvasSize = Size(272, 506);
 final _canvasKey = UniqueKey();
 
 class _Harness extends StatefulWidget {
@@ -72,7 +71,7 @@ Future<void> _longPressDragRelease(
   Offset? moveTo,
 }) async {
   final gesture = await tester.startGesture(_global(tester, local));
-  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+  await tester.pump(zoneCanvasArmDuration + const Duration(milliseconds: 50));
   if (moveTo != null) {
     await gesture.moveTo(_global(tester, moveTo));
     await tester.pump();

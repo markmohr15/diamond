@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 /// Which step of the per-pitch loop (§11.1) a [ZoneCanvas] instance
@@ -38,9 +39,22 @@ const double zoneCanvasExtentMaxX = zoneMaxX + _marginX;
 const double zoneCanvasExtentMinY = zoneMinY - _marginBottom;
 const double zoneCanvasExtentMaxY = zoneMaxY + _marginTop;
 
+// x and y aren't the same physical scale: x ∈ [-1, 1] spans home plate's
+// ~17in width (1 x-unit ≈ 8.5in), while y ∈ [0, 1] spans a batter's
+// knees-to-letters zone height (~23in reference average, 1 y-unit ≈ 23in).
+// The render aspect ratio has to account for that, or the zone rect comes
+// out landscape instead of the portrait shape a real strike zone is.
+// Per-sport/age zone shape is a `RuleSet` rendering concern (§3.1) — this is
+// a single placeholder reference size, same pattern as [BallKind].
+const double _referencePlateWidthInches = 17;
+const double _referenceZoneHeightInches = 23;
+const double _inchesPerXUnit = _referencePlateWidthInches / 2;
+const double _inchesPerYUnit = _referenceZoneHeightInches / 1;
+
 const double _canvasAspectRatio =
-    (zoneCanvasExtentMaxX - zoneCanvasExtentMinX) /
-    (zoneCanvasExtentMaxY - zoneCanvasExtentMinY);
+    (zoneCanvasExtentMaxX - zoneCanvasExtentMinX) *
+    _inchesPerXUnit /
+    ((zoneCanvasExtentMaxY - zoneCanvasExtentMinY) * _inchesPerYUnit);
 
 // Placeholder palette — no app theme exists yet (pending a dedicated theming
 // ticket). One accent, per §18.7; light/dark surface pair for the margin vs.
@@ -49,6 +63,12 @@ const Color _accentColor = Color(0xFF0A84FF);
 
 const double _iconRadius = 16;
 const double _dragFingerOffset = 56;
+
+// Shorter than Flutter's default long-press threshold (kLongPressTimeout,
+// 500ms — tuned for context-menu-style holds). Still enough of a deliberate
+// hold to tell apart from a stray brush of the screen, but fast enough for
+// 120+ pitches a game not to feel laggy.
+const Duration zoneCanvasArmDuration = Duration(milliseconds: 180);
 
 /// Maps a local point within a canvas of [size] to a [ZoneCoord], using the
 /// full widget bounds → [zoneCanvasExtentMinX]..[zoneCanvasExtentMaxY] extent.
@@ -186,12 +206,24 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 // the border is painted separately, on top of the underlay,
                 // below.
                 Positioned.fill(
-                  child: GestureDetector(
+                  child: RawGestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onLongPressStart: _handleLongPressStart,
-                    onLongPressMoveUpdate: _handleLongPressMoveUpdate,
-                    onLongPressEnd: (details) =>
-                        _handleLongPressEnd(details, size),
+                    gestures: {
+                      LongPressGestureRecognizer:
+                          GestureRecognizerFactoryWithHandlers<
+                            LongPressGestureRecognizer
+                          >(
+                            () => LongPressGestureRecognizer(
+                              duration: zoneCanvasArmDuration,
+                            ),
+                            (instance) => instance
+                              ..onLongPressStart = _handleLongPressStart
+                              ..onLongPressMoveUpdate =
+                                  _handleLongPressMoveUpdate
+                              ..onLongPressEnd = (details) =>
+                                  _handleLongPressEnd(details, size),
+                          ),
+                    },
                     child: CustomPaint(
                       size: size,
                       painter: _ZoneCanvasBackgroundPainter(
@@ -214,6 +246,17 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                     painter: _ZoneBorderPainter(zoneRect: zoneRect),
                   ),
                 ),
+                // A neutral starting marker at zone center, shown only
+                // before anything's been placed or grabbed — gives the coach
+                // something concrete to find and drag rather than a blind
+                // first touch on an empty rect.
+                if (widget.value == null && _dragLocal == null)
+                  _DefaultMarker(
+                    center: localFromZoneCoord(
+                      ZoneCoord(x: 0, y: 0.5),
+                      size,
+                    ),
+                  ),
                 if (widget.value != null)
                   _MarkerIcon(
                     mode: widget.mode,
@@ -233,20 +276,32 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                   left: 8,
                   child: _ModeBanner(mode: widget.mode),
                 ),
+                // A Row sharing the full width (rather than two independently
+                // left/right-pinned buttons) keeps Cancel and Skip location
+                // from overlapping now that the canvas is portrait-shaped and
+                // can be narrower than the two buttons' combined natural
+                // width (§18.7 — buttons still get generous tap targets via
+                // Expanded, just not their intrinsic text width).
                 Positioned(
-                  bottom: 8,
                   left: 8,
-                  child: _AffordanceButton(
-                    label: 'Cancel',
-                    onPressed: widget.onCancel,
-                  ),
-                ),
-                Positioned(
-                  bottom: 8,
                   right: 8,
-                  child: _AffordanceButton(
-                    label: 'Skip location',
-                    onPressed: widget.onSkip,
+                  bottom: 8,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _AffordanceButton(
+                          label: 'Cancel',
+                          onPressed: widget.onCancel,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _AffordanceButton(
+                          label: 'Skip location',
+                          onPressed: widget.onSkip,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -355,7 +410,37 @@ class _AffordanceButton extends StatelessWidget {
           minimumSize: const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 12),
         ),
-        child: Text(label),
+        child: Text(label, overflow: TextOverflow.ellipsis, maxLines: 1),
+      ),
+    );
+  }
+}
+
+/// Plain neutral dot shown at zone center before anything's been placed —
+/// deliberately not mode-styled (no reticle/ball imagery), since it isn't a
+/// call or a result yet, just something to find and drag.
+class _DefaultMarker extends StatelessWidget {
+  const _DefaultMarker({required this.center});
+
+  final Offset center;
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: center.dx - _iconRadius,
+      top: center.dy - _iconRadius,
+      child: IgnorePointer(
+        child: SizedBox(
+          width: _iconRadius * 2,
+          height: _iconRadius * 2,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.black.withValues(alpha: 0.2),
+              border: Border.all(color: Colors.black38),
+            ),
+          ),
+        ),
       ),
     );
   }

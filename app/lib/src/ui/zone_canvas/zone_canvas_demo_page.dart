@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 /// game: no event store, no pitcher/batter data, just a simulated one-batter
 /// call → actual loop (§11.1) so the widget can be tapped through by hand.
 ///
-/// This page is a placeholder home screen for DIA-005 only — DIA-006/007
-/// replace it with the real call screen and pitch loop.
+/// This page is a placeholder home screen for DIA-005 only. DELETE this file
+/// and its wiring in `main.dart` once DIA-007's real pitch loop replaces it
+/// as the app's home screen — see DIA-007's Cleanup note. It deliberately
+/// stays minimal (e.g. no way to re-edit a committed value from the summary
+/// screen) since the real UI, not this harness, is where that belongs.
 class ZoneCanvasDemoPage extends StatefulWidget {
   const ZoneCanvasDemoPage({super.key});
 
