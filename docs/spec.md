@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.31)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.33)
 
-**Status:** Draft for review — v0.31 replaces §11.4's scenery cap with a distance fade: ground is drawn to its natural extent, both batter's-box chalk lines render, and Open Question #8 closes; v0.30 moves the version history to `docs/spec-history.md`; v0.29 trims rationale from §3.1, §11.1, §11.4, §18.7 (wording only, no rules or numbers changed). Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.33 trims §11.4's top extent to +1.5, half a zone height above the zone: higher than that carries no scouting information (a foot over the head and two inches over it are the same observation), those pitches stay recordable on the top edge, and it buys vertical room for the count HUD and outcome row. Also states which canvas dimension binds, since whether widening or trimming costs tap size depends on it. v0.32 widens §11.4's lateral range to ±4.0 so the canvas contains where the batter stands rather than merely reaching the chalk (a pitch may be recorded anywhere on it, and the silhouette — which is paint, never a hit target — lays over part of it); widening is free in tap precision because the canvas is height-limited. The ground-line boundary keeps the fade's inherent tonal step and drops the drawn full-width rule, and the plate's on-screen depth is corrected to 0.152 y-units. v0.31 replaces §11.4's scenery cap with a distance fade: ground is drawn to its natural extent, both batter's-box chalk lines render, and Open Question #8 closes; Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -490,15 +490,26 @@ At H = 4 ft the ratio band binds first: d = 15 ft is not a legal camera despite 
 |---|---|---|
 | Axis scale ratio | **0.354** at 12U | `8.5″ / zoneHeight`; per-profile, never a literal (§3.1) |
 | Ground line `y_ground` | **−0.646** | §3.1's canonical inputs |
-| Plate on-screen depth | 0.153 y-units | 0.215 × (17″ / 24″) |
+| Plate on-screen depth | 0.152 y-units | 0.215 × (17″ / 24″) |
 | Plate point at | y = −0.798 | `y_ground` − plate depth |
-| Lateral range | **x ∈ [−1.9, +1.9]** | inner chalk edge at x = 1.706 must be on-canvas |
-| Vertical range | **y ∈ [−1.05, +1.80]** | eye level ≈ +1.65; dirt margin below the plate point |
-| Resulting canvas | ≈ 68″ × 32″, **≈ 2.1 : 1** | a workable tablet shape with room for the outcome row |
+| Lateral range | **x ∈ [−4.0, +4.0]** | contains where the batter stands (x ≈ 2.4–4.3 at 12U), not merely the chalk |
+| Vertical range | **y ∈ [−1.05, +1.50]** | ½ zone height above the zone; dirt margin below the plate point |
+| Resulting canvas | ≈ 68″ × 61″, **≈ 1.11 : 1** | slightly landscape; the rest of a tablet carries the call grid |
 
 **Ground is bounded by contrast, not by extent.** Ground in front of the plate projects upward and compresses: at the default camera, 1 ft in front reaches y = −0.55, 2 ft reaches −0.46, 5 ft reaches −0.25. It is drawn to its natural extent — the region in front of the plate is where a bounced pitch physically lands, and it renders as dirt — and **fades with distance**, reaching neutral before it sits behind the zone rect. What §18.7 protects is grid legibility against a busy backdrop; a fade satisfies that without truncating the ground furniture drawn on it. Fade endpoints are a fidelity call, tuned with the two treatments below.
 
-Drawn ground therefore spans the ground line, and **the trigger region is not identified by looking like dirt.** The landmark for the boundary is the plate's 17″ front edge, which by construction lies exactly on it, reinforced by a treatment step at the ground line. Everything drawn above the line renders behind the marker layer.
+Drawn ground therefore spans the ground line, and **the trigger region is not identified by looking like dirt.** The landmark for the boundary is the plate's 17″ front edge, which by construction lies exactly on it, reinforced by the tonal step where the fade meets full-tone ground. That step is inherent in the fade and is *not* drawn as a rule across the canvas — an explicit full-width line reads as an arbitrary graphic, and the boundary is legible without it. Re-check that judgement when the hinge lands, since that is when the boundary starts carrying interaction weight. Everything drawn above the line renders behind the marker layer.
+
+**The top stops where information stops.** +1.5 is half a zone height above the zone — ≈ 12″ over the letters, upper-face level at 12U. Higher than that carries nothing for scouting or development: a foot over the head and two inches over the head are the same observation, and §17.4 buckets both as uncompetitive-high. Such pitches stay recordable, just unresolved, landing on the top edge. Shoulder height (y ≈ 1.31) stays resolved, since an elevated fastball is a location rather than a miss. Trimming here is free in the side-by-side layout — see the note below on which dimension binds — and buys vertical room for the count HUD and outcome row.
+
+**The lateral range contains where the batter stands.** Reaching the chalk is not the requirement; a pitch may be recorded anywhere on the canvas, including at the batter, and the silhouette (below) simply lays over part of it. A 12U stance puts her body centre ≈ 26–30″ off plate centre — x ≈ 3.1–3.5, spanning roughly x ∈ [2.4, 4.3] — so ±4.0 leaves capture room on both sides of her. What this spends is horizontal room, which competes with the call grid; that is why it stops at ±4.0 and not ±6.0, where the entire 36″ box would fit but its outer ~20″ is chalk nobody stands in.
+
+**What the frame costs depends on which dimension binds, and the two extents are not interchangeable.** The zone's on-screen size is set by the binding dimension alone:
+
+- **Height-bound** (canvas given the full screen height): zone px = `panelHeight / verticalExtent`. Lateral range does not enter, so widening is free and trimming the top *enlarges* the zone.
+- **Width-bound** (canvas given a width budget so a call column fits): zone px = `panelWidth × 2 / lateralExtent`, scaled by 17″/24″ for height. Vertical extent does not enter, so trimming the top is free and widening is what costs.
+
+Worked at 1180 × 760 usable, leaving ~450 for the call column: ±4.0 with the top at +1.5 gives a 730 × 657 panel and a 182 × 258 zone. The earlier ±1.9 / +1.80 frame gave 189 × 267 — so reaching the batter and the full box cost ~4% of zone size and ~400 px of width, not tap precision. Do not generalise either bullet into "widening is free"; check which dimension binds first.
 
 **The ground plane above the line is invertible, and is deliberately not used that way.** `u = k / (y_horizon − y)` recovers a distance from any tap on drawn ground, so a tap 4 ft in front of the plate does correspond to a real bounce depth. It is not read as one: the same pixel is also a legitimate airborne location (y = −0.40 is both ground 2.8 ft out and a pitch 5.9″ off the dirt at the plate), and the airborne reading is overwhelmingly the common case. Taps above `y_ground` are airborne; bounce depth is captured only through the hinge and the top-down plane (§3.3, §11.1).
 
@@ -513,16 +524,16 @@ The ground plane's projection is **not** isotropic with the frontal plane above 
 | Baseball | 48″ × 72″ | 6″ | 36″ / 36″ |
 | Fastpitch softball | 36″ × 84″ | 6″ | 48″ / 36″ |
 
-Chalk is **3″** wide and the rulebook's 6″ is measured to its **inner (plate-side) edge**, so at the plate's depth the inner line spans x ∈ [1.706, 2.059] — the outer part clips at the ±1.9 canvas edge, which is intended.
+Chalk is **3″** wide and the rulebook's 6″ is measured to its **inner (plate-side) edge**, so at the plate's depth the inner line spans x ∈ [1.706, 2.059] — both edges comfortably on-canvas at ±4.0, so the band reads as a line rather than clipping into a wedge.
 
 **The inner and front lines render; the back and outer lines do not.** The inner line and the front line are what a coach reads position against; the back line toward the catcher and the outer line toward the dugout carry no locating information and run off-frame at true scale. Chalk is clipped only by the box's own extent and the canvas edge, and fades with the ground it is painted on.
 
-At the default camera the inner line is laterally on-canvas from `u ≈ 0.898 d` and runs to the box's front line — **≈ 64″ of an 84″ box**, y ∈ [−0.873, −0.363] — turning a corner into a ≈ 4.3″ stub of the 36″ front line before leaving frame. Each box therefore reads as a box receding out of view, as in the reference K-zone, where the boxes are frame-cut the same way.
+At the default camera the inner line is laterally on-canvas from `u ≈ 0.426 d` — nearer than the box's own back line, so nothing clips laterally and the near end is instead bounded by the canvas bottom at `u ≈ 199.7″`. The visible run is therefore **≈ 80″ of an 84″ box**, y ∈ [−1.05, −0.363], turning a corner into ≈ 25″ of the 36″ front line before leaving frame. Each box reads as a box receding out of view, as in the reference K-zone, where the boxes are frame-cut the same way.
 
 **Top-down plane (after the hinge).** Deliberately unmistakable at a glance — if the two views could be confused, the hinge design fails:
 
 - **Plate from directly above**, true pentagon, no perspective; the 17″ edge is the `depth = 0` line and the hinge seam.
-- **True scale, and the same px-per-x as the frontal plane.** The plate is literally the same width in both views, which is the strongest available cue that the planes register — and it works out arithmetically: at ±1.9 lateral the canvas spans ~32″, so a depth range of −1 ft to +5 ft renders isotropically at roughly the same 2.1 : 1 aspect as the frontal plane. The top-down plane needs no depth compression.
+- **True scale, and the same px-per-x as the frontal plane.** The plate is literally the same width in both views, which is the strongest available cue that the planes register — and it works out arithmetically: at ±4.0 lateral the canvas spans ~68″, so a depth range of −1 ft to +5 ft (72″) renders isotropically at ≈ 0.94 : 1, close to the frontal plane's ≈ 1 : 1. The top-down plane needs no depth compression.
 - **Depth grows up-screen** toward the pitcher, matching the frontal plane's sense of "away from the catcher," with labeled bands (0–2 ft, 2–4 ft, 4 ft+). Negative depth — balls that skipped past the back edge — extends below the plate toward the catcher.
 - **Batter's boxes and a catcher position** flank and sit behind, again with the occupied box shaded. Lateral axis stays in register with the frontal plane above it.
 
@@ -534,6 +545,8 @@ At the default camera the inner line is laterally on-canvas from `u ≈ 0.898 d`
 - **For restraint:** the entry canvas is used ~120 times a game, in sunlight, on a clock. Every decorated pixel competes with the tap markers and grid that carry the actual information.
 
 The likely resolution, to be validated rather than assumed: a **dimensional, materially real plate and dirt** — chalk with weight, texture, honest shading — on a **neutral background**, since the contrast cost lives in a busy backdrop behind the grid, not in the plate in front of it. Note also that what reads as "serious" in a reference image is mostly *precision* — correct plate perspective, confident proportions, exact lateral registration (above) — not photographic detail; craft and busyness are separable. The geometry table above is not part of the fidelity question: it applies identically to both treatments, and getting it right is most of what makes either look intentional.
+
+**The shadow batter is paint, never a hit target.** Wherever it ships, it renders behind the marker layer and takes no pointer events: a pitch may be recorded anywhere on the canvas, including at the batter's body, so a silhouette that swallowed taps would make the region it occupies uncapturable — the opposite of why the lateral range was widened to contain her.
 
 **The shadow batter is a calibration instrument, not chrome.** A translucent batter silhouette makes the vertical geometry self-evident — the zone rect visibly spanning knee to armpit is a proof no table can give — so build it, behind a debug flag, and use it to validate `y_ground` and the plate ratio. Whether it *stays* is a different question, and the default answer for the entry canvas is no: `y ∈ [0,1]` is *this batter's* zone, so a fixed silhouette is honest only for a batter of the height it was drawn at and will visibly contradict the zone rect for a tall or short kid. If it ships anywhere, it ships on the review-fidelity surfaces below, driven from a batter-height parameter so it cannot drift from the zone it illustrates.
 
