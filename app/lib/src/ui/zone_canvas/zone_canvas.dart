@@ -777,9 +777,10 @@ class _TopDownBackgroundPainter extends CustomPainter {
   /// continuous float that never gets bucketed in storage anyway (§3.3), so a
   /// gridline every foot tells the truth about the axis with less ink.
   ///
-  /// `depth = 0` is drawn heaviest: it is the plate's 17″ front edge, the seam
-  /// the hinge lands on, and the sign boundary between "out front" and "toward
-  /// the catcher".
+  /// `depth = 0` is one of these lines and looks like the rest of them. It
+  /// needs no emphasis: it *is* the plate's 17″ front edge, so the plate draws
+  /// it far more legibly than a heavier rule could, and which side is front is
+  /// told by where the plate points (§11.4) rather than by any line weight.
   void _paintDepthRuler(Canvas canvas, Size size, Color structure) {
     final line = Paint()
       ..color = structure.withValues(alpha: 0.22)
@@ -795,6 +796,7 @@ class _TopDownBackgroundPainter extends CustomPainter {
   /// and the direction is what a coach is actually reading.
   void _paintDepthLabels(Canvas canvas, Size size, Color structure) {
     for (final foot in _gridlineFeet) {
+      if (foot == 0) continue; // The plate marks it; a "0 ft" label is noise.
       final y = geometry.fractionAtDepthFeet(foot) * size.height;
       final label = TextPainter(
         text: TextSpan(
@@ -813,8 +815,8 @@ class _TopDownBackgroundPainter extends CustomPainter {
     }
   }
 
-  /// Whole-foot depths with a gridline, skipping 0 — the seam is drawn with the
-  /// plate, since it is the plate's front edge.
+  /// Whole-foot depths with a gridline, 0 included and indistinguishable from
+  /// the rest.
   Iterable<double> get _gridlineFeet sync* {
     const step = TopDownGeometry.gridlineSpacingFeet;
     for (
@@ -822,7 +824,7 @@ class _TopDownBackgroundPainter extends CustomPainter {
       foot <= geometry.maxDepthFeet;
       foot += step
     ) {
-      if (foot != 0) yield foot;
+      yield foot;
     }
   }
 
@@ -850,19 +852,6 @@ class _TopDownBackgroundPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
-
-    // The seam, extended across the full width: unlike the frontal plane —
-    // where a full-width rule at the ground line would read as an arbitrary
-    // graphic — here it is the axis's zero and carries interaction meaning,
-    // since it is the depth the hinge hands over.
-    final seamY = geometry.fractionAtDepthFeet(0) * size.height;
-    canvas.drawLine(
-      Offset(0, seamY),
-      Offset(size.width, seamY),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.35)
-        ..strokeWidth = 1.5,
-    );
   }
 
   /// Batter's-box chalk, flanking the plate (§11.4): the inner line and the
