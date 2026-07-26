@@ -279,8 +279,13 @@ export interface BounceCoord {
      * out front); 0 = front edge; negative = behind the front edge toward the catcher (a short
      * hop between the plate and the catcher, or skipped past the back). Absolute feet, not
      * normalized, because ground geometry does not vary with batter height. Never clamp.
+     * OPTIONAL: absent means the pitch is known to have hit the dirt but its depth was not
+     * captured (§11.1's hinge skipped, §11.2's mode ladder) — x alone is still a real
+     * observation, and both consumers of a bounce that do not need depth (§4.1's conventional
+     * y_ground coordinate, §17.4's bounced-is-uncompetitive) read fine without it. Absent is
+     * never 0.
      */
-    depth: number;
+    depth?: number;
     /**
      * SAME normalized lateral axis as ZoneCoord.x: absolute, catcher's view, flip by handedness
      * at render.
@@ -678,7 +683,7 @@ const typeMap: any = {
         { json: "y", js: "y", typ: 3.14 },
     ], false),
     "BounceCoord": o([
-        { json: "depth", js: "depth", typ: 3.14 },
+        { json: "depth", js: "depth", typ: u(undefined, 3.14) },
         { json: "x", js: "x", typ: 3.14 },
     ], false),
     "RuleCall": o([

@@ -154,6 +154,12 @@ const double zoneCanvasExtentMaxX = 4;
 const double zoneCanvasExtentMinY = -1.05;
 const double zoneCanvasExtentMaxY = 1.5;
 
+/// The canvas's lateral coverage in inches — 68″ at ±4.0. Unlike the vertical
+/// extent this is profile-independent, since one x-unit is 8.5″ for everyone
+/// (§3.1).
+const double zoneCanvasLateralExtentInches =
+    (zoneCanvasExtentMaxX - zoneCanvasExtentMinX) * plateHalfWidthInches;
+
 /// Batter's-box dimensions — a `RuleSet` concern (§11.4), never an
 /// `if (softball)` branch. Offsets are measured to the chalk's *inner*
 /// (plate-side) edge, matching the rulebook.
@@ -204,7 +210,7 @@ class BatterBoxSpec {
 
 /// The frontal plane's projection: a plain scale-and-shift mapping for the
 /// zone (height → y, equal steps stay equal), plus a pinhole perspective for
-/// ground furniture (plate, dirt, boxes, catcher). The two coincide exactly at
+/// ground furniture (plate, dirt, boxes). The two coincide exactly at
 /// the plate's depth, which is what puts the plate's front edge on `y_ground`
 /// (§11.4) — an identity, independent of `H` and `d`.
 class FrontalGeometry {
@@ -307,4 +313,117 @@ class FrontalGeometry {
         (zoneCanvasExtentMaxX * plateHalfWidthInches),
     0,
   );
+}
+
+/// The top-down plate/dirt plane (§3.3), entered by §11.1's dirt-band hinge and
+/// left again on commit. Lateral × depth, where [FrontalGeometry] is lateral ×
+/// height: **the two planes share the lateral axis and nothing else** (§3.3).
+///
+/// Nothing here converts a frontal-plane position into a depth, and nothing may
+/// be added that does. The frontal plane's ground *is* invertible
+/// ([FrontalGeometry.groundDistanceAtY]) and deliberately unused that way — the
+/// same pixel is also a legitimate airborne location, which is the common case.
+/// Depth exists only after the hinge, from a placement made in this plane.
+///
+/// Two constraints fix everything except where `depth = 0` sits:
+///
+/// - **Same px-per-x as the frontal plane** (§11.4). The plate is literally the
+///   same width in both views, which is the strongest available cue that the
+///   planes register — and it makes `x = ±1` the plate's 17″ edge here too,
+///   with no second registration rule to keep in sync.
+/// - **Isotropic** — true scale in both axes, no depth compression. Unlike the
+///   frontal plane, whose axes differ by [ZoneProfile.axisScaleRatio] because
+///   height normalizes per batter, ground geometry is the same for everyone.
+class TopDownGeometry {
+  const TopDownGeometry({this.frontal = const FrontalGeometry()});
+
+  /// The frontal plane this one hinges from. Held rather than duplicated: the
+  /// lateral axis and the drawing rect's shape both come from it, which is what
+  /// keeps the two planes in register by construction rather than by matching
+  /// literals in two places.
+  final FrontalGeometry frontal;
+
+  /// One foot of depth in x-units: 12″ / 8.5″ = 1.412. This *is* the isotropy
+  /// constraint — the same px-per-inch in both axes — expressed in the units
+  /// the lateral axis already uses.
+  static const double xUnitsPerFoot = 12 / plateHalfWidthInches;
+
+  /// Total depth the canvas covers, in inches.
+  ///
+  /// Derived, not chosen: sharing px-per-x with the frontal plane fixes
+  /// px-per-inch, and the drawing rect's shape then fixes how many inches fit
+  /// vertically. 61.2″ = 5.10 ft at 12U.
+  ///
+  /// It falls out to exactly the frontal plane's own vertical coverage in
+  /// inches (`verticalExtent × zoneHeight`), which is asserted in the tests
+  /// rather than assumed here. One consequence worth knowing: because the
+  /// frontal rect's aspect follows the batter's zone height, so does this —
+  /// a shorter batter's canvas is shallower, even though ground geometry
+  /// itself does not vary with batter height (§3.3). The rect is the same
+  /// rect; only what fills it changes.
+  double get totalDepthInches =>
+      zoneCanvasLateralExtentInches / frontal.aspectRatio;
+
+  /// How far behind the plate's front edge the canvas reaches — toward the
+  /// catcher, where `depth` is negative (§3.3).
+  ///
+  /// The one layout call in this class, and the only free parameter left once
+  /// parity and isotropy are applied. 30″ holds the plate's full 17″ pentagon
+  /// plus 13″ of catcher-side room, because a short hop landing just behind the
+  /// front edge is a common bounce and not an edge case — the reason §3.3's
+  /// depth sign convention exists at all. Fixed in *inches*, not as a fraction:
+  /// the plate is 17″ for every batter, so the profile-dependent part of
+  /// [totalDepthInches] is absorbed by the fore side instead.
+  static const double aftExtentInches = 30;
+
+  /// How far out in front of the plate the canvas reaches — 31.2″ (2.60 ft) at
+  /// 12U, the remainder after [aftExtentInches].
+  double get foreExtentInches => totalDepthInches - aftExtentInches;
+
+  /// Depth in *feet* (`BounceCoord.depth`'s unit) at the canvas's top and
+  /// bottom edges. Bounces beyond either land unresolved on the edge, the same
+  /// treatment the frontal plane's +1.5 top gives an eye-level pitch (§11.4).
+  double get maxDepthFeet => foreExtentInches / 12;
+  double get minDepthFeet => -aftExtentInches / 12;
+
+  /// Vertical position of `depth = 0` as a fraction of the rect, measured from
+  /// the top. The seam the hinge lands on, and the plate's 17″ front edge.
+  double get seamFraction => foreExtentInches / totalDepthInches;
+
+  /// Depth (feet) at vertical fraction [fy], measured from the top of the rect.
+  /// Depth grows *up*-screen toward the pitcher, matching the frontal plane's
+  /// sense of "away from the catcher" (§11.4).
+  double depthFeetAtFraction(double fy) =>
+      (foreExtentInches - fy * totalDepthInches) / 12;
+
+  /// Inverse of [depthFeetAtFraction].
+  double fractionAtDepthFeet(double depthFeet) =>
+      (foreExtentInches - depthFeet * 12) / totalDepthInches;
+
+  /// Home plate from directly above: a true pentagon, no perspective (§11.4).
+  /// The 17″ edge lies on `depth = 0`, its two 8.5″ sides run back to −8.5″,
+  /// and the faces converge to the point at −17″. Same corner sequence as
+  /// [FrontalGeometry.plateOutline], so the two views cannot drift apart.
+  List<({double lateralInches, double depthInches})> get plateOutline => const [
+    (lateralInches: -plateHalfWidthInches, depthInches: 0),
+    (lateralInches: plateHalfWidthInches, depthInches: 0),
+    (lateralInches: plateHalfWidthInches, depthInches: -plateSideInches),
+    (lateralInches: 0, depthInches: -plateDepthInches),
+    (lateralInches: -plateHalfWidthInches, depthInches: -plateSideInches),
+  ];
+
+  /// Depth of the plate's center — what the batter's box is positioned fore and
+  /// aft of, mirroring [FrontalGeometry.plateCenterU].
+  static const double plateCenterDepthInches = -plateSideInches;
+
+  /// Depth gridline spacing. One foot, labeled — §11.4's 0–2 / 2–4 / 4 ft+
+  /// bands are gone (v0.35): they assumed a range this plane's parity and
+  /// isotropy constraints do not afford, and a continuous ruler suits a
+  /// continuous float better than three buckets ever did. Nothing is bucketed
+  /// in storage either way (§3.3).
+  ///
+  /// Labels read "1 ft" / "2 ft" on both sides of the seam, unsigned: the plate
+  /// sits between them, so which side is toward the catcher is not something a
+  /// label has to carry.
+  static const double gridlineSpacingFeet = 1;
 }

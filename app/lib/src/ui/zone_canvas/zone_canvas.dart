@@ -13,6 +13,14 @@ export 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 /// [ZoneCoord] per the v0.18 dual-input allowance in §10.1.
 enum ZoneCanvasIntent { call, actual }
 
+/// Which plane the canvas is currently showing (§11.4).
+///
+/// [frontal] is lateral × height and captures a [ZoneCoord]; [topDown] is
+/// lateral × depth and captures a [BounceCoord]. The canvas enters [topDown]
+/// only through §11.1's hinge — a release inside the dirt band, in
+/// [ZoneCanvasIntent.actual] — and leaves it on commit or on Back.
+enum ZoneCanvasPlane { frontal, topDown }
+
 /// Baseball vs. softball, for the drag/marker icon in
 /// [ZoneCanvasIntent.actual].
 ///
@@ -77,6 +85,34 @@ Offset localFromZoneCoord(ZoneCoord coord, Size size) {
   return Offset(fx * size.width, fy * size.height);
 }
 
+/// Maps a local point to a [BounceCoord] in the top-down plane (§3.3).
+///
+/// Lateral is the *same* computation as [zoneCoordFromLocal]'s — deliberately
+/// not a parallel one — because the two planes share that axis and nothing
+/// else. Depth comes from the vertical fraction through [TopDownGeometry],
+/// which is the only place a depth is ever read from a screen position: no
+/// frontal-plane position is ever inverted into one (§11.4).
+BounceCoord bounceCoordFromLocal(
+  Offset local,
+  Size size,
+  TopDownGeometry geometry,
+) => BounceCoord(
+  x: zoneCoordFromLocal(local, size).x,
+  depth: geometry.depthFeetAtFraction(local.dy / size.height),
+);
+
+/// Inverse of [bounceCoordFromLocal]. Requires a known depth — a
+/// depth-unknown bounce has no point to place, and is rendered as a lateral
+/// band instead.
+Offset localFromBounceCoord(
+  BounceCoord coord,
+  Size size,
+  TopDownGeometry geometry,
+) => Offset(
+  localFromZoneCoord(ZoneCoord(x: coord.x, y: 0), size).dx,
+  geometry.fractionAtDepthFeet(coord.depth!) * size.height,
+);
+
 bool _isInside(Offset local, Size size) =>
     local.dx >= 0 &&
     local.dx <= size.width &&
@@ -103,6 +139,8 @@ class ZoneCanvas extends StatefulWidget {
     required this.onCommit,
     required this.onSkip,
     required this.onCancel,
+    this.bounceValue,
+    this.onCommitBounce,
     this.ballKind = BallKind.baseball,
     this.geometry = const FrontalGeometry(),
     this.underlay,
@@ -128,15 +166,40 @@ class ZoneCanvas extends StatefulWidget {
   /// resolves (§10.3), so this is always safe to wire up.
   final VoidCallback onCancel;
 
+  /// The committed bounce, or null if this pitch did not hit the dirt. A
+  /// non-null value with a null `depth` is "in the dirt, depth unknown"
+  /// (§11.1) — a real observation, not a missing one, and rendered as a
+  /// lateral band rather than a point.
+  ///
+  /// Mutually exclusive with [value], as `actualLocation` and `bounceLocation`
+  /// are on the event (§4.1). Passing one non-null opens the canvas on the
+  /// plane that owns it.
+  final BounceCoord? bounceValue;
+
+  /// Fired once, on release, with the committed bounce. Null means this
+  /// instance cannot capture a bounce at all, which disables the hinge — the
+  /// canvas then behaves exactly as it did before DIA-011's third part, and a
+  /// release in the dirt band just commits a low [ZoneCoord].
+  ///
+  /// Never fires in [ZoneCanvasIntent.call]: a call is never a bounce (§4.1).
+  /// A coach calls "bury it down" as a low/chase zone, not a bounce depth.
+  final ValueChanged<BounceCoord>? onCommitBounce;
+
   /// Baseball vs. softball for the actual-location ball icon. See [BallKind].
   final BallKind ballKind;
 
   /// The coordinate mapping and camera the canvas draws through (§11.4) — a
   /// parameter rather than hardcoded geometry, so the zone profile and virtual
-  /// camera can change without touching the widget. DIA-011's second part adds
-  /// the top-down `BounceCoord` plane as a sibling of this and extracts the
-  /// common interface then, when both shapes are known.
+  /// camera can change without touching the widget.
+  ///
+  /// The top-down plane's geometry is *derived* from this rather than passed
+  /// alongside it (see [topDownGeometry]) — the two planes have to share a
+  /// lateral axis (§3.3), and deriving is what makes that structural instead
+  /// of a pair of parameters that could be set inconsistently.
   final FrontalGeometry geometry;
+
+  /// The top-down plane's geometry, derived from [geometry]. See above.
+  TopDownGeometry get topDownGeometry => TopDownGeometry(frontal: geometry);
 
   /// Optional content rendered beneath the zone grid, clipped to the zone
   /// rect's exact bounds (future §18.6 heat-map underlay; unused until then).
@@ -149,6 +212,20 @@ class ZoneCanvas extends StatefulWidget {
 
 class _ZoneCanvasState extends State<ZoneCanvas> {
   Offset? _dragLocal;
+  late ZoneCanvasPlane _plane = widget.bounceValue == null
+      ? ZoneCanvasPlane.frontal
+      : ZoneCanvasPlane.topDown;
+
+  /// Lateral position of the dirt-band release that opened the hinge. Kept so
+  /// "depth unknown" can still record the `x` the coach already gave us — the
+  /// second placement is what's skipped, not the first.
+  double? _hingeX;
+
+  /// Whether a release in the dirt band should hinge rather than commit
+  /// (§11.1). Actual-mode only — a call is never a bounce (§4.1) — and only
+  /// when the parent can actually receive one.
+  bool get _hingeEnabled =>
+      widget.mode == ZoneCanvasIntent.actual && widget.onCommitBounce != null;
 
   void _handleLongPressStart(LongPressStartDetails details) {
     setState(() => _dragLocal = details.localPosition);
@@ -164,7 +241,52 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
     if (local == null || !_isInside(local, size)) {
       return; // Released outside the canvas: cancel, no commit.
     }
-    widget.onCommit(zoneCoordFromLocal(local, size));
+
+    if (_plane == ZoneCanvasPlane.topDown) {
+      widget.onCommitBounce!(
+        bounceCoordFromLocal(local, size, widget.topDownGeometry),
+      );
+      return;
+    }
+
+    final coord = zoneCoordFromLocal(local, size);
+
+    // The hinge, and the only branch point in this handler (§11.1). It fires
+    // on *release*, never on arm or drag: the whole press-drag-preview stays in
+    // the frontal plane, so arming low and dragging up to correct still commits
+    // a normal location and coordinate spaces never change mid-gesture.
+    //
+    // The trigger is `y < y_ground` and nothing else — not "the tap looked like
+    // it landed on dirt". Drawn ground spans the line, since ground in front of
+    // the plate projects above it (§11.4), so the two regions are different
+    // shapes and only this one is the trigger.
+    if (_hingeEnabled && coord.y < widget.geometry.groundY) {
+      setState(() {
+        _plane = ZoneCanvasPlane.topDown;
+        _hingeX = coord.x;
+      });
+      return;
+    }
+
+    widget.onCommit(coord);
+  }
+
+  /// Back, from the top-down plane: un-hinges without committing anything.
+  /// Distinct from the frontal plane's Cancel, which reverses the whole step.
+  void _handleUnhinge() {
+    setState(() {
+      _plane = ZoneCanvasPlane.frontal;
+      _hingeX = null;
+      _dragLocal = null;
+    });
+  }
+
+  /// Skip, from the top-down plane: records "in the dirt, depth unknown"
+  /// (§11.1) rather than nothing at all. The lateral position is already known
+  /// from the release that opened the hinge, so it is kept — dropping it too
+  /// would discard an observation the coach actually made.
+  void _handleSkipDepth() {
+    widget.onCommitBounce!(BounceCoord(x: _hingeX ?? widget.bounceValue!.x));
   }
 
   @override
@@ -173,6 +295,13 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
     // the canvas they would cover the dirt band — the §11.1 hinge trigger —
     // which is a live hit-target conflict, and worse after the hinge, where
     // dirt is the whole canvas.
+    //
+    // The strip is in the same place with the same shape in both planes; only
+    // the labels and destinations change, because both buttons mean something
+    // narrower once the hinge has fired. Back un-hinges rather than reversing
+    // the step, and skipping now means "depth unknown" rather than "no
+    // location" — the lateral position was already given.
+    final topDown = _plane == ZoneCanvasPlane.topDown;
     return Column(
       children: [
         Expanded(child: _buildCanvas(context)),
@@ -182,15 +311,15 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
             children: [
               Expanded(
                 child: _AffordanceButton(
-                  label: 'Cancel',
-                  onPressed: widget.onCancel,
+                  label: topDown ? 'Back to zone' : 'Cancel',
+                  onPressed: topDown ? _handleUnhinge : widget.onCancel,
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _AffordanceButton(
-                  label: 'Skip location',
-                  onPressed: widget.onSkip,
+                  label: topDown ? 'Depth unknown' : 'Skip location',
+                  onPressed: topDown ? _handleSkipDepth : widget.onSkip,
                 ),
               ),
             ],
@@ -198,6 +327,69 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
         ),
       ],
     );
+  }
+
+  /// The marker layer, drawn above everything else in both planes — including
+  /// the ground furniture and, later, the batter silhouette (§11.4): the datum
+  /// is never occluded by scenery.
+  List<Widget> _buildMarkerLayer(Size size, {required bool topDown}) {
+    final geometry = widget.topDownGeometry;
+    final bounce = widget.bounceValue;
+
+    // A depth-unknown bounce has no point to place. Rendering it at some
+    // default depth would be a fabricated observation — Core Principle #3 —
+    // so it draws as a band across every depth at the lateral position we do
+    // know, which reads as exactly what it is.
+    if (topDown && bounce != null && bounce.depth == null) {
+      return [
+        _DepthUnknownBand(
+          x: localFromZoneCoord(ZoneCoord(x: bounce.x, y: 0), size).dx,
+        ),
+        if (_dragLocal != null)
+          _MarkerIcon(
+            mode: widget.mode,
+            ballKind: widget.ballKind,
+            center: _dragLocal!.translate(0, -_dragFingerOffset),
+            ghost: true,
+          ),
+      ];
+    }
+
+    // Where the neutral starting marker sits, before anything is placed or
+    // grabbed: zone center in the frontal plane, and in the top-down plane the
+    // seam at the lateral position the hinge arrived with — the coach has
+    // already told us the `x`, so starting anywhere else would throw it away
+    // and make her give it again.
+    final start = topDown
+        ? Offset(
+            localFromZoneCoord(ZoneCoord(x: _hingeX ?? 0, y: 0), size).dx,
+            geometry.seamFraction * size.height,
+          )
+        : localFromZoneCoord(ZoneCoord(x: 0, y: 0.5), size);
+
+    final placed = topDown
+        ? (bounce == null ? null : localFromBounceCoord(bounce, size, geometry))
+        : (widget.value == null
+              ? null
+              : localFromZoneCoord(widget.value!, size));
+
+    return [
+      if (placed == null && _dragLocal == null) _DefaultMarker(center: start),
+      if (placed != null)
+        _MarkerIcon(
+          mode: widget.mode,
+          ballKind: widget.ballKind,
+          center: placed,
+          ghost: false,
+        ),
+      if (_dragLocal != null)
+        _MarkerIcon(
+          mode: widget.mode,
+          ballKind: widget.ballKind,
+          center: _dragLocal!.translate(0, -_dragFingerOffset),
+          ghost: true,
+        ),
+    ];
   }
 
   Widget _buildCanvas(BuildContext context) {
@@ -216,6 +408,7 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
           localFromZoneCoord(ZoneCoord(x: zoneMaxX, y: zoneMinY), size),
         );
 
+        final topDown = _plane == ZoneCanvasPlane.topDown;
         return Center(
           child: SizedBox(
             key: zoneCanvasDrawingAreaKey,
@@ -229,6 +422,12 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 // zoneRect (intentional — the underlay takes its place), so
                 // the border is painted separately, on top of the underlay,
                 // below.
+                //
+                // The gesture recognizer is identical in both planes: same
+                // arm duration, same drag-preview, same release semantics. The
+                // hinge changes which coordinate space a release is read in,
+                // never how the gesture itself works, so the grammar a coach
+                // learns for the zone carries over to the dirt unchanged.
                 Positioned.fill(
                   child: RawGestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -251,61 +450,44 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                     child: ClipRect(
                       child: CustomPaint(
                         size: size,
-                        painter: _FrontalBackgroundPainter(
-                          geometry: widget.geometry,
-                          ballKind: widget.ballKind,
-                          zoneRect: zoneRect,
-                          brightness: Theme.of(context).brightness,
-                        ),
+                        painter: topDown
+                            ? _TopDownBackgroundPainter(
+                                geometry: widget.topDownGeometry,
+                                ballKind: widget.ballKind,
+                                brightness: Theme.of(context).brightness,
+                              )
+                            : _FrontalBackgroundPainter(
+                                geometry: widget.geometry,
+                                ballKind: widget.ballKind,
+                                zoneRect: zoneRect,
+                                brightness: Theme.of(context).brightness,
+                              ),
                       ),
                     ),
                   ),
                 ),
-                if (widget.underlay != null)
+                if (!topDown && widget.underlay != null)
                   Positioned.fromRect(
                     rect: zoneRect,
                     child: IgnorePointer(
                       child: ClipRect(child: widget.underlay),
                     ),
                   ),
-                IgnorePointer(
-                  child: CustomPaint(
-                    size: size,
-                    painter: _ZoneBorderPainter(
-                      zoneRect: zoneRect,
-                      brightness: Theme.of(context).brightness,
+                if (!topDown)
+                  IgnorePointer(
+                    child: CustomPaint(
+                      size: size,
+                      painter: _ZoneBorderPainter(
+                        zoneRect: zoneRect,
+                        brightness: Theme.of(context).brightness,
+                      ),
                     ),
                   ),
-                ),
-                // A neutral starting marker at zone center, shown only
-                // before anything's been placed or grabbed — gives the coach
-                // something concrete to find and drag rather than a blind
-                // first touch on an empty rect.
-                if (widget.value == null && _dragLocal == null)
-                  _DefaultMarker(
-                    center: localFromZoneCoord(
-                      ZoneCoord(x: 0, y: 0.5),
-                      size,
-                    ),
-                  ),
-                if (widget.value != null)
-                  _MarkerIcon(
-                    mode: widget.mode,
-                    ballKind: widget.ballKind,
-                    center: localFromZoneCoord(widget.value!, size),
-                    ghost: false,
-                  ),
-                if (_dragLocal != null)
-                  _MarkerIcon(
-                    mode: widget.mode,
-                    ballKind: widget.ballKind,
-                    center: _dragLocal!.translate(0, -_dragFingerOffset),
-                    ghost: true,
-                  ),
+                ..._buildMarkerLayer(size, topDown: topDown),
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: _ModeBanner(mode: widget.mode),
+                  child: _ModeBanner(mode: widget.mode, plane: _plane),
                 ),
               ],
             ),
@@ -533,6 +715,202 @@ class _FrontalBackgroundPainter extends CustomPainter {
       oldDelegate.geometry != geometry;
 }
 
+/// Top-down plate/dirt plane (§3.3, §11.4), shown after §11.1's hinge.
+///
+/// Has to be **unmistakable at a glance** — if the two planes could be confused
+/// the hinge design fails — so nothing here is shared with the frontal plane's
+/// look: no zone rect, no call grid, dirt edge to edge, the plate as a true
+/// pentagon rather than a foreshortened trapezoid, and a depth ruler no frontal
+/// view has. What *is* shared is the lateral axis, exactly (§3.3): the plate is
+/// literally the same width in both views, which is the register cue.
+///
+/// Restrained fidelity, matching [_FrontalBackgroundPainter]; the richer
+/// treatment is DIA-011's fourth part and uses this same geometry (§11.4).
+class _TopDownBackgroundPainter extends CustomPainter {
+  const _TopDownBackgroundPainter({
+    required this.geometry,
+    required this.ballKind,
+    required this.brightness,
+  });
+
+  final TopDownGeometry geometry;
+  final BallKind ballKind;
+  final Brightness brightness;
+
+  BatterBoxSpec get _box => ballKind == BallKind.softball
+      ? BatterBoxSpec.fastpitch
+      : BatterBoxSpec.baseball;
+
+  /// (lateral inches, depth inches) → local px. True scale in both axes: the
+  /// lateral term is the frontal plane's own mapping, and the depth term uses
+  /// the same px-per-inch, which is what [TopDownGeometry] exists to guarantee.
+  Offset _point(double lateralInches, double depthInches, Size size) => Offset(
+    localFromZoneCoord(
+      ZoneCoord(x: lateralInches / plateHalfWidthInches, y: 0),
+      size,
+    ).dx,
+    geometry.fractionAtDepthFeet(depthInches / 12) * size.height,
+  );
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final isDark = brightness == Brightness.dark;
+    final dirt = isDark ? _dirtDark : _dirtLight;
+    final structure = isDark ? _structureDark : _structureLight;
+
+    // Dirt edge to edge: after the hinge, the whole canvas is ground. There is
+    // no atmosphere here and no ground/sky boundary to read — which is itself
+    // most of what makes the two planes impossible to confuse.
+    canvas.drawRect(Offset.zero & size, Paint()..color = dirt);
+
+    _paintDepthRuler(canvas, size, structure);
+    _paintBoxChalk(canvas, size);
+    _paintPlate(canvas, size, isDark);
+    // Labels last: they run down the canvas's left margin, which the near end
+    // of the left-hand chalk band reaches into at narrow widths. Reading the
+    // axis matters more than an unbroken chalk line.
+    _paintDepthLabels(canvas, size, structure);
+  }
+
+  /// A ruler, not bands. §11.4's 0–2 / 2–4 / 4 ft+ buckets are gone (v0.35):
+  /// they assumed a depth range this plane does not afford, and `depth` is a
+  /// continuous float that never gets bucketed in storage anyway (§3.3), so a
+  /// gridline every foot tells the truth about the axis with less ink.
+  ///
+  /// `depth = 0` is drawn heaviest: it is the plate's 17″ front edge, the seam
+  /// the hinge lands on, and the sign boundary between "out front" and "toward
+  /// the catcher".
+  void _paintDepthRuler(Canvas canvas, Size size, Color structure) {
+    final line = Paint()
+      ..color = structure.withValues(alpha: 0.22)
+      ..strokeWidth = 1;
+    for (final foot in _gridlineFeet) {
+      final y = geometry.fractionAtDepthFeet(foot) * size.height;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), line);
+    }
+  }
+
+  /// The ruler's labels. Sign is spelled out rather than punctuated — "2 ft
+  /// back" cannot be misread the way a minus sign glanced at in sunlight can,
+  /// and the direction is what a coach is actually reading.
+  void _paintDepthLabels(Canvas canvas, Size size, Color structure) {
+    for (final foot in _gridlineFeet) {
+      final y = geometry.fractionAtDepthFeet(foot) * size.height;
+      final label = TextPainter(
+        text: TextSpan(
+          // Unsigned: the plate sits between the two sides, so which way is
+          // toward the catcher is not something a label has to carry.
+          text: '${foot.abs().toInt()} ft',
+          style: TextStyle(
+            color: structure.withValues(alpha: 0.55),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      label.paint(canvas, Offset(6, y - label.height - 2));
+    }
+  }
+
+  /// Whole-foot depths with a gridline, skipping 0 — the seam is drawn with the
+  /// plate, since it is the plate's front edge.
+  Iterable<double> get _gridlineFeet sync* {
+    const step = TopDownGeometry.gridlineSpacingFeet;
+    for (
+      var foot = (geometry.minDepthFeet / step).ceil() * step;
+      foot <= geometry.maxDepthFeet;
+      foot += step
+    ) {
+      if (foot != 0) yield foot;
+    }
+  }
+
+  /// The plate from directly above, and the `depth = 0` seam it defines. Drawn
+  /// last so it sits over the ruler and chalk — it is the anchor a coach reads
+  /// the whole plane against.
+  void _paintPlate(Canvas canvas, Size size, bool isDark) {
+    final corners = geometry.plateOutline;
+    final path = Path();
+    for (var i = 0; i < corners.length; i++) {
+      final p = _point(corners[i].lateralInches, corners[i].depthInches, size);
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    path.close();
+
+    canvas
+      ..drawPath(
+        path,
+        Paint()..color = isDark ? const Color(0xFFE0E0E0) : Colors.white,
+      )
+      ..drawPath(
+        path,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.30)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+
+    // The seam, extended across the full width: unlike the frontal plane —
+    // where a full-width rule at the ground line would read as an arbitrary
+    // graphic — here it is the axis's zero and carries interaction meaning,
+    // since it is the depth the hinge hands over.
+    final seamY = geometry.fractionAtDepthFeet(0) * size.height;
+    canvas.drawLine(
+      Offset(0, seamY),
+      Offset(size.width, seamY),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.35)
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  /// Batter's-box chalk, flanking the plate (§11.4): the inner line and the
+  /// front line, never the back or outer ones — the same rule the frontal plane
+  /// follows. No perspective here, so these are plain rectangles.
+  ///
+  /// Whether the front line is visible is a `RuleSet` consequence, not a
+  /// special case: baseball's box reaches 2.29 ft in front of the plate and
+  /// lands inside this canvas, fastpitch's reaches 4.0 ft and does not, so the
+  /// same code draws a terminated box for one sport and a band running off the
+  /// top edge for the other. Drawing only the inner line, as this did before,
+  /// left baseball's band stopping at a depth with nothing to say why.
+  void _paintBoxChalk(Canvas canvas, Size size) {
+    const innerEdge = plateHalfWidthInches + BatterBoxSpec.offsetInches;
+    const outerEdge = innerEdge + BatterBoxSpec.chalkWidthInches;
+    const chalk = BatterBoxSpec.chalkWidthInches;
+    final frontDepth = TopDownGeometry.plateCenterDepthInches + _box.foreInches;
+    final backDepth = TopDownGeometry.plateCenterDepthInches - _box.aftInches;
+
+    final paint = Paint()..color = _chalkColor.withValues(alpha: 0.92);
+    for (final sign in [-1.0, 1.0]) {
+      final corner = _point(sign * innerEdge, frontDepth, size);
+      final outerFront = _point(
+        sign * (innerEdge + _box.widthInches),
+        frontDepth - chalk,
+        size,
+      );
+      canvas
+        // Inner line: back of the box up to its front line.
+        ..drawRect(
+          Rect.fromPoints(corner, _point(sign * outerEdge, backDepth, size)),
+          paint,
+        )
+        // Front line: outward from the inner edge across the box width, its 3″
+        // measured back toward the plate so the corner closes flush with the
+        // inner line rather than overhanging it. Clipped by the canvas when the
+        // sport puts it off-frame.
+        ..drawRect(Rect.fromPoints(corner, outerFront), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _TopDownBackgroundPainter oldDelegate) =>
+      oldDelegate.brightness != brightness ||
+      oldDelegate.ballKind != ballKind ||
+      oldDelegate.geometry != geometry;
+}
+
 /// Zone-rect border stroke, plus the 3×3 in-zone grid lines (§10.1's default
 /// `CallZone` layout) for visual reference. Painted above the underlay so it
 /// stays crisp regardless of what the underlay draws underneath it.
@@ -591,18 +969,59 @@ class _ZoneBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ZoneBorderPainter oldDelegate) =>
-      oldDelegate.zoneRect != zoneRect ||
-      oldDelegate.brightness != brightness;
+      oldDelegate.zoneRect != zoneRect || oldDelegate.brightness != brightness;
 }
 
-class _ModeBanner extends StatelessWidget {
-  const _ModeBanner({required this.mode});
+/// A committed bounce whose depth was never captured (§11.1): the lateral
+/// position is known, every depth is equally possible, so it draws as a band
+/// spanning the axis rather than a point somewhere along it.
+///
+/// Deliberately not a marker at a default depth. That would render a value
+/// nobody observed, which is the same mistake as storing a fabricated
+/// coordinate (Core Principle #3) — here it would just be made in pixels.
+class _DepthUnknownBand extends StatelessWidget {
+  const _DepthUnknownBand({required this.x});
 
-  final ZoneCanvasIntent mode;
+  final double x;
 
   @override
   Widget build(BuildContext context) {
-    final label = mode == ZoneCanvasIntent.call ? 'CALL' : 'ACTUAL';
+    return Positioned(
+      left: x - _iconRadius,
+      top: 0,
+      bottom: 0,
+      child: const IgnorePointer(
+        child: SizedBox(
+          width: _iconRadius * 2,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0x380A84FF), // _accentColor at 22%
+              border: Border.symmetric(
+                vertical: BorderSide(color: _accentColor, width: 2),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeBanner extends StatelessWidget {
+  const _ModeBanner({required this.mode, required this.plane});
+
+  final ZoneCanvasIntent mode;
+  final ZoneCanvasPlane plane;
+
+  @override
+  Widget build(BuildContext context) {
+    // The top-down plane never appears in call mode, so its banner replaces the
+    // mode label outright rather than qualifying it.
+    final label = switch ((mode, plane)) {
+      (_, ZoneCanvasPlane.topDown) => 'IN THE DIRT',
+      (ZoneCanvasIntent.call, _) => 'CALL',
+      (ZoneCanvasIntent.actual, _) => 'ACTUAL',
+    };
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _accentColor,
