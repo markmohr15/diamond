@@ -505,6 +505,65 @@ void main() {
     });
   });
 
+  // Overlays on the canvas are paint. The controls were moved off the drawing
+  // area precisely so nothing would compete for taps with it (§11.4), and the
+  // same reasoning applies to anything left drawn on top: a pitch may be
+  // recorded anywhere on the canvas, so a label that swallows presses makes the
+  // region it covers uncapturable.
+  group('Canvas overlays take no pointer events', () {
+    testWidgets('a press under the mode banner commits in the frontal plane', (
+      tester,
+    ) async {
+      ZoneCoord? committed;
+      await tester.pumpWidget(_Harness(onCommit: (c) => committed = c));
+
+      final banner = tester.getRect(find.text('ACTUAL'));
+      final gesture = await tester.startGesture(banner.center);
+      await tester.pump(
+        zoneCanvasArmDuration + const Duration(milliseconds: 50),
+      );
+      await gesture.up();
+      await tester.pump();
+
+      expect(
+        committed,
+        isNotNull,
+        reason: 'the banner swallowed the press instead of letting it through',
+      );
+    });
+
+    testWidgets('a press under the banner commits in the top-down plane too', (
+      tester,
+    ) async {
+      // Matters more here: after the hinge the banner sits over live dirt, and
+      // a bounce arm-side and shallow lands right about where it is.
+      const geometry = FrontalGeometry();
+      final bounces = <BounceCoord>[];
+      await tester.pumpWidget(_Harness(onCommitBounce: bounces.add));
+
+      await _longPressDragRelease(
+        tester,
+        local: _atFraction(
+          tester,
+          0.5,
+          (zoneCanvasExtentMaxY - (geometry.groundY - 0.2)) /
+              (zoneCanvasExtentMaxY - zoneCanvasExtentMinY),
+        ),
+      );
+      expect(find.text('IN THE DIRT'), findsOneWidget);
+
+      final banner = tester.getRect(find.text('IN THE DIRT'));
+      final gesture = await tester.startGesture(banner.center);
+      await tester.pump(
+        zoneCanvasArmDuration + const Duration(milliseconds: 50),
+      );
+      await gesture.up();
+      await tester.pump();
+
+      expect(bounces, hasLength(1));
+    });
+  });
+
   group('Controls sit outside the drawing area (§11.4)', () {
     testWidgets('Cancel and Skip location do not overlap the canvas', (
       tester,

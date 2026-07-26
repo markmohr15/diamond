@@ -484,10 +484,17 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                     ),
                   ),
                 ..._buildMarkerLayer(size, topDown: topDown),
+                // Paint, never a hit target — the same rule the markers and
+                // the future silhouette follow. A label that swallows taps
+                // makes the region it covers uncapturable, and a pitch may be
+                // recorded anywhere on the canvas. Worse after the hinge,
+                // where the banner sits over live dirt.
                 Positioned(
                   top: 8,
                   left: 8,
-                  child: _ModeBanner(mode: widget.mode, plane: _plane),
+                  child: IgnorePointer(
+                    child: _ModeBanner(mode: widget.mode, plane: _plane),
+                  ),
                 ),
               ],
             ),
