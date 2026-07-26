@@ -1,6 +1,9 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+
+export 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 
 /// Which step of the per-pitch loop (§11.1) a [ZoneCanvas] instance
 /// represents.
@@ -19,47 +22,17 @@ enum ZoneCanvasIntent { call, actual }
 /// once that type exists.
 enum BallKind { baseball, softball }
 
-/// Strike-zone rectangle bounds (§3.1): x ∈ [-1, 1], y ∈ [0, 1].
-const double zoneMinX = -1;
-const double zoneMaxX = 1;
-const double zoneMinY = 0;
-const double zoneMaxY = 1;
-
-// Out-of-zone capture margin around the zone rect (tunable implementation
-// constant, not spec-mandated). Symmetric for now; low ("in the dirt") and
-// up/in/out waste spots are all representable within it.
-const double _marginX = 0.6;
-const double _marginTop = 0.6;
-const double _marginBottom = 0.6;
-
-/// The full tap-capture range, including the out-of-zone margin. A release
-/// anywhere inside this extent commits; anywhere outside it cancels.
-const double zoneCanvasExtentMinX = zoneMinX - _marginX;
-const double zoneCanvasExtentMaxX = zoneMaxX + _marginX;
-const double zoneCanvasExtentMinY = zoneMinY - _marginBottom;
-const double zoneCanvasExtentMaxY = zoneMaxY + _marginTop;
-
-// x and y aren't the same physical scale: x ∈ [-1, 1] spans home plate's
-// ~17in width (1 x-unit ≈ 8.5in), while y ∈ [0, 1] spans a batter's
-// knees-to-letters zone height (~23in reference average, 1 y-unit ≈ 23in).
-// The render aspect ratio has to account for that, or the zone rect comes
-// out landscape instead of the portrait shape a real strike zone is.
-// Per-sport/age zone shape is a `RuleSet` rendering concern (§3.1) — this is
-// a single placeholder reference size, same pattern as [BallKind].
-const double _referencePlateWidthInches = 17;
-const double _referenceZoneHeightInches = 23;
-const double _inchesPerXUnit = _referencePlateWidthInches / 2;
-const double _inchesPerYUnit = _referenceZoneHeightInches / 1;
-
-const double _canvasAspectRatio =
-    (zoneCanvasExtentMaxX - zoneCanvasExtentMinX) *
-    _inchesPerXUnit /
-    ((zoneCanvasExtentMaxY - zoneCanvasExtentMinY) * _inchesPerYUnit);
-
 // Placeholder palette — no app theme exists yet (pending a dedicated theming
-// ticket). One accent, per §18.7; light/dark surface pair for the margin vs.
-// zone-rect contrast.
+// ticket). §18.7.3: the accent goes to the datum, not the frame — so the
+// accent belongs to the tap marker, and structural lines (zone border, call
+// grid) are dark on a light field, because light blue on white vanishes in
+// sunlight. Ground tones are the dirt/chalk pair.
 const Color _accentColor = Color(0xFF0A84FF);
+const Color _structureLight = Color(0xFF1F1F22);
+const Color _structureDark = Color(0xFFE8E8EA);
+const Color _dirtLight = Color(0xFFC9A87A);
+const Color _dirtDark = Color(0xFF4A3F31);
+const Color _chalkColor = Color(0xFFFFFFFF);
 
 const double _iconRadius = 16;
 const double _dragFingerOffset = 56;
@@ -69,6 +42,15 @@ const double _dragFingerOffset = 56;
 // hold to tell apart from a stray brush of the screen, but fast enough for
 // 120+ pitches a game not to feel laggy.
 const Duration zoneCanvasArmDuration = Duration(milliseconds: 180);
+
+/// Key on the aspect-fitted drawing area, which excludes the control strip
+/// below it.
+///
+/// Used only by the widget tests, to resolve gesture coordinates against the
+/// painted canvas rather than against the widget's full bounds — production
+/// code has no reason to look it up.
+@visibleForTesting
+const Key zoneCanvasDrawingAreaKey = Key('zoneCanvasDrawingArea');
 
 /// Maps a local point within a canvas of [size] to a [ZoneCoord], using the
 /// full widget bounds → [zoneCanvasExtentMinX]..[zoneCanvasExtentMaxY] extent.
@@ -122,6 +104,7 @@ class ZoneCanvas extends StatefulWidget {
     required this.onSkip,
     required this.onCancel,
     this.ballKind = BallKind.baseball,
+    this.geometry = const FrontalGeometry(),
     this.underlay,
     super.key,
   });
@@ -147,6 +130,13 @@ class ZoneCanvas extends StatefulWidget {
 
   /// Baseball vs. softball for the actual-location ball icon. See [BallKind].
   final BallKind ballKind;
+
+  /// The coordinate mapping and camera the canvas draws through (§11.4) — a
+  /// parameter rather than hardcoded geometry, so the zone profile and virtual
+  /// camera can change without touching the widget. DIA-011's second part adds
+  /// the top-down `BounceCoord` plane as a sibling of this and extracts the
+  /// common interface then, when both shapes are known.
+  final FrontalGeometry geometry;
 
   /// Optional content rendered beneath the zone grid, clipped to the zone
   /// rect's exact bounds (future §18.6 heat-map underlay; unused until then).
@@ -179,13 +169,46 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
 
   @override
   Widget build(BuildContext context) {
+    // Controls sit in a strip *outside* the drawing area (§11.4). Overlaid on
+    // the canvas they would cover the dirt band — the §11.1 hinge trigger —
+    // which is a live hit-target conflict, and worse after the hinge, where
+    // dirt is the whole canvas.
+    return Column(
+      children: [
+        Expanded(child: _buildCanvas(context)),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _AffordanceButton(
+                  label: 'Cancel',
+                  onPressed: widget.onCancel,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AffordanceButton(
+                  label: 'Skip location',
+                  onPressed: widget.onSkip,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCanvas(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final aspectRatio = widget.geometry.aspectRatio;
         var width = constraints.maxWidth;
-        var height = width / _canvasAspectRatio;
+        var height = width / aspectRatio;
         if (height > constraints.maxHeight) {
           height = constraints.maxHeight;
-          width = height * _canvasAspectRatio;
+          width = height * aspectRatio;
         }
         final size = Size(width, height);
         final zoneRect = Rect.fromPoints(
@@ -195,12 +218,13 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
 
         return Center(
           child: SizedBox(
+            key: zoneCanvasDrawingAreaKey,
             width: width,
             height: height,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Background + opaque zone fill, drawn first. When an
+                // Ground furniture and zone fill, drawn first. When an
                 // underlay is present it visually covers the fill within
                 // zoneRect (intentional — the underlay takes its place), so
                 // the border is painted separately, on top of the underlay,
@@ -224,11 +248,15 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                                   _handleLongPressEnd(details, size),
                           ),
                     },
-                    child: CustomPaint(
-                      size: size,
-                      painter: _ZoneCanvasBackgroundPainter(
-                        zoneRect: zoneRect,
-                        brightness: Theme.of(context).brightness,
+                    child: ClipRect(
+                      child: CustomPaint(
+                        size: size,
+                        painter: _FrontalBackgroundPainter(
+                          geometry: widget.geometry,
+                          ballKind: widget.ballKind,
+                          zoneRect: zoneRect,
+                          brightness: Theme.of(context).brightness,
+                        ),
                       ),
                     ),
                   ),
@@ -243,7 +271,10 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 IgnorePointer(
                   child: CustomPaint(
                     size: size,
-                    painter: _ZoneBorderPainter(zoneRect: zoneRect),
+                    painter: _ZoneBorderPainter(
+                      zoneRect: zoneRect,
+                      brightness: Theme.of(context).brightness,
+                    ),
                   ),
                 ),
                 // A neutral starting marker at zone center, shown only
@@ -276,34 +307,6 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                   left: 8,
                   child: _ModeBanner(mode: widget.mode),
                 ),
-                // A Row sharing the full width (rather than two independently
-                // left/right-pinned buttons) keeps Cancel and Skip location
-                // from overlapping now that the canvas is portrait-shaped and
-                // can be narrower than the two buttons' combined natural
-                // width (§18.7 — buttons still get generous tap targets via
-                // Expanded, just not their intrinsic text width).
-                Positioned(
-                  left: 8,
-                  right: 8,
-                  bottom: 8,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _AffordanceButton(
-                          label: 'Cancel',
-                          onPressed: widget.onCancel,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _AffordanceButton(
-                          label: 'Skip location',
-                          onPressed: widget.onSkip,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
@@ -313,35 +316,221 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
   }
 }
 
-/// Margin background + opaque zone fill. Painted first (bottom of the
-/// stack) — an underlay, if present, is layered on top of this and visually
-/// replaces the zone fill within [zoneRect].
-class _ZoneCanvasBackgroundPainter extends CustomPainter {
-  const _ZoneCanvasBackgroundPainter({
+/// Frontal-plane background (§11.4): atmosphere, then the ground plane with
+/// its distance fade, home plate and batter's-box chalk drawn through the
+/// pinhole projector, and finally the zone fill.
+///
+/// Restrained fidelity — the richer treatment is a later comparison, and the
+/// geometry is identical for both (§11.4). Ground furniture takes perspective;
+/// the zone rect and grid stay orthographic, painted by [_ZoneBorderPainter]
+/// above the underlay.
+class _FrontalBackgroundPainter extends CustomPainter {
+  const _FrontalBackgroundPainter({
+    required this.geometry,
+    required this.ballKind,
     required this.zoneRect,
     required this.brightness,
   });
 
+  final FrontalGeometry geometry;
+  final BallKind ballKind;
   final Rect zoneRect;
   final Brightness brightness;
+
+  /// Batter's-box dimensions from the `RuleSet` placeholder (§11.4) — never an
+  /// `if (softball)` branch at a call site.
+  BatterBoxSpec get _box => ballKind == BallKind.softball
+      ? BatterBoxSpec.fastpitch
+      : BatterBoxSpec.baseball;
+
+  /// Ground point (lateral inches, camera-relative distance `u`) → local px.
+  ///
+  /// This is the ground plane's *perspective* projection, not the frontal
+  /// plane's height mapping, and the two are not isotropic (§11.4). It is
+  /// deliberately one-way: nothing here or downstream turns a screen position
+  /// back into a bounce depth — that comes only from the hinge and the
+  /// top-down plane (§3.3, §11.1).
+  Offset _groundPoint(double lateralInches, double u, Size size) {
+    final xUnits = geometry.xUnitsAt(lateralInches, u);
+    final yUnits = geometry.groundYAt(u);
+    return localFromZoneCoord(ZoneCoord(x: xUnits, y: yUnits), size);
+  }
+
+  /// Closed path through ground points — the shape ground furniture is built
+  /// from, so perspective is applied in exactly one place.
+  Path _groundQuad(
+    Size size,
+    List<({double lateralInches, double u})> corners,
+  ) {
+    final path = Path();
+    for (var i = 0; i < corners.length; i++) {
+      final p = _groundPoint(corners[i].lateralInches, corners[i].u, size);
+      if (i == 0) {
+        path.moveTo(p.dx, p.dy);
+      } else {
+        path.lineTo(p.dx, p.dy);
+      }
+    }
+    return path..close();
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final isDark = brightness == Brightness.dark;
 
-    final marginPaint = Paint()
-      ..color = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F2);
-    final zoneFill = Paint()
-      ..color = isDark ? const Color(0xFF2C2C2E) : Colors.white;
+    final atmosphere = isDark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFF2F2F2);
+    final dirt = isDark ? _dirtDark : _dirtLight;
+    final zoneFill = isDark ? const Color(0xFF2C2C2E) : Colors.white;
 
+    final fadeTopY = localFromZoneCoord(
+      ZoneCoord(x: 0, y: FrontalGeometry.groundFadeEndY),
+      size,
+    ).dy;
+    final groundLineY = localFromZoneCoord(
+      ZoneCoord(x: 0, y: geometry.groundY),
+      size,
+    ).dy;
+
+    canvas.drawRect(Offset.zero & size, Paint()..color = atmosphere);
+
+    _paintGround(canvas, size, dirt, atmosphere, fadeTopY, groundLineY);
+    _paintPlate(canvas, size, isDark);
+    _paintBoxChalk(canvas, size, fadeTopY, groundLineY);
+
+    canvas.drawRect(zoneRect, Paint()..color = zoneFill);
+  }
+
+  /// The ground's distance fade as a shader: opaque at and below the ground
+  /// line, transparent at the fade end. Clamped at both ends, so anything
+  /// painted on the ground can share it and fade with it.
+  Shader _fadeShader(Color color, Size size, double fadeTopY, double top) =>
+      LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [color.withValues(alpha: 0), color],
+      ).createShader(Rect.fromLTRB(0, fadeTopY, size.width, top));
+
+  /// Ground is drawn to its natural extent and bounded by a distance fade, not
+  /// a `y` cap (§11.4): full tone at and below the ground line, fading to the
+  /// atmosphere colour by [FrontalGeometry.groundFadeEndY] so it has reached
+  /// neutral before it sits behind the zone rect. A treatment step at the
+  /// ground line keeps the §11.1 trigger boundary legible — the trigger is
+  /// never identified by "looks like dirt", since drawn ground spans the line.
+  void _paintGround(
+    Canvas canvas,
+    Size size,
+    Color dirt,
+    Color atmosphere,
+    double fadeTopY,
+    double groundLineY,
+  ) {
+    // Above the ground line: fading scenery. Below: full tone.
+    final scenery = Rect.fromLTRB(0, fadeTopY, size.width, groundLineY);
+    if (!scenery.isEmpty) {
+      canvas.drawRect(
+        scenery,
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [atmosphere, dirt],
+          ).createShader(scenery),
+      );
+    }
+    // Full tone below the ground line. The tonal step where the fade meets it
+    // is itself the §11.1 trigger landmark — no drawn line: an explicit rule
+    // across the full width read as an arbitrary graphic, and the step plus the
+    // plate's front edge (which lands here by construction) already mark the
+    // boundary. Worth re-checking against real taps when the hinge lands, since
+    // that is when the boundary starts carrying interaction weight.
+    canvas.drawRect(
+      Rect.fromLTRB(0, groundLineY, size.width, size.height),
+      Paint()..color = dirt,
+    );
+  }
+
+  /// Home plate through the projector: 17″ edge toward the pitcher at `u = d`
+  /// (which lands on `y_ground` — the identity in §11.4), 8.5″ straight sides,
+  /// converging to the point at `u = d − 17″`. Foreshortening is never applied
+  /// as a ratio; it falls out of the projection.
+  void _paintPlate(Canvas canvas, Size size, bool isDark) {
+    final path = _groundQuad(size, geometry.plateOutline);
     canvas
-      ..drawRect(Offset.zero & size, marginPaint)
-      ..drawRect(zoneRect, zoneFill);
+      ..drawPath(
+        path,
+        Paint()..color = isDark ? const Color(0xFFE0E0E0) : Colors.white,
+      )
+      ..drawPath(
+        path,
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.30)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+  }
+
+  /// Batter's-box chalk: the inner line (parallel to the plate's side edge,
+  /// 6″ off it to the chalk's inner edge) and the front line. Back and outer
+  /// lines are deliberately not drawn — they carry no locating information and
+  /// run off-frame at true scale (§11.4). Chalk is clipped only by the box's
+  /// own extent and the canvas edge, and fades with the ground it sits on.
+  void _paintBoxChalk(
+    Canvas canvas,
+    Size size,
+    double fadeTopY,
+    double groundLineY,
+  ) {
+    const innerEdge = plateHalfWidthInches + BatterBoxSpec.offsetInches;
+    const outerEdge = innerEdge + BatterBoxSpec.chalkWidthInches;
+    final frontU = geometry.plateCenterU + _box.foreInches;
+    final backU = geometry.plateCenterU - _box.aftInches;
+
+    for (final sign in [-1.0, 1.0]) {
+      // Inner line: a quad between the chalk's inner and outer edges, running
+      // from the box's back line to its front line.
+      final inner = _groundQuad(size, [
+        (lateralInches: sign * innerEdge, u: backU),
+        (lateralInches: sign * innerEdge, u: frontU),
+        (lateralInches: sign * outerEdge, u: frontU),
+        (lateralInches: sign * outerEdge, u: backU),
+      ]);
+
+      // Front line: from the chalk's inner edge outward across the box width,
+      // at the front line's depth. Only a stub of it is on-canvas.
+      final frontOuterLateral = sign * (innerEdge + _box.widthInches);
+      const chalk = BatterBoxSpec.chalkWidthInches;
+      final front = _groundQuad(size, [
+        (lateralInches: sign * innerEdge, u: frontU),
+        (lateralInches: frontOuterLateral, u: frontU),
+        (lateralInches: frontOuterLateral, u: frontU - chalk),
+        (lateralInches: sign * innerEdge, u: frontU - chalk),
+      ]);
+
+      // One shader for both strokes, shared with the ground: a chalk line
+      // running from the dirt band up into the scenery has to fade along its
+      // own length, not carry a single alpha — otherwise its far end reads as a
+      // solid white block sitting on top of faded ground.
+      final paint = Paint()
+        ..shader = _fadeShader(
+          _chalkColor.withValues(alpha: 0.92),
+          size,
+          fadeTopY,
+          groundLineY,
+        );
+      for (final chalk in [inner, front]) {
+        canvas.drawPath(chalk, paint);
+      }
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _ZoneCanvasBackgroundPainter oldDelegate) =>
-      oldDelegate.zoneRect != zoneRect || oldDelegate.brightness != brightness;
+  bool shouldRepaint(covariant _FrontalBackgroundPainter oldDelegate) =>
+      oldDelegate.zoneRect != zoneRect ||
+      oldDelegate.brightness != brightness ||
+      oldDelegate.ballKind != ballKind ||
+      oldDelegate.geometry != geometry;
 }
 
 /// Zone-rect border stroke, plus the 3×3 in-zone grid lines (§10.1's default
@@ -351,15 +540,28 @@ class _ZoneCanvasBackgroundPainter extends CustomPainter {
 /// The grid here is presentational only — no centroid/snapping logic, no
 /// `callZoneId`. That's DIA-006/007's tap-tap `CallZone` grid, a separate
 /// widget; this canvas stays freeform per DIA-005.
+///
+/// Strictly orthographic: perspective belongs to the ground furniture and stops
+/// at the zone (§11.4). Perspective here would make §10.1's `bounds` cells
+/// unequal tap targets and break tap-equals-coordinate.
+///
+/// Rendered dark, not in the accent (§18.7.3): a border and a grid are
+/// scaffolding, the accent belongs to the tap marker, and light blue on white
+/// disappears in daylight.
 class _ZoneBorderPainter extends CustomPainter {
-  const _ZoneBorderPainter({required this.zoneRect});
+  const _ZoneBorderPainter({required this.zoneRect, required this.brightness});
 
   final Rect zoneRect;
+  final Brightness brightness;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final structure = brightness == Brightness.dark
+        ? _structureDark
+        : _structureLight;
+
     final gridLine = Paint()
-      ..color = _accentColor.withValues(alpha: 0.35)
+      ..color = structure.withValues(alpha: 0.30)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -381,7 +583,7 @@ class _ZoneBorderPainter extends CustomPainter {
     }
 
     final zoneBorder = Paint()
-      ..color = _accentColor
+      ..color = structure
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
     canvas.drawRect(zoneRect, zoneBorder);
@@ -389,7 +591,8 @@ class _ZoneBorderPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ZoneBorderPainter oldDelegate) =>
-      oldDelegate.zoneRect != zoneRect;
+      oldDelegate.zoneRect != zoneRect ||
+      oldDelegate.brightness != brightness;
 }
 
 class _ModeBanner extends StatelessWidget {
@@ -443,9 +646,13 @@ class _AffordanceButton extends StatelessWidget {
   }
 }
 
-/// Plain neutral dot shown at zone center before anything's been placed —
+/// Starting dot at zone center, shown before anything's been placed —
 /// deliberately not mode-styled (no reticle/ball imagery), since it isn't a
 /// call or a result yet, just something to find and drag.
+///
+/// Carries the accent: it is the datum, and §18.7.3 puts the accent on the
+/// datum rather than the frame. Previously this was neutral gray while the zone
+/// border took the accent, which inverted the hierarchy.
 class _DefaultMarker extends StatelessWidget {
   const _DefaultMarker({required this.center});
 
@@ -463,8 +670,8 @@ class _DefaultMarker extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.2),
-              border: Border.all(color: Colors.black38),
+              color: _accentColor.withValues(alpha: 0.28),
+              border: Border.all(color: _accentColor, width: 2),
             ),
           ),
         ),

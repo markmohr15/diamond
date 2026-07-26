@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.25)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.34)
 
-**Status:** Draft for review — v0.25 clarifies that a bounce is only ever an *actual*, never a call: `intendedLocation` stays a `ZoneCoord` and the dirt-band hinge (§11.1) is actual-only (§4.1) (provisional — whether a bounce can be deliberately called is still open); v0.24 records the canvas fidelity question as an open golden-test decision rather than a settled directive (§11.4); v0.23 specified the pitch canvas composition for both planes — plate anchor, batter's boxes, lateral registration, dirt band (§11.4); v0.22 derives chase intent from zone position instead of storing a flag (§10.1, §17.4); v0.21 unified command classification on call-zone resolution (freeform taps resolve to the containing zone, so one rubric covers both producers) and replaced "waste" terminology (§10.1, §17.4); v0.20 replaced miss-distance magnitude with command classification (executed / competitive miss / uncompetitive, plus miss direction) (§17.4); v0.19 adds `BounceCoord` (§3.3) and `bounceLocation` on `PitchThrown` (§4.1) for pitches that hit the dirt before reaching the catcher, captured via the dirt-band hinge interaction (§11.1); v0.18 allows `intendedLocation` to be captured either via the call-zone grid (centroid, `intendedZoneId` set) or as a freeform tap (`intendedZoneId` null) — see §10.1; v0.17 adds `EarnedRunOverride`/`RbiOverride`, a narrow scorer-judgment exception to §13.3's earned-run/RBI derivation (§13.5); v0.16 specified two-tier (per-pitch / aggregate) back-inference semantics for `CountCorrection` checkpoints (§12.5); v0.15 added per-pitch batter actions (showed bunt, pulled back, slap, fake slap, slash) to PitchThrown (§4.1)
+**Status:** Draft for review — v0.34 promotes §11.4's azimuth 0 from an incidental camera parameter to a stated constraint (off-axis breaks the exact lateral registration the section requires and tests for) and opens Open Question #9 on whether the ground perspective should tilt per batter handedness — shelved, not needed for v1 or M1. v0.33 trims §11.4's top extent to +1.5, half a zone height above the zone: higher than that carries no scouting information (a foot over the head and two inches over it are the same observation), those pitches stay recordable on the top edge, and it buys vertical room for the count HUD and outcome row. Also states which canvas dimension binds, since whether widening or trimming costs tap size depends on it. v0.32 widens §11.4's lateral range to ±4.0 so the canvas contains where the batter stands rather than merely reaching the chalk (a pitch may be recorded anywhere on it, and the silhouette — which is paint, never a hit target — lays over part of it). The ground-line boundary keeps the fade's inherent tonal step and drops the drawn full-width rule, and the plate's on-screen depth is corrected to 0.152 y-units. Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -46,8 +46,21 @@ interface ZoneCoord {
 }
 ```
 
-- Normalized to the *batter's* zone, not absolute inches — so heat maps compare across batters of different heights. The zone rectangle is x ∈ [-1, 1], y ∈ [0, 1]; values outside that range are valid and represent pitches out of the zone (e.g., y = -0.4 is in the dirt, x = 1.8 is well outside).
+- Normalized to the *batter's* zone, not absolute inches — so heat maps compare across batters of different heights. The zone rectangle is x ∈ [-1, 1], y ∈ [0, 1]; values outside that range are valid and represent pitches out of the zone (e.g., y = -0.4 is below the knees but still airborne, x = 1.8 is well outside).
 - **Handedness note:** x is stored in absolute terms (negative = third-base side, positive = first-base side, catcher's view). Projections flip to "inside/outside" using the batter's handedness at render time. Storing absolute and deriving relative avoids corruption when a switch-hitter's side is corrected later.
+- **The axes have different scales, and neither is universal.** `x` normalizes against the plate's 17″ width: one x-unit is 8.5″ for everyone. `y` normalizes against this batter's zone height. The frontal-plane render ratio is therefore `8.5″ / zoneHeight` px-per-x-unit per px-per-y-unit — 0.354 at the 12U profile, 0.425 at 10U — and is per batter, never a constant (§11.4).
+- **`y_ground`** — the ground plane — sits at `y = −(zoneBottomHeight / zoneHeight)`. It is the boundary below which a pitch cannot still be airborne, and is used as such by §11.1's hinge and §11.4's dirt band.
+- **Canonical profiles.** These are the inputs; every geometric quantity elsewhere in the spec is computed from them, never transcribed from a rounded figure in prose:
+
+| Profile | Zone bottom | Zone top | Height | Axis ratio | `y_ground` |
+|---|---|---|---|---|---|
+| Fastpitch 10U (~52″) | 14.0″ | 34.0″ | 20.0″ | 0.425 | −0.700 |
+| **Fastpitch 12U (~58″)** — M1 default | **15.5″** | **39.5″** | **24.0″** | **0.354** | **−0.646** |
+| Fastpitch HS (~66″) | 17.5″ | 41.0″ | 23.5″ | 0.362 | −0.745 |
+| Baseball HS (~70″) | 19.0″ | 43.0″ | 24.0″ | 0.354 | −0.792 |
+
+  Until per-batter zone heights land, ship the 12U row as the placeholder and derive per batter thereafter.
+- **Rounded figures in prose are display, not source.** `y_ground` at 12U is −0.6458 and is written "≈ −0.65" for readability. Tests assert against the value computed from the canonical inputs, never against the rounded text.
 - Softball vs. baseball zone dimensions are a `RuleSet` concern for *rendering* the zone overlay; the normalized coordinates themselves are sport-agnostic.
 
 ### 3.2 Field (`FieldCoord`)
@@ -66,7 +79,7 @@ interface FieldCoord {
 
 ### 3.3 Pitch Bounce (`BounceCoord`)
 
-For a pitch that hits the dirt before reaching the catcher — in front of the plate or between the plate and the catcher — a physically distinct question from "how low," which `ZoneCoord.y` already answers for pitches that reach the catcher in the air.
+For a pitch that hits the dirt before reaching the plate — a physically distinct question from "how low," which `ZoneCoord.y` already answers for pitches that arrive in the air.
 
 ```typescript
 interface BounceCoord {
@@ -79,7 +92,7 @@ interface BounceCoord {
 
 - **Absolute feet, not normalized** — unlike `ZoneCoord.y`, which is normalized because the strike zone varies with batter height, ground geometry doesn't: the plate is 17 inches for everyone, and a bounce four feet out front is four feet out front regardless of who's standing in the box. This makes `depth` directly comparable across batters, pitchers, and games with no transformation.
 - **`x` is shared with `ZoneCoord`, not re-derived.** `ZoneCoord.x` is already normalized against the fixed 17″ plate width, not batter height (only `y` varies by batter), so the two coordinate spaces register on the same lateral axis — "she misses arm-side and in the dirt" is one query across both, and a dirt strip renders in lateral register with the zone above it.
-- Two planes, not a 3D position: `ZoneCoord` is the frontal plane (lateral × height) a pitch is tapped into when it reaches the catcher in the air (measured where it crossed the plate); `BounceCoord` is the top-down plane (lateral × depth) a pitch is tapped into when it hits the dirt first. They share the lateral axis and nothing else — no perspective projection, no inferred 3D point.
+- Two planes, not a 3D position: `ZoneCoord` is the frontal plane (lateral × height) a pitch is tapped into when it reaches the plate in the air; `BounceCoord` is the top-down plane (lateral × depth) a pitch is tapped into when it hits the dirt first. They share the lateral axis and nothing else — no perspective projection, no inferred 3D point.
 
 ## 4. Event Catalog
 
@@ -99,10 +112,9 @@ interface PitchThrown {
                                   //   location capture is ON (§12.4); null = not captured,
                                   //   or the pitch bounced first (see bounceLocation)
   bounceLocation?: BounceCoord;   // set when the pitch hit the dirt before reaching the
-                                  //   catcher (§3.3, §11.1's dirt-band hinge) — in front of
-                                  //   the plate or between the plate and the catcher. Mutually
+                                  //   plate (§3.3, §11.1's dirt-band hinge). Mutually
                                   //   exclusive with an observed actualLocation — a pitch
-                                  //   either reaches the catcher in the air or bounces first.
+                                  //   either arrives in the air or bounces first, never both.
   velocity?: number;              // mph, optional (radar gun)
   batterAction?:                  // observed offensive posture on THIS pitch, orthogonal
     'showed_bunt'                 //   to outcome: squared, ball not offered at ⇒ pair with
@@ -143,8 +155,7 @@ Design notes:
 - **Intended vs. actual is the killer feature.** `intendedLocation` + `actualLocation` gives you a *command* metric no consumer app has: per-pitch command classification (§17.4) by pitch type, pitcher, count, and inning. `intendedType` vs `actualType` catches crossed-up signals and "she can't land the drop ball today."
 - Both intended fields are optional so scoring doesn't stall when nobody's calling pitches (opponent scouting mode: you don't know their calls).
 - Non-swing dead-ball weirdness (catcher's interference, batter interference on the swing) is handled by follow-up events, not more outcome variants.
-- **`bounceLocation` without `actualLocation` isn't a data gap.** Per Core Principle #3, the event never fabricates a `ZoneCoord` to fill the hole — projections derive a conventional below-zone coordinate (shared `x`, a fixed low `y`) from `bounceLocation` at read time, same treatment as §12.5's inferred pitches: included in coarse analytics (chase %, "how often is she in the dirt") so dirt pitches don't silently vanish from heat maps, marked as derived and never used as the basis of a command judgment, since that `y` is a convention, not an observation. Command classification reads `bounceLocation` directly instead (§17.4: bounced ⇒ uncompetitive, direction `down`).
-- **A bounce is only ever an *actual*, never a call.** `intendedLocation` stays a `ZoneCoord`. Intending to finish a pitch in the dirt — burying the 0-2 drop ball — is called as a low/chase zone ("Bury-Down", §10.1), a direction and region, not a bounce *depth*; nobody calls "bounce it 3 ft out front." `BounceCoord`'s depth axis is a pure outcome measurement (block difficulty, how short a drop finished), so it attaches to the actual only. §17.4's chase-call inversion already depends on this asymmetry: intent is frontal, the bounce is the actual it's judged against. *(Provisional — whether a bounce can ever be deliberately called is still open; "no" for now.)*
+- **`bounceLocation` without `actualLocation` isn't a data gap.** Per Core Principle #3, the event never fabricates a `ZoneCoord` to fill the hole — projections derive a conventional below-zone coordinate (shared `x`, a fixed low `y`) from `bounceLocation` at read time, same treatment as §12.5's inferred pitches. That conventional `y` is **`y_ground` (§3.1)** — the ball was at ground level when it crossed the plate's vertical plane, so the honest convention is the one the geometry already defines rather than an arbitrary low number. Treatment: included in coarse analytics (chase %, "how often is she in the dirt") so dirt pitches don't silently vanish from heat maps, marked as derived and never used as the basis of a command judgment, since that `y` is a convention, not an observation. Command classification reads `bounceLocation` directly instead (§17.4: bounced ⇒ uncompetitive, direction `down`).
 
 ### 4.2 Batted Ball Events
 
@@ -332,6 +343,8 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 5. ~~**Multi-device roles in v1:**~~ **RESOLVED (v0.3):** flexible one- or two-device operation with a primary/secondary model, full per-event provenance, and per-capability capture toggles. See §12.
 6. **Tag vocabulary for ScorerNote:** want to draft the starter set now (e.g., `chased`, `late`, `early`, `squared_up`, `bad_baserunning`, `great_play`)?
 7. **Call-entry interaction for the freeform path (§10.1 v0.18):** does the coach pick a zone off the grid (snapping `intendedLocation` to its centroid) and then optionally drag/nudge further from there, or is freeform entry a fully separate gesture from zone-grid selection? Under consideration for the call-screen ticket; not yet decided.
+8. ~~**Scenery cap and batter's-box legibility (§11.4 v0.26–v0.28):**~~ **RESOLVED (v0.31):** the cap was protecting grid legibility, which a distance fade protects without truncating the ground furniture. Ground is drawn to its natural extent and bounded by contrast instead; the inner and front chalk lines both render, and the boxes read as boxes. Fade endpoints tune with the fidelity treatments (§11.4), not as a separate question.
+9. **Should the ground perspective tilt per batter handedness (§11.4)?** The canvas renders at azimuth 0 — camera directly behind the plate — so the plate is a symmetric trapezoid with no tilt. Broadcast reference footage is shot off-axis, which reads more naturally, and a batter does stand on one side, so the symmetric view is a mild fiction. Against: an off-axis camera breaks the exact lateral registration §11.4 requires and tests for, and the zone grid stays orthographic regardless — so only the ground furniture would tilt, risking a visible mismatch between the grid and the dirt beneath it. **Shelved: not required for v1 or Milestone 1, and explicitly out of scope for DIA-011.** Settle it on a real tablet if it ever matters, not on paper.
 
 ---
 
@@ -422,7 +435,7 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 - **Outcome suggestion logic:** location well out of zone → suggest `ball`; in zone → suggest `called_strike`; the override row always shows the full set (swinging, foul, foul tip, in play, HBP, illegal). Suggestion ≠ auto-commit — one tap is always required, because the ump's call is the truth, not the location.
 - **Batter-action chips:** a small optional row on the outcome step — `bunt` / `pulled` / `slap` / `fake` / `slash` — one tap when the batter showed something, untouched otherwise (absent = conventional posture). Also settable post-hoc from the pitch summary, since "wait, was she squared?" is a between-pitches realization. Sticky suggestion: if the previous pitch of the AB carried an action, the row pre-highlights it for quick repeat.
 - **Fielding sequence entry:** after the landing tap, a position diamond appears; the coach taps positions in order (6 → 4 → 3), long-press a position for the error variants. Runner resolution screen shows the bases with drag-to-advance / drag-to-out. This is the deepest sub-flow and gets its own spec section (v0.3) with every GameChanger-broken play as a test case.
-- **Dirt-band hinge (§3.3, composition in §11.4):** the zone canvas extends below the zone rect into a visually distinct dirt band (plate graphic + dirt below it — the trigger is the visual target, not a stored coordinate threshold; sizing it against the still-airborne low-pitch region above it is a tablet layout/golden-test call, not anthropometry). A release inside that band hinges the canvas to a top-down plate/dirt plane sharing `ZoneCoord`'s lateral axis; a second tap there sets `bounceLocation`'s depth. The swap happens **on release, not on arm** — the entire press-drag-preview stays in the frontal plane, so the existing arm-low-drag-up-to-correct grammar keeps working (coordinate spaces never change mid-gesture); only a release landing in the dirt band triggers the hinge, and the second placement is its own independent gesture. Skipping the second tap and using the skip-location affordance (§11.2) records "in the dirt, depth unknown" — no separate tap-vs-drag heuristic needed. The hinge exists only on the **actual-location** step: in call mode the frontal plane still renders the plate/dirt for orientation, but a low release in the dirt band commits a low `ZoneCoord` (a bury call), never a bounce — `intendedLocation` is always a `ZoneCoord` (§4.1).
+- **Dirt-band hinge (§3.3, composition in §11.4):** the zone canvas extends below the zone rect into a visually distinct dirt band — everything below **`y_ground` (§3.1)**, and only that. Ground drawn in front of the plate projects above the ground line and is scenery, not trigger (§11.4); the two regions are different shapes, and drawn ground spans the boundary. This boundary is derived, not tuned: above the ground line a pitch can still be in the air, below it a pitch cannot, so the physically meaningful line and the interaction trigger are the same line. The band is still a *visual* target (the coach aims at dirt, not at a number), but where the dirt starts is no longer a layout preference, and the golden tests assert its position rather than approving a look. A release inside that band hinges the canvas to a top-down plate/dirt plane sharing `ZoneCoord`'s lateral axis; a second tap there sets `bounceLocation`'s depth. The swap happens **on release, not on arm** — the entire press-drag-preview stays in the frontal plane, so the existing arm-low-drag-up-to-correct grammar keeps working (coordinate spaces never change mid-gesture); only a release landing in the dirt band triggers the hinge, and the second placement is its own independent gesture. Skipping the second tap and using the skip-location affordance (§11.2) records "in the dirt, depth unknown" — no separate tap-vs-drag heuristic needed.
 
 ### 11.2 The Mode Ladder (degradation under pressure)
 
@@ -447,24 +460,100 @@ The canvas is not a bare rectangle. Both planes are anchored by home plate, beca
 
 **Frontal plane (default view).** Catcher's perspective, matching the spatial arrangement coaches already know from broadcast K-zone graphics:
 
-- **Home plate anchors the bottom**, drawn in perspective — 17″ edge toward the pitcher (up-screen), point toward the catcher (down-screen).
-- **Lateral registration is exact, not decorative.** `ZoneCoord.x` is normalized against the fixed 17″ plate width (§3.3), so `x = ±1` must align with the plate's 17″ edge. The zone rect sits directly above the plate it describes; a pitch tapped at the zone's right edge is visibly over the plate's right edge.
-- **Batter's boxes flank the plate** as outlines, with the box the current batter occupies subtly filled from `batterSide`. This orients inside/outside without a single label, and it updates per batter — the canvas itself never mirrors, since `x` is absolute (§3.1).
+- **Home plate anchors the bottom**, drawn in perspective — 17″ edge toward the pitcher (up-screen), point toward the catcher (down-screen) — and foreshortened. Foreshortening is not applied as a ratio; it falls out of the pinhole ground projection specified below.
+- **Lateral registration is exact, not decorative.** `ZoneCoord.x` is normalized against the fixed 17″ plate width (§3.3), so `x = ±1` must align with the plate's 17″ edge. The zone rect sits directly above the plate it describes; a pitch tapped at the zone's right edge is visibly over the plate's right edge. Note the consequence of perspective: because the plate's near side corners are ~8.5″ closer to the camera, they project slightly *wider* than `x = ±1`. Registration is asserted against the 17″ edge specifically, never against the plate's widest visible point.
+- **Batter's boxes flank the plate** as outlines, with the box the current batter occupies subtly filled from `batterSide`. This orients inside/outside without a single label, and it updates per batter — the canvas itself never mirrors, since `x` is absolute (§3.1). At true scale the boxes run off-frame laterally; what must be on-canvas is the 6″ gap, the inner line, and the front corner (below).
 - **The zone rect carries the call grid** when calling is on (§10.1's layout), and extends above and below it for out-of-zone airborne pitches — enough room that shin-high, ankle-high, and eye-level are comfortably distinguishable.
-- **The dirt band** sits between the low-pitch region and the plate: visually distinct ground treatment, the hinge trigger (§11.1). Its height is a tablet layout call, tuned against the airborne region above it.
+- **The zone rect and the call grid stay orthographic.** Perspective belongs to the ground furniture — plate, dirt, boxes, catcher — and stops at the zone. `ZoneCoord` is a plain affine mapping and §10.1's `bounds` are rectangles in that space; perspective on the grid would make cells unequal tap targets and break tap-equals-coordinate.
+- **The dirt band** is everything below `y_ground` (§3.1) — the hinge trigger (§11.1). Its top edge is derived; its depth below the ground line is a layout call, needing only to comfortably contain the foreshortened plate plus a tappable margin. It is *not* the same region as "where ground is drawn": ground in front of the plate projects **above** the ground line and is scenery, not trigger. See the ground rule below.
+
+**Canvas geometry.** The frontal plane is a scale drawing. Values are in `ZoneCoord` units, quoted for the canonical 12U profile (§3.1); every one moves with the profile.
+
+**The projection.** Ground furniture is drawn through a pinhole projection — camera at height `H`, horizontal distance `d` to the plate's 17″ far edge, azimuth 0 — anchored so that ground at `u = d` maps to `y_ground`. Everything else follows:
+
+| Quantity | Formula | Value at H = 4 ft, d = 20 ft |
+|---|---|---|
+| Plate on-screen depth ÷ width | `H / (d − 17″)` | **0.215** |
+| Near-corner splay | `d / (d − 8.5″)` | 3.7% |
+| Horizon | `y_ground + H / zoneHeight` | y = +1.354 |
+| Ground at distance `u` | `y_horizon − (y_horizon − y_ground)·d / u` | — |
+
+`d − 17″` is the plate's near point, which is closer to the camera than the 17″ edge `d` measures to.
+
+**Azimuth 0 is a constraint, not an incidental parameter.** An off-axis camera projects the 17″ edge's two corners at different distances from centre, so `x = ±1` no longer maps symmetrically onto it and the exact-registration requirement above breaks. That is why the plate renders as a symmetric trapezoid with no tilt, even though broadcast reference footage is shot off-axis. Whether the ground furniture should tilt per batter handedness is Open Question #9.
+
+Two further constraints apply, and they are **coupled** — satisfying one does not satisfy the other:
+
+- **Ratio band 0.15–0.25** ⇒ `0.15 (d − 17″) ≤ H ≤ 0.25 (d − 17″)`. At H = 4 ft this is d ∈ [17.4 ft, 28.1 ft].
+- **Splay ≤ 5%** ⇒ d ≥ 14.9 ft.
+
+At H = 4 ft the ratio band binds first: d = 15 ft is not a legal camera despite satisfying the splay rule, rendering at 0.294. Anything selecting a camera, including test fixtures, checks both.
+
+**Anchoring puts the plate's front edge on `y_ground`**, and that identity holds independently of `H` and `d`.
+
+| Canvas quantity | Value | Derivation |
+|---|---|---|
+| Axis scale ratio | **0.354** at 12U | `8.5″ / zoneHeight`; per-profile, never a literal (§3.1) |
+| Ground line `y_ground` | **−0.646** | §3.1's canonical inputs |
+| Plate on-screen depth | 0.152 y-units | 0.215 × (17″ / 24″) |
+| Plate point at | y = −0.798 | `y_ground` − plate depth |
+| Lateral range | **x ∈ [−4.0, +4.0]** | contains where the batter stands (x ≈ 2.4–4.3 at 12U), not merely the chalk |
+| Vertical range | **y ∈ [−1.05, +1.50]** | ½ zone height above the zone; dirt margin below the plate point |
+| Resulting canvas | ≈ 68″ × 61″, **≈ 1.11 : 1** | slightly landscape; the rest of a tablet carries the call grid |
+
+**Ground is bounded by contrast, not by extent.** Ground in front of the plate projects upward and compresses: at the default camera, 1 ft in front reaches y = −0.55, 2 ft reaches −0.46, 5 ft reaches −0.25. It is drawn to its natural extent — the region in front of the plate is where a bounced pitch physically lands, and it renders as dirt — and **fades with distance**, reaching neutral before it sits behind the zone rect. What §18.7 protects is grid legibility against a busy backdrop; a fade satisfies that without truncating the ground furniture drawn on it. Fade endpoints are a fidelity call, tuned with the two treatments below.
+
+Drawn ground therefore spans the ground line, and **the trigger region is not identified by looking like dirt.** The landmark for the boundary is the plate's 17″ front edge, which by construction lies exactly on it, reinforced by the tonal step where the fade meets full-tone ground. That step is inherent in the fade and is *not* drawn as a rule across the canvas — an explicit full-width line reads as an arbitrary graphic, and the boundary is legible without it. Re-check that judgement when the hinge lands, since that is when the boundary starts carrying interaction weight. Everything drawn above the line renders behind the marker layer.
+
+**The top stops where information stops.** +1.5 is half a zone height above the zone — ≈ 12″ over the letters, upper-face level at 12U. Higher than that carries nothing for scouting or development: a foot over the head and two inches over the head are the same observation, and §17.4 buckets both as uncompetitive-high. Such pitches stay recordable, just unresolved, landing on the top edge. Shoulder height (y ≈ 1.31) stays resolved, since an elevated fastball is a location rather than a miss. Trimming here is free in the side-by-side layout — see the note below on which dimension binds — and buys vertical room for the count HUD and outcome row.
+
+**The lateral range contains where the batter stands.** Reaching the chalk is not the requirement; a pitch may be recorded anywhere on the canvas, including at the batter, and the silhouette (below) simply lays over part of it. A 12U stance puts her body centre ≈ 26–30″ off plate centre — x ≈ 3.1–3.5, spanning roughly x ∈ [2.4, 4.3] — so ±4.0 leaves capture room on both sides of her. What this spends is horizontal room, which competes with the call grid; that is why it stops at ±4.0 and not ±6.0, where the entire 36″ box would fit but its outer ~20″ is chalk nobody stands in.
+
+**What the frame costs depends on which dimension binds, and the two extents are not interchangeable.** The zone's on-screen size is set by the binding dimension alone:
+
+- **Height-bound** (canvas given the full screen height): zone px = `panelHeight / verticalExtent`. Lateral range does not enter, so widening is free and trimming the top *enlarges* the zone.
+- **Width-bound** (canvas given a width budget so a call column fits): zone px = `panelWidth × 2 / lateralExtent`, scaled by 17″/24″ for height. Vertical extent does not enter, so trimming the top is free and widening is what costs.
+
+Worked at 1180 × 760 usable, leaving ~450 for the call column: ±4.0 with the top at +1.5 gives a 730 × 657 panel and a 182 × 258 zone. The earlier ±1.9 / +1.80 frame gave 189 × 267 — so reaching the batter and the full box cost ~4% of zone size and ~400 px of width, not tap precision. Do not generalise either bullet into "widening is free"; check which dimension binds first.
+
+**The ground plane above the line is invertible, and is deliberately not used that way.** `u = k / (y_horizon − y)` recovers a distance from any tap on drawn ground, so a tap 4 ft in front of the plate does correspond to a real bounce depth. It is not read as one: the same pixel is also a legitimate airborne location (y = −0.40 is both ground 2.8 ft out and a pitch 5.9″ off the dirt at the plate), and the airborne reading is overwhelmingly the common case. Taps above `y_ground` are airborne; bounce depth is captured only through the hinge and the top-down plane (§3.3, §11.1).
+
+At the default camera the horizon sits at y = +1.354 — inside the canvas, above the zone rect. The fade reaches neutral well below it; no horizon is drawn.
+
+The ground plane's projection is **not** isotropic with the frontal plane above it. The two planes share the lateral axis and nothing else (§3.3): depth comes only from the top-down plane after the hinge, and nothing infers a depth from where a tap landed inside the frontal plane's dirt band.
+
+**Batter's box dimensions are a `RuleSet` concern**, like zone dimensions (§3.1) — never an `if (softball)` branch:
+
+| | Box | Offset from plate | Fore/aft of plate center |
+|---|---|---|---|
+| Baseball | 48″ × 72″ | 6″ | 36″ / 36″ |
+| Fastpitch softball | 36″ × 84″ | 6″ | 48″ / 36″ |
+
+Chalk is **3″** wide and the rulebook's 6″ is measured to its **inner (plate-side) edge**, so at the plate's depth the inner line spans x ∈ [1.706, 2.059] — both edges comfortably on-canvas at ±4.0, so the band reads as a line rather than clipping into a wedge.
+
+**The inner and front lines render; the back and outer lines do not.** The inner line and the front line are what a coach reads position against; the back line toward the catcher and the outer line toward the dugout carry no locating information and run off-frame at true scale. Chalk is clipped only by the box's own extent and the canvas edge, and fades with the ground it is painted on.
+
+At the default camera the inner line is laterally on-canvas from `u ≈ 0.426 d` — nearer than the box's own back line, so nothing clips laterally and the near end is instead bounded by the canvas bottom at `u ≈ 199.7″`. The visible run is therefore **≈ 80″ of an 84″ box**, y ∈ [−1.05, −0.363], turning a corner into ≈ 25″ of the 36″ front line before leaving frame. Each box reads as a box receding out of view, as in the reference K-zone, where the boxes are frame-cut the same way.
 
 **Top-down plane (after the hinge).** Deliberately unmistakable at a glance — if the two views could be confused, the hinge design fails:
 
 - **Plate from directly above**, true pentagon, no perspective; the 17″ edge is the `depth = 0` line and the hinge seam.
+- **True scale, and the same px-per-x as the frontal plane.** The plate is literally the same width in both views, which is the strongest available cue that the planes register — and it works out arithmetically: at ±4.0 lateral the canvas spans ~68″, so a depth range of −1 ft to +5 ft (72″) renders isotropically at ≈ 0.94 : 1, close to the frontal plane's ≈ 1 : 1. The top-down plane needs no depth compression.
 - **Depth grows up-screen** toward the pitcher, matching the frontal plane's sense of "away from the catcher," with labeled bands (0–2 ft, 2–4 ft, 4 ft+). Negative depth — balls that skipped past the back edge — extends below the plate toward the catcher.
 - **Batter's boxes and a catcher position** flank and sit behind, again with the occupied box shaded. Lateral axis stays in register with the frontal plane above it.
+
+**Controls live outside the canvas.** Cancel, skip-location, and any mode affordance must sit in a strip outside the drawing area, not overlaid on it. Overlaid on the dirt band they occupy the hinge trigger region — a live hit-target conflict, not a cosmetic one — and the problem compounds after the hinge, since the same controls have to exist in the top-down plane where the dirt is the entire canvas.
 
 **Fidelity is an open question, settled by field test — not by argument.** The composition matches a broadcast K-zone; how richly it should be *rendered* is genuinely contested and both positions have merit:
 
 - **For richness:** visual craft signals a serious product. A canvas that looks thrown together undermines trust in everything behind it, and "serviceable" is the failure bar (§18.7). Broadcast and video-game K-zones look authoritative for a reason.
 - **For restraint:** the entry canvas is used ~120 times a game, in sunlight, on a clock. Every decorated pixel competes with the tap markers and grid that carry the actual information.
 
-The likely resolution, to be validated rather than assumed: a **dimensional, materially real plate and dirt** — chalk with weight, texture, honest shading — on a **neutral background**, since the contrast cost lives in a busy backdrop behind the grid, not in the plate in front of it. Note also that what reads as "serious" in a reference image is mostly *precision* — correct plate perspective, confident proportions, exact lateral registration (above) — not photographic detail; craft and busyness are separable.
+The likely resolution, to be validated rather than assumed: a **dimensional, materially real plate and dirt** — chalk with weight, texture, honest shading — on a **neutral background**, since the contrast cost lives in a busy backdrop behind the grid, not in the plate in front of it. Note also that what reads as "serious" in a reference image is mostly *precision* — correct plate perspective, confident proportions, exact lateral registration (above) — not photographic detail; craft and busyness are separable. The geometry table above is not part of the fidelity question: it applies identically to both treatments, and getting it right is most of what makes either look intentional.
+
+**The shadow batter is paint, never a hit target.** Wherever it ships, it renders behind the marker layer and takes no pointer events: a pitch may be recorded anywhere on the canvas, including at the batter's body, so a silhouette that swallowed taps would make the region it occupies uncapturable — the opposite of why the lateral range was widened to contain her.
+
+**The shadow batter is a calibration instrument, not chrome.** A translucent batter silhouette makes the vertical geometry self-evident — the zone rect visibly spanning knee to armpit is a proof no table can give — so build it, behind a debug flag, and use it to validate `y_ground` and the plate ratio. Whether it *stays* is a different question, and the default answer for the entry canvas is no: `y ∈ [0,1]` is *this batter's* zone, so a fixed silhouette is honest only for a batter of the height it was drawn at and will visibly contradict the zone rect for a tall or short kid. If it ships anywhere, it ships on the review-fidelity surfaces below, driven from a batter-height parameter so it cannot drift from the zone it illustrates.
 
 **Fidelity is per-surface.** Review and scouting screens (§18) are used at leisure, indoors, with markers already placed — full richness is right there and is where a coach forms their impression of the product. The entry canvas is the one surface where decoration competes with a job. Build both fidelities of the entry canvas behind the same coordinate mapping and compare them on a real tablet in daylight (DIA-011 golden tests).
 
@@ -874,9 +963,10 @@ Applies to every stat and scouting surface. Principles, enforceable in review:
 
 1. **Data-ink first.** No card chrome, gradients, or mascot clip-art competing with numbers. Generous whitespace; tabular numerals; a real typographic hierarchy (stat values large, labels small and quiet).
 2. **One accent system.** Team color as the single accent; heat maps get one perceptually-uniform colormap (not red-green rainbow); semantic amber/red reserved for uncertainty and misplays.
-3. **Glanceable at arm's length in sunlight.** The dugout is the design environment: high contrast, big touch targets, no hover-dependent anything, dark mode for night games.
-4. **Numbers carry their honesty.** Denominators and coverage always visible (§17.3); no stat rendered without its n.
-5. **Motion is meaning.** Transitions only where they explain state change (deck advancing, count updating) — never decorative.
+3. **The accent goes to the datum, not the frame.** Structural elements — zone borders, card edges, grids — are scaffolding and stay quiet; the accent belongs to whatever carries the information, which on the pitch canvas is the tap marker. Structural lines on a light field are dark, not tinted: light blue on white vanishes in sunlight.
+4. **Glanceable at arm's length in sunlight.** The dugout is the design environment: high contrast, big touch targets, no hover-dependent anything, dark mode for night games.
+5. **Numbers carry their honesty.** Denominators and coverage always visible (§17.3); no stat rendered without its n.
+6. **Motion is meaning.** Transitions only where they explain state change (deck advancing, count updating) — never decorative.
 
 Build note: frontend work runs through the frontend-design review pass; "serviceable" is the failure bar, not the target.
 

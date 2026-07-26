@@ -5,7 +5,7 @@ scoring with pitch calling (wristband codes), pitch locations (intended AND actu
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.24). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.34). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -37,7 +37,8 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.24)
+docs/spec.md        authoritative spec (v0.34)
+docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)
 app/                Flutter app (created by ticket DIA-001; Drift, rules engine, projections, UI)
@@ -55,9 +56,19 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
   the app's projection engine's job.
 - **Coordinates:** `ZoneCoord` normalized, catcher's view, absolute x (flip by handedness at render, §3.1).
   `FieldCoord` in absolute feet, home plate origin, θ=0 at CF (§3.2). Never clamp foul territory.
+- **`ZoneCoord`'s two axes have different scales** (§3.1): x normalizes against the fixed 17″ plate, y
+  against *this batter's* zone height. The frontal-plane render ratio is `8.5″ / zoneHeight` (0.354 at the
+  canonical 12U profile, 0.425 at 10U) and the ground plane is derived (`y_ground` = −0.646 at 12U), not a
+  layout choice. Rendering both axes at equal pixels-per-unit is wrong by ~2.8×; hardcoding any single
+  ratio is wrong as soon as a second batter exists (§11.4).
+- **Geometric figures in prose are rounded for display; compute from §3.1's canonical inputs.**
 - Dart: `very_good_analysis` lints. TS: strict mode, eslint. Tests colocated per package convention.
 - A method/field used only by the test suite (not by any production code path) gets a doc comment saying so at its definition.
 - Commits: conventional-ish, reference ticket IDs (e.g., `feat(rules): DIA-004 plays 01-03 passing`).
+- **Spec changes touch three places, always:** bump the version in `docs/spec.md`'s header; add the full
+  entry to `docs/spec-history.md` (newest first); and add a one-line summary to the spec's status line,
+  dropping the oldest of the three it carries. The status line holds exactly three entries — never append a
+  fourth — and the history file holds all of them. Then update the two version references in this file.
 
 ## Working agreements with Mark
 
@@ -67,8 +78,8 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 - If Mark's reply contains ANY change, correction, or new requirement, the previous approval is REVOKED. Restate the amended plan (delta only, briefly) and wait for a fresh approval phrase.
 - Approval covers exactly the stated plan. Discovering mid-build that the plan must change — new refactor, new schema edit, new dependency, scope growth — means STOP and re-propose the delta before continuing.
 - Exempt (no approval needed): reading files, running existing tests, searches, and answering questions. When unsure whether something needs approval, ask — asking is always free.
-- UI work follows the design language (§18.7): data-ink first, one accent, sunlight-glanceable, every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
-- Softball vs. baseball differences always route through `RuleSet` config — never `if (softball)` scattered in logic (§1, §4.4).
+- UI work follows the design language (§18.7): data-ink first, one accent, accent on the datum not the frame, sunlight-glanceable, every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
+- Softball vs. baseball differences always route through `RuleSet` — never `if (softball)` scattered in logic (§1, §4.4).
 - Youth-athlete data is sensitive: team-private by default, no sharing features without explicit design (§19.5). Never log player names in telemetry.
 
 ## Git workflow
