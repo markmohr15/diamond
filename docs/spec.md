@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.33)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.34)
 
-**Status:** Draft for review — v0.33 trims §11.4's top extent to +1.5, half a zone height above the zone: higher than that carries no scouting information (a foot over the head and two inches over it are the same observation), those pitches stay recordable on the top edge, and it buys vertical room for the count HUD and outcome row. Also states which canvas dimension binds, since whether widening or trimming costs tap size depends on it. v0.32 widens §11.4's lateral range to ±4.0 so the canvas contains where the batter stands rather than merely reaching the chalk (a pitch may be recorded anywhere on it, and the silhouette — which is paint, never a hit target — lays over part of it); widening is free in tap precision because the canvas is height-limited. The ground-line boundary keeps the fade's inherent tonal step and drops the drawn full-width rule, and the plate's on-screen depth is corrected to 0.152 y-units. v0.31 replaces §11.4's scenery cap with a distance fade: ground is drawn to its natural extent, both batter's-box chalk lines render, and Open Question #8 closes; Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.34 promotes §11.4's azimuth 0 from an incidental camera parameter to a stated constraint (off-axis breaks the exact lateral registration the section requires and tests for) and opens Open Question #9 on whether the ground perspective should tilt per batter handedness — shelved, not needed for v1 or M1. v0.33 trims §11.4's top extent to +1.5, half a zone height above the zone: higher than that carries no scouting information (a foot over the head and two inches over it are the same observation), those pitches stay recordable on the top edge, and it buys vertical room for the count HUD and outcome row. Also states which canvas dimension binds, since whether widening or trimming costs tap size depends on it. v0.32 widens §11.4's lateral range to ±4.0 so the canvas contains where the batter stands rather than merely reaching the chalk (a pitch may be recorded anywhere on it, and the silhouette — which is paint, never a hit target — lays over part of it). The ground-line boundary keeps the fade's inherent tonal step and drops the drawn full-width rule, and the plate's on-screen depth is corrected to 0.152 y-units. Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -344,6 +344,7 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 6. **Tag vocabulary for ScorerNote:** want to draft the starter set now (e.g., `chased`, `late`, `early`, `squared_up`, `bad_baserunning`, `great_play`)?
 7. **Call-entry interaction for the freeform path (§10.1 v0.18):** does the coach pick a zone off the grid (snapping `intendedLocation` to its centroid) and then optionally drag/nudge further from there, or is freeform entry a fully separate gesture from zone-grid selection? Under consideration for the call-screen ticket; not yet decided.
 8. ~~**Scenery cap and batter's-box legibility (§11.4 v0.26–v0.28):**~~ **RESOLVED (v0.31):** the cap was protecting grid legibility, which a distance fade protects without truncating the ground furniture. Ground is drawn to its natural extent and bounded by contrast instead; the inner and front chalk lines both render, and the boxes read as boxes. Fade endpoints tune with the fidelity treatments (§11.4), not as a separate question.
+9. **Should the ground perspective tilt per batter handedness (§11.4)?** The canvas renders at azimuth 0 — camera directly behind the plate — so the plate is a symmetric trapezoid with no tilt. Broadcast reference footage is shot off-axis, which reads more naturally, and a batter does stand on one side, so the symmetric view is a mild fiction. Against: an off-axis camera breaks the exact lateral registration §11.4 requires and tests for, and the zone grid stays orthographic regardless — so only the ground furniture would tilt, risking a visible mismatch between the grid and the dirt beneath it. **Shelved: not required for v1 or Milestone 1, and explicitly out of scope for DIA-011.** Settle it on a real tablet if it ever matters, not on paper.
 
 ---
 
@@ -477,7 +478,11 @@ The canvas is not a bare rectangle. Both planes are anchored by home plate, beca
 | Horizon | `y_ground + H / zoneHeight` | y = +1.354 |
 | Ground at distance `u` | `y_horizon − (y_horizon − y_ground)·d / u` | — |
 
-`d − 17″` is the plate's near point, which is closer to the camera than the 17″ edge `d` measures to. Two constraints apply, and they are **coupled** — satisfying one does not satisfy the other:
+`d − 17″` is the plate's near point, which is closer to the camera than the 17″ edge `d` measures to.
+
+**Azimuth 0 is a constraint, not an incidental parameter.** An off-axis camera projects the 17″ edge's two corners at different distances from centre, so `x = ±1` no longer maps symmetrically onto it and the exact-registration requirement above breaks. That is why the plate renders as a symmetric trapezoid with no tilt, even though broadcast reference footage is shot off-axis. Whether the ground furniture should tilt per batter handedness is Open Question #9.
+
+Two further constraints apply, and they are **coupled** — satisfying one does not satisfy the other:
 
 - **Ratio band 0.15–0.25** ⇒ `0.15 (d − 17″) ≤ H ≤ 0.25 (d − 17″)`. At H = 4 ft this is d ∈ [17.4 ft, 28.1 ft].
 - **Splay ≤ 5%** ⇒ d ≥ 14.9 ft.
