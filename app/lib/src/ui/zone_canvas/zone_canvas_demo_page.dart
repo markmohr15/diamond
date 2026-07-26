@@ -24,6 +24,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   _Step _step = _Step.call;
   ZoneCoord? _intendedLocation;
   ZoneCoord? _actualLocation;
+  BounceCoord? _bounceLocation;
   BallKind _ballKind = BallKind.baseball;
 
   void _resetForNextPitch() {
@@ -31,6 +32,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
       _step = _Step.call;
       _intendedLocation = null;
       _actualLocation = null;
+      _bounceLocation = null;
     });
   }
 
@@ -93,9 +95,20 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
                 _Step.actual => ZoneCanvas(
                   mode: ZoneCanvasIntent.actual,
                   value: _actualLocation,
+                  bounceValue: _bounceLocation,
                   ballKind: _ballKind,
                   onCommit: (coord) => setState(() {
                     _actualLocation = coord;
+                    _bounceLocation = null;
+                    _step = _Step.done;
+                  }),
+                  // Mutually exclusive with actualLocation, as on the event
+                  // (§4.1): a bounced pitch has no observed ZoneCoord, and the
+                  // conventional y_ground one projections use is derived at
+                  // read time rather than stored here.
+                  onCommitBounce: (bounce) => setState(() {
+                    _bounceLocation = bounce;
+                    _actualLocation = null;
                     _step = _Step.done;
                   }),
                   onSkip: () => setState(() {
@@ -115,7 +128,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('Call: ${_describe(_intendedLocation)}'),
-                      Text('Actual: ${_describe(_actualLocation)}'),
+                      Text('Actual: ${_describeActual()}'),
                       const SizedBox(height: 24),
                       FilledButton(
                         onPressed: _resetForNextPitch,
@@ -135,4 +148,16 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   String _describe(ZoneCoord? coord) => coord == null
       ? 'skipped'
       : '(${coord.x.toStringAsFixed(2)}, ${coord.y.toStringAsFixed(2)})';
+
+  /// A pitch has an airborne location or a bounce, never both (§4.1) — and a
+  /// bounce may have no depth, which reads differently from having no bounce.
+  String _describeActual() {
+    final bounce = _bounceLocation;
+    if (bounce == null) return _describe(_actualLocation);
+    final depth = bounce.depth;
+    final where = depth == null
+        ? 'depth unknown'
+        : '${depth.toStringAsFixed(2)} ft';
+    return 'in the dirt at x ${bounce.x.toStringAsFixed(2)}, $where';
+  }
 }

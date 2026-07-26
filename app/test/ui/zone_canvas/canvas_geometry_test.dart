@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -362,6 +364,182 @@ void main() {
       final marginInches =
           (platePoint - zoneCanvasExtentMinY) * g.profile.heightInches;
       expect(marginInches, greaterThan(5));
+    });
+  });
+
+  group('TopDownGeometry — parity and isotropy', () {
+    const t = TopDownGeometry();
+
+    test('one foot of depth is 12in / 8.5in in x-units — the isotropy '
+        'constraint, stated in the lateral axis units', () {
+      expect(TopDownGeometry.xUnitsPerFoot, closeTo(12 / 8.5, 1e-12));
+      expect(TopDownGeometry.xUnitsPerFoot, closeTo(1.4118, 1e-4));
+    });
+
+    test('depth extent is derived from px-per-x parity, not chosen', () {
+      // Sharing px-per-x with the frontal plane fixes px-per-inch; the rect's
+      // shape then fixes how many inches fit vertically. Computed two
+      // independent ways: through the aspect ratio (what the code does) and
+      // through the frontal plane's own vertical coverage in inches. They are
+      // the same number, and a projection built the wrong way breaks the tie.
+      expect(t.totalDepthInches, closeTo(61.2, 0.05));
+      expect(
+        t.totalDepthInches,
+        closeTo(
+          (zoneCanvasExtentMaxY - zoneCanvasExtentMinY) *
+              t.frontal.profile.heightInches,
+          1e-9,
+        ),
+      );
+    });
+
+    test('the aft extent is fixed in inches and the fore side absorbs the '
+        'profile', () {
+      // The plate is 17in for every batter (§3.3), so the catcher-side room
+      // must not shrink with her zone height; only the fore side may.
+      expect(TopDownGeometry.aftExtentInches, 30);
+      expect(t.minDepthFeet, closeTo(-2.5, 1e-12));
+      expect(t.maxDepthFeet, closeTo(2.6, 0.005));
+
+      const small = TopDownGeometry(
+        frontal: FrontalGeometry(
+          profile: ZoneProfile(bottomInches: 13, topInches: 33),
+        ),
+      );
+      expect(small.minDepthFeet, closeTo(t.minDepthFeet, 1e-12));
+      expect(small.maxDepthFeet, lessThan(t.maxDepthFeet));
+    });
+
+    test('the aft extent holds the whole plate plus catcher-side room', () {
+      // A short hop landing just behind the front edge is the reason §3.3's
+      // depth sign convention exists; the plate's own point is only part of it.
+      expect(TopDownGeometry.aftExtentInches, greaterThan(plateDepthInches));
+      const behindThePoint = TopDownGeometry.aftExtentInches - plateDepthInches;
+      expect(behindThePoint, closeTo(13, 1e-9));
+    });
+
+    test('depth mapping is linear, inverts, and grows up-screen', () {
+      // Up-screen is toward the pitcher, matching the frontal plane's sense of
+      // "away from the catcher" (§11.4).
+      expect(t.depthFeetAtFraction(0), closeTo(t.maxDepthFeet, 1e-12));
+      expect(t.depthFeetAtFraction(1), closeTo(t.minDepthFeet, 1e-12));
+      expect(
+        t.depthFeetAtFraction(0.25),
+        greaterThan(t.depthFeetAtFraction(0.75)),
+      );
+
+      for (final depth in [-2.0, -0.5, 0.0, 1.0, 2.5]) {
+        expect(
+          t.depthFeetAtFraction(t.fractionAtDepthFeet(depth)),
+          closeTo(depth, 1e-12),
+        );
+      }
+    });
+
+    test('the seam is depth 0 and is the plate front edge', () {
+      expect(t.depthFeetAtFraction(t.seamFraction), closeTo(0, 1e-12));
+      expect(t.seamFraction, closeTo(t.fractionAtDepthFeet(0), 1e-12));
+
+      final frontEdge = t.plateOutline.where((c) => c.depthInches == 0);
+      expect(frontEdge.length, 2);
+      expect(frontEdge.map((c) => c.lateralInches).toList()..sort(), [
+        -plateHalfWidthInches,
+        plateHalfWidthInches,
+      ]);
+    });
+
+    test('the plate is a true pentagon, 17in deep, same corners as the '
+        'frontal outline', () {
+      const g = FrontalGeometry();
+      final frontal = g.plateOutline;
+      final top = t.plateOutline;
+      expect(top.length, frontal.length);
+      for (var i = 0; i < top.length; i++) {
+        expect(top[i].lateralInches, frontal[i].lateralInches);
+        // The frontal outline measures u from the camera; this one measures
+        // depth from the front edge. Same points, different origin.
+        expect(
+          top[i].depthInches,
+          closeTo(frontal[i].u - g.camera.distanceInches, 1e-9),
+        );
+      }
+      expect(top.map((c) => c.depthInches).reduce(math.min), -plateDepthInches);
+    });
+
+    test('x = ±1 is the plate 17in edge in the top-down plane too — no '
+        'perspective, so no splay', () {
+      // The frontal plane's near corners project slightly wider than ±1
+      // (§11.4). Here there is no projection at all, so the plate's full
+      // outline stays inside ±1 and the 17in edge lands exactly on it.
+      for (final corner in t.plateOutline) {
+        expect(
+          corner.lateralInches.abs() / plateHalfWidthInches,
+          lessThan(1.0001),
+        );
+      }
+      expect(plateHalfWidthInches / plateHalfWidthInches, 1);
+    });
+
+    test('the canvas holds a depth range worth capturing in both signs', () {
+      // Not an arbitrary window: it must reach past the plate's point behind,
+      // and a couple of feet out front where a short drop ball lands.
+      expect(t.minDepthFeet, lessThan(-plateDepthInches / 12));
+      expect(t.maxDepthFeet, greaterThan(2));
+    });
+
+    test('batter box fore/aft come from the RuleSet and change the render', () {
+      // Both boxes are always drawn (§11.4), but how far up-screen each runs is
+      // a sport difference routed through BatterBoxSpec, never an
+      // `if (softball)` at the painter. Fastpitch's 48in fore overruns the
+      // canvas and clips at the top edge; baseball's 36in does not.
+      //
+      // That difference is exactly why the front line must be *drawn* rather
+      // than assumed off-canvas: baseball's box terminates in view, and an
+      // inner line stopping there with no front line to close it reads as
+      // chalk that simply gives up. Caught on device, not by this test — which
+      // is why the assertion now exists.
+      double frontDepthFeet(BatterBoxSpec box) =>
+          (TopDownGeometry.plateCenterDepthInches + box.foreInches) / 12;
+
+      expect(frontDepthFeet(BatterBoxSpec.baseball), lessThan(t.maxDepthFeet));
+      expect(frontDepthFeet(BatterBoxSpec.baseball), closeTo(2.292, 0.0005));
+      expect(
+        frontDepthFeet(BatterBoxSpec.fastpitch),
+        greaterThan(t.maxDepthFeet),
+      );
+      expect(frontDepthFeet(BatterBoxSpec.fastpitch), closeTo(3.292, 0.0005));
+
+      // The visible gap between baseball's front line and the canvas top —
+      // the strip that read as unexplained emptiness on device.
+      expect(
+        t.maxDepthFeet - frontDepthFeet(BatterBoxSpec.baseball),
+        closeTo(0.308, 0.0005),
+      );
+
+      // Both run off the bottom, so the aft difference never shows — which is
+      // why the fore one is the assertion that would actually catch a swap.
+      for (final box in [BatterBoxSpec.baseball, BatterBoxSpec.fastpitch]) {
+        final backDepthFeet =
+            (TopDownGeometry.plateCenterDepthInches - box.aftInches) / 12;
+        expect(backDepthFeet, lessThan(t.minDepthFeet));
+      }
+    });
+
+    test('the inner chalk sits where it does in the frontal plane — 1.706 to '
+        '2.059 in x-units, with no perspective to widen it', () {
+      // Same lateral positions as §11.4's table, reached without a projection:
+      // the shared axis means the two planes agree here by construction.
+      expect(BatterBoxSpec.innerChalkXUnits, closeTo(1.706, 0.0005));
+      expect(BatterBoxSpec.outerChalkXUnits, closeTo(2.059, 0.0005));
+      expect(BatterBoxSpec.outerChalkXUnits, lessThan(zoneCanvasExtentMaxX));
+    });
+
+    test('a full foot ruler fits, in both directions', () {
+      // §11.4's 0-2 / 2-4 / 4ft+ bands are gone (v0.35); what replaces them has
+      // to actually have gridlines to draw.
+      expect(TopDownGeometry.gridlineSpacingFeet, 1);
+      expect(t.maxDepthFeet.floor(), greaterThanOrEqualTo(2));
+      expect(t.minDepthFeet.ceil(), lessThanOrEqualTo(-2));
     });
   });
 }

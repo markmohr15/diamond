@@ -13,22 +13,29 @@ const _phoneSize = Size(320, 500);
 Widget _canvas({
   required ZoneCanvasIntent mode,
   ZoneCoord? value,
+  BounceCoord? bounceValue,
   Widget? underlay,
   BallKind ballKind = BallKind.baseball,
 }) {
   return ZoneCanvas(
     mode: mode,
     value: value,
+    // Passing a bounce opens the canvas on the top-down plane, which is how
+    // these reach it without driving the hinge gesture.
+    bounceValue: bounceValue,
     underlay: underlay,
     ballKind: ballKind,
     onCommit: (_) {},
+    onCommitBounce: (_) {},
     onSkip: () {},
     onCancel: () {},
   );
 }
 
-Widget _lightApp(Widget child) =>
-    MaterialApp(theme: ThemeData.light(), home: Material(child: child));
+Widget _lightApp(Widget child) => MaterialApp(
+  theme: ThemeData.light(),
+  home: Material(child: child),
+);
 
 Widget _darkApp(Widget child) => MaterialApp(
   theme: ThemeData.dark(),
@@ -88,12 +95,63 @@ void main() {
     ),
   );
 
+  // The top-down plane (§3.3), after §11.1's hinge. Deliberately unmistakable
+  // against the frontal goldens above: no zone rect, no call grid, dirt edge to
+  // edge, a true-pentagon plate and a depth ruler. What must match across the
+  // two sets is the plate's width — the planes share the lateral axis exactly.
+  goldenTest(
+    'ZoneCanvas top-down plane',
+    fileName: 'zone_canvas_top_down',
+    builder: () => _lightApp(
+      GoldenTestGroup(
+        columns: 2,
+        children: [
+          GoldenTestScenario(
+            name: 'tablet, bounce out front',
+            constraints: BoxConstraints.tight(_tabletSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: 0.6, depth: 1.4),
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'tablet, short hop behind the seam, softball',
+            constraints: BoxConstraints.tight(_tabletSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              ballKind: BallKind.softball,
+              bounceValue: BounceCoord(x: -1.2, depth: -0.8),
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'phone, bounce out front',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: -0.4, depth: 2.1),
+            ),
+          ),
+          // Depth was never captured, so there is no point to place: the band
+          // spans every depth at the lateral position we do know (§11.1).
+          GoldenTestScenario(
+            name: 'phone, in the dirt, depth unknown',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: 1.8),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   goldenTest(
     'ZoneCanvas in dark mode',
     fileName: 'zone_canvas_dark',
     builder: () => _darkApp(
       GoldenTestGroup(
-        columns: 1,
+        columns: 2,
         children: [
           GoldenTestScenario(
             name: 'actual, marker, dark theme',
@@ -101,6 +159,14 @@ void main() {
             child: _canvas(
               mode: ZoneCanvasIntent.actual,
               value: ZoneCoord(x: 0.1, y: 0.7),
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'top-down, dark theme',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: 0.1, depth: 0.9),
             ),
           ),
         ],

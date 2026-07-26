@@ -7,15 +7,15 @@ import 'package:path/path.dart' as p;
 
 final _roundtripByType =
     <String, Map<String, dynamic> Function(Map<String, dynamic>)>{
-  'PitchThrown': (json) => PitchThrown.fromJson(json).toJson(),
-  'BallInPlay': (json) => BallInPlay.fromJson(json).toJson(),
-  'FielderTouch': (json) => FielderTouch.fromJson(json).toJson(),
-  'RunnerAdvance': (json) => RunnerAdvance.fromJson(json).toJson(),
-  'RunnerOut': (json) => RunnerOut.fromJson(json).toJson(),
-  'RuleCall': (json) => RuleCall.fromJson(json).toJson(),
-  'VoidEvent': (json) => VoidEvent.fromJson(json).toJson(),
-  'CountCorrection': (json) => CountCorrection.fromJson(json).toJson(),
-};
+      'PitchThrown': (json) => PitchThrown.fromJson(json).toJson(),
+      'BallInPlay': (json) => BallInPlay.fromJson(json).toJson(),
+      'FielderTouch': (json) => FielderTouch.fromJson(json).toJson(),
+      'RunnerAdvance': (json) => RunnerAdvance.fromJson(json).toJson(),
+      'RunnerOut': (json) => RunnerOut.fromJson(json).toJson(),
+      'RuleCall': (json) => RuleCall.fromJson(json).toJson(),
+      'VoidEvent': (json) => VoidEvent.fromJson(json).toJson(),
+      'CountCorrection': (json) => CountCorrection.fromJson(json).toJson(),
+    };
 
 void main() {
   final fixturesDir = Directory(
@@ -26,12 +26,13 @@ void main() {
     expect(fixturesDir.existsSync(), isTrue, reason: fixturesDir.path);
   });
 
-  final fixtureFiles = fixturesDir
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.json'))
-      .toList(growable: false)
-    ..sort((a, b) => a.path.compareTo(b.path));
+  final fixtureFiles =
+      fixturesDir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.json'))
+          .toList(growable: false)
+        ..sort((a, b) => a.path.compareTo(b.path));
 
   test('at least one fixture file was found', () {
     expect(fixtureFiles, isNotEmpty);
@@ -78,6 +79,22 @@ void main() {
       ]) {
         expect(BounceCoord.fromJson(json).toJson(), json);
       }
+    });
+
+    test('depth is optional — "in the dirt, depth unknown" (§11.1)', () {
+      // The hinge always yields x (the dirt-band release gives it) and may
+      // yield no depth, if the coach skips the second placement. Absent depth
+      // is a real recorded observation, distinct from a bounce at depth 0
+      // (which means "on the plate's front edge").
+      const json = {'x': 0.9};
+      final coord = BounceCoord.fromJson(json);
+      expect(coord.depth, isNull);
+      expect(coord.x, 0.9);
+
+      final withNullsStripped = Map<String, dynamic>.fromEntries(
+        coord.toJson().entries.where((e) => e.value != null),
+      );
+      expect(withNullsStripped, json);
     });
 
     test('a PitchThrown carrying bounceLocation round-trips exactly', () {
