@@ -3,6 +3,43 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.37
+
+**Promoted design language to its own top-level section, §23**, and left §18.7 as a pointer stub. The
+old placement was scouting-scoped in name only — DIA-005 and DIA-011 both specify a "§18.7 review pass"
+for the pitch entry canvas, a §11 surface — so the section is now stated to be app-wide. Appended rather
+than inserted: §23 follows §22 as this document has always grown (§22, a UI/projection section, already
+sits after §21's technology decisions), which avoids renumbering §19–§22 and breaking `CLAUDE.md`'s
+§21.5 non-negotiables, DIA-002's §21.5(1), and every reference to §19.5, §16.x and §22.1. The stub keeps
+existing ticket acceptance criteria resolving correctly.
+
+§23 carries a **precedence rule**: it supersedes design guidance stated earlier in the spec, and where
+earlier text conflicts, the earlier text is a defect. The boundary is narrow and stated explicitly —
+§23 governs design language, not derived geometry (§11.4), data-model rules (§1–§7), or a surface's own
+composition. A design pass does not relitigate a computed value; if §23 appears to contradict one, §23
+is wrong.
+
+New: **§23.2 semantic reservations** (amber = uncertainty *and* misplay — one idea, "this needs judgment
+later"; red = error), pulled out of the old principle 2 because they are load-bearing across §12.5, §13
+and §15.3 and were too easy to miss inside a list item. New principle **7, "never color alone,"** which
+§15.3's underline convention was already following without it being written down.
+
+New: **§23.3 color contexts** — brand baseline, own-team accent, opponent accent, with one accent slot
+between them, so "one accent system" is preserved rather than weakened: what is contextual is the
+accent's value, not how many are live. The opponent accent is a drill-in condition rather than a game
+state (a Tuesday scouting report themes as Saturday's live game does), and deliberately does not apply
+to schedules or any list of several opponents, where eight accents at once destroys the signal by making
+it constant. Color is stored as data and derived at read time per Core Principle #3; derivation owns
+contrast in both modes since seeds are arbitrary; unset opponent colors fall back rather than being
+invented.
+
+New: **§23.4**, generalizing §11.4's per-surface fidelity split — entry surfaces are used at speed in
+sunlight and spend nothing on decoration; review surfaces are used at leisure and are where the product
+is judged.
+
+Opened **Open Question #10**: team colors that collide with the reserved amber/red. Three resolutions,
+all with real costs; shelved for a field test. Blocks the picker, not DIA-012's plumbing.
+
 ## v0.36
 
 **Built the batter silhouette** as a derived, first-class part of the entry canvas (§11.4), reversing the earlier decision to keep it behind a debug flag as a calibration instrument. It is a location cue first: a coach picks a call and reads an actual against a body, not against an empty rectangle. It ships **off by default** — the geometry is right but the *drawing* is not yet convincing, so the figure is hidden pending DIA-013 and the canvas carries no occupied-side cue in the meantime. Visibility is a parameter rather than a temporary constant, since a future practice state (bullpens with no batter) wants the same switch driven by a user setting.
