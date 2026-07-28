@@ -27,6 +27,21 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   BounceCoord? _bounceLocation;
   BallKind _ballKind = BallKind.baseball;
 
+  /// §11.4 makes fidelity a question settled by field test in daylight rather
+  /// than by argument, so the harness has to be able to flip between the two
+  /// treatments on a real tablet — comparing golden PNGs on a desk is exactly
+  /// the thing that section says will not settle it.
+  CanvasFidelity _fidelity = CanvasFidelity.restrained;
+
+  /// Off in production while the drawing is provisional (DIA-013), so the only
+  /// way to look at the figure on device is to switch it on here.
+  bool _showBatterSilhouette = false;
+
+  /// Only the silhouette moves with this — both boxes are always drawn and `x`
+  /// is absolute, so the canvas never mirrors coordinates (§3.1). With the
+  /// batter switched off this control visibly does nothing, which is correct.
+  BatterSide _batterSide = BatterSide.R;
+
   void _resetForNextPitch() {
     setState(() {
       _step = _Step.call;
@@ -39,31 +54,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('ZoneCanvas demo — DIA-005'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            child: Center(
-              child: SegmentedButton<BallKind>(
-                segments: const [
-                  ButtonSegment(
-                    value: BallKind.baseball,
-                    label: Text('Baseball'),
-                  ),
-                  ButtonSegment(
-                    value: BallKind.softball,
-                    label: Text('Softball'),
-                  ),
-                ],
-                selected: {_ballKind},
-                onSelectionChanged: (selection) =>
-                    setState(() => _ballKind = selection.first),
-              ),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('ZoneCanvas demo — DIA-005')),
       body: Column(
         children: [
           const Padding(
@@ -74,6 +65,64 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
               style: TextStyle(fontStyle: FontStyle.italic),
             ),
           ),
+          // Harness controls live here rather than in the app bar, which
+          // overflows once there is more than one of them at phone widths.
+          // Wrap so they reflow instead of clipping.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SegmentedButton<BallKind>(
+                  segments: const [
+                    ButtonSegment(
+                      value: BallKind.baseball,
+                      label: Text('Baseball'),
+                    ),
+                    ButtonSegment(
+                      value: BallKind.softball,
+                      label: Text('Softball'),
+                    ),
+                  ],
+                  selected: {_ballKind},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _ballKind = selection.first),
+                ),
+                SegmentedButton<CanvasFidelity>(
+                  segments: const [
+                    ButtonSegment(
+                      value: CanvasFidelity.restrained,
+                      label: Text('Restrained'),
+                    ),
+                    ButtonSegment(
+                      value: CanvasFidelity.rich,
+                      label: Text('Rich'),
+                    ),
+                  ],
+                  selected: {_fidelity},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _fidelity = selection.first),
+                ),
+                FilterChip(
+                  label: const Text('Batter'),
+                  selected: _showBatterSilhouette,
+                  onSelected: (on) =>
+                      setState(() => _showBatterSilhouette = on),
+                ),
+                SegmentedButton<BatterSide>(
+                  segments: const [
+                    ButtonSegment(value: BatterSide.R, label: Text('RHB')),
+                    ButtonSegment(value: BatterSide.L, label: Text('LHB')),
+                  ],
+                  selected: {_batterSide},
+                  onSelectionChanged: (selection) =>
+                      setState(() => _batterSide = selection.first),
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -82,6 +131,9 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
                   mode: ZoneCanvasIntent.call,
                   value: _intendedLocation,
                   ballKind: _ballKind,
+                  fidelity: _fidelity,
+                  showBatterSilhouette: _showBatterSilhouette,
+                  batterSide: _batterSide,
                   onCommit: (coord) => setState(() {
                     _intendedLocation = coord;
                     _step = _Step.actual;
@@ -97,6 +149,9 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
                   value: _actualLocation,
                   bounceValue: _bounceLocation,
                   ballKind: _ballKind,
+                  fidelity: _fidelity,
+                  showBatterSilhouette: _showBatterSilhouette,
+                  batterSide: _batterSide,
                   onCommit: (coord) => setState(() {
                     _actualLocation = coord;
                     _bounceLocation = null;

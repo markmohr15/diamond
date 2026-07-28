@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter/gestures.dart';
@@ -29,6 +31,25 @@ enum ZoneCanvasPlane { frontal, topDown }
 /// `if (softball)` checks) — replace call sites with a real `RuleSet` field
 /// once that type exists.
 enum BallKind { baseball, softball }
+
+/// How richly the canvas renders (§11.4). Both treatments draw through the
+/// *same* [FrontalGeometry] / [TopDownGeometry] — fidelity changes paint, never
+/// a coordinate, which is what makes comparing them a fair test of the look
+/// rather than of the geometry.
+///
+/// Deliberately unsettled: §11.4 makes fidelity a question to be answered by
+/// field test in daylight, not by argument, so both ship here for comparison
+/// and the losing one is deleted once a choice is made. This enum is not
+/// intended to survive that decision as a permanent configuration knob.
+enum CanvasFidelity {
+  /// Flat fills, neutral background. Every decorated pixel competes with the
+  /// markers and grid that carry the information (§18.7).
+  restrained,
+
+  /// Dimensional plate, textured dirt, chalk with weight. Visual craft signals
+  /// a serious product, and precision is most of what reads as "serious".
+  rich,
+}
 
 // Placeholder palette — no app theme exists yet (pending a dedicated theming
 // ticket). §18.7.3: the accent goes to the datum, not the frame — so the
@@ -141,7 +162,10 @@ class ZoneCanvas extends StatefulWidget {
     required this.onCancel,
     this.bounceValue,
     this.onCommitBounce,
+    this.batterSide = BatterSide.R,
+    this.showBatterSilhouette = false,
     this.ballKind = BallKind.baseball,
+    this.fidelity = CanvasFidelity.restrained,
     this.geometry = const FrontalGeometry(),
     this.underlay,
     super.key,
@@ -185,8 +209,33 @@ class ZoneCanvas extends StatefulWidget {
   /// A coach calls "bury it down" as a low/chase zone, not a bounce depth.
   final ValueChanged<BounceCoord>? onCommitBounce;
 
+  /// Which box the batter is standing in, for the silhouette (§11.4).
+  ///
+  /// Placement only — the canvas never mirrors coordinates, since `x` is
+  /// absolute (§3.1). A pitch tapped at a given spot means the same thing
+  /// whoever is up; all this moves is where she is drawn.
+  final BatterSide batterSide;
+
+  /// Whether to draw the batter silhouette (§11.4).
+  ///
+  /// Off by default while the *drawing* is provisional — the figure is built
+  /// from round-capped strokes and does not yet read convincingly as a batter
+  /// (DIA-013). The geometry behind it is correct and stays: knee on the zone's
+  /// bottom edge, armpit on its top, derived from [geometry]'s profile.
+  ///
+  /// Not a temporary gate to be deleted once the art is good. A future practice
+  /// state — pitchers throwing bullpens with no batter in the box — wants the
+  /// same switch, driven by a user setting rather than a constant, so this
+  /// parameter has a reason to exist independent of how the figure looks.
+  final bool showBatterSilhouette;
+
   /// Baseball vs. softball for the actual-location ball icon. See [BallKind].
   final BallKind ballKind;
+
+  /// How richly to render. See [CanvasFidelity] — both treatments draw through
+  /// the same geometry, and this parameter is expected to be removed once the
+  /// daylight comparison picks one.
+  final CanvasFidelity fidelity;
 
   /// The coordinate mapping and camera the canvas draws through (§11.4) — a
   /// parameter rather than hardcoded geometry, so the zone profile and virtual
@@ -455,17 +504,42 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                                 geometry: widget.topDownGeometry,
                                 ballKind: widget.ballKind,
                                 brightness: Theme.of(context).brightness,
+                                fidelity: widget.fidelity,
                               )
                             : _FrontalBackgroundPainter(
                                 geometry: widget.geometry,
                                 ballKind: widget.ballKind,
                                 zoneRect: zoneRect,
                                 brightness: Theme.of(context).brightness,
+                                fidelity: widget.fidelity,
                               ),
                       ),
                     ),
                   ),
                 ),
+                // The silhouette sits on the ground furniture and beneath
+                // everything that carries information — she is scenery. Frontal
+                // plane only: her job is the vertical read (knee-to-armpit
+                // against the zone rect), which the top-down plane has no axis
+                // for, and a body-shaped mass there would compete with depth.
+                if (!topDown && widget.showBatterSilhouette)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ClipRect(
+                        child: CustomPaint(
+                          size: size,
+                          painter: _SilhouettePainter(
+                            silhouette: BatterSilhouette(
+                              profile: widget.geometry.profile,
+                            ),
+                            frontal: widget.geometry,
+                            batterSide: widget.batterSide,
+                            brightness: Theme.of(context).brightness,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (!topDown && widget.underlay != null)
                   Positioned.fromRect(
                     rect: zoneRect,
@@ -519,12 +593,16 @@ class _FrontalBackgroundPainter extends CustomPainter {
     required this.ballKind,
     required this.zoneRect,
     required this.brightness,
+    required this.fidelity,
   });
 
   final FrontalGeometry geometry;
   final BallKind ballKind;
   final Rect zoneRect;
   final Brightness brightness;
+  final CanvasFidelity fidelity;
+
+  bool get _rich => fidelity == CanvasFidelity.rich;
 
   /// Batter's-box dimensions from the `RuleSet` placeholder (§11.4) — never an
   /// `if (softball)` branch at a call site.
@@ -634,10 +712,9 @@ class _FrontalBackgroundPainter extends CustomPainter {
     // plate's front edge (which lands here by construction) already mark the
     // boundary. Worth re-checking against real taps when the hinge lands, since
     // that is when the boundary starts carrying interaction weight.
-    canvas.drawRect(
-      Rect.fromLTRB(0, groundLineY, size.width, size.height),
-      Paint()..color = dirt,
-    );
+    final band = Rect.fromLTRB(0, groundLineY, size.width, size.height);
+    canvas.drawRect(band, Paint()..color = dirt);
+    if (_rich) _paintDirtGrain(canvas, band, dirt);
   }
 
   /// Home plate through the projector: 17″ edge toward the pitcher at `u = d`
@@ -646,15 +723,37 @@ class _FrontalBackgroundPainter extends CustomPainter {
   /// as a ratio; it falls out of the projection.
   void _paintPlate(Canvas canvas, Size size, bool isDark) {
     final path = _groundQuad(size, geometry.plateOutline);
+    final bounds = path.getBounds();
+
+    // Rich: the plate sits proud of the dirt — a contact shadow under its near
+    // edge and a top-lit face. Restrained: a flat fill. Same outline either
+    // way; fidelity never moves a coordinate (§11.4).
+    if (_rich) {
+      canvas.drawPath(
+        path.shift(const Offset(0, 2)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+    final face = Paint();
+    if (_rich) {
+      face.shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [const Color(0xFFF2F2F2), const Color(0xFFC4C4C4)]
+            : [Colors.white, const Color(0xFFDCDCDC)],
+      ).createShader(bounds);
+    } else {
+      face.color = isDark ? const Color(0xFFE0E0E0) : Colors.white;
+    }
     canvas
-      ..drawPath(
-        path,
-        Paint()..color = isDark ? const Color(0xFFE0E0E0) : Colors.white,
-      )
+      ..drawPath(path, face)
       ..drawPath(
         path,
         Paint()
-          ..color = Colors.black.withValues(alpha: 0.30)
+          ..color = Colors.black.withValues(alpha: _rich ? 0.38 : 0.30)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
@@ -709,6 +808,7 @@ class _FrontalBackgroundPainter extends CustomPainter {
           groundLineY,
         );
       for (final chalk in [inner, front]) {
+        if (_rich) _paintChalkBloom(canvas, chalk, paint);
         canvas.drawPath(chalk, paint);
       }
     }
@@ -719,7 +819,238 @@ class _FrontalBackgroundPainter extends CustomPainter {
       oldDelegate.zoneRect != zoneRect ||
       oldDelegate.brightness != brightness ||
       oldDelegate.ballKind != ballKind ||
+      oldDelegate.fidelity != fidelity ||
       oldDelegate.geometry != geometry;
+}
+
+/// Procedural dirt grain for [CanvasFidelity.rich].
+///
+/// Seeded from a constant so the same canvas draws the same speckles every
+/// frame and every golden run — a texture that resampled itself on repaint
+/// would shimmer under the finger and make golden diffs meaningless.
+void _paintDirtGrain(Canvas canvas, Rect area, Color dirt) {
+  if (area.isEmpty) return;
+  final rng = math.Random(20260726);
+  final light = Paint()..color = Colors.white.withValues(alpha: 0.05);
+  final dark = Paint()..color = Colors.black.withValues(alpha: 0.06);
+  final count = (area.width * area.height / 900).clamp(0, 1400).toInt();
+  for (var i = 0; i < count; i++) {
+    final p = Offset(
+      area.left + rng.nextDouble() * area.width,
+      area.top + rng.nextDouble() * area.height,
+    );
+    canvas.drawCircle(
+      p,
+      rng.nextDouble() * 1.6 + 0.4,
+      rng.nextBool() ? light : dark,
+    );
+  }
+}
+
+/// Chalk with weight for [CanvasFidelity.rich]: a soft spread under the hard
+/// edge, so the line sits *in* the dirt rather than on top of it.
+void _paintChalkBloom(Canvas canvas, Path path, Paint base) {
+  canvas.drawPath(
+    path,
+    Paint()
+      ..shader = base.shader
+      ..color = base.color
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+  );
+}
+
+/// The batter silhouette (§11.4): a body to read a call or an actual against,
+/// instead of an empty rectangle.
+///
+/// Every landmark comes from [BatterSilhouette], which derives them from the
+/// zone profile — her knee is the zone's bottom edge and her armpit its top, so
+/// she cannot disagree with the rect she stands beside. Nothing here is a fixed
+/// pixel size.
+///
+/// Drawn beneath the marker layer and wrapped in `IgnorePointer` by the caller.
+/// A pitch may be recorded anywhere on the canvas, including at her body — a
+/// silhouette that swallowed taps would make the region it occupies
+/// uncapturable, which is the opposite of why the lateral range was widened to
+/// contain her (§11.4).
+class _SilhouettePainter extends CustomPainter {
+  const _SilhouettePainter({
+    required this.silhouette,
+    required this.frontal,
+    required this.batterSide,
+    required this.brightness,
+  });
+
+  final BatterSilhouette silhouette;
+
+  /// Used for one thing only: projecting the two feet, which stand at
+  /// different depths, onto their true ground heights.
+  final FrontalGeometry frontal;
+
+  final BatterSide batterSide;
+  final Brightness brightness;
+
+  /// Her centre, in x-units. Handedness lives in [BatterSilhouette] so the
+  /// catcher's-view convention is written down once.
+  double get _centreX =>
+      silhouette.centreXUnits(rightHanded: batterSide == BatterSide.R);
+
+  double _xUnits(double inches) => inches / plateHalfWidthInches;
+
+  Offset _p(double xUnits, double y, Size size) =>
+      localFromZoneCoord(ZoneCoord(x: xUnits, y: y), size);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final s = silhouette;
+    final tone = brightness == Brightness.dark
+        ? _structureDark
+        : _structureLight;
+
+    final pxPerInch = size.width / zoneCanvasLateralExtentInches;
+    double w(double inches) => inches * pxPerInch;
+
+    // The figure is built in "inches toward the plate" and flipped by
+    // handedness once, here — so the stance is written down in one orientation
+    // and the mirror cannot be got wrong limb by limb.
+    final toward = s.towardPlateSign(rightHanded: batterSide == BatterSide.R);
+    Offset at(double towardPlateInches, double y) =>
+        _p(_centreX + toward * _xUnits(towardPlateInches), y, size);
+
+    // Both feet sit the *same* distance from the box line — a batting stance
+    // separates them along the pitcher-catcher axis, not across the plate — so
+    // there is no lateral offset between them at all. What separates them on
+    // screen is depth: the back foot stands nearer the catcher, and nearer
+    // ground projects below `y_ground` while further ground projects above it.
+    // Read from the ground projector, so the split is the real one rather than
+    // a number chosen to look right.
+    const ankle = 0.0;
+    final backDrop =
+        frontal.groundYAt(frontal.plateCenterU - s.stanceDepthHalfInches) -
+        s.feetY;
+    final frontDrop =
+        frontal.groundYAt(frontal.plateCenterU + s.stanceDepthHalfInches) -
+        s.feetY;
+
+    // Each leg is translated bodily by its own ground offset, knee included.
+    // Standing at different depths, the two knees *straddle* `y = 0` rather
+    // than both sitting on it — the zone's bottom edge is the batter's knee
+    // height, one physical value, which the two knees project either side of.
+    // Translating the foot alone would stretch the back leg instead.
+    final backKneeY = s.kneeY + backDrop;
+    final frontKneeY = s.kneeY + frontDrop;
+
+    canvas.saveLayer(
+      Offset.zero & size,
+      Paint()..color = tone.withValues(alpha: 0.13),
+    );
+    final limb = Paint()
+      ..color = tone
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    Path polyline(List<Offset> points) {
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (final p in points.skip(1)) {
+        path.lineTo(p.dx, p.dy);
+      }
+      return path;
+    }
+
+    // The torso leans in over the plate from the waist — a batter is hinged
+    // forward at the hips, not standing upright. Roughly 25 degrees, which at
+    // this torso length puts the shoulders about a chest-depth further toward
+    // the plate than the hips.
+    final chest = s.chestDepthInches;
+    const hipX = -2.0;
+    final shoulderX = hipX + chest * 1.1;
+    final handsX = -chest * 0.9;
+    final handsY = s.shoulderY + 0.05;
+
+    canvas
+      // Back leg, then front leg: hip over a bent knee down to the ankle.
+      ..drawPath(
+        polyline([
+          at(hipX - chest * 0.15, s.hipY),
+          at(ankle + s.kneeForwardInches, backKneeY),
+          at(ankle, s.feetY + backDrop),
+        ]),
+        limb..strokeWidth = w(s.thighWidthInches),
+      )
+      ..drawPath(
+        polyline([
+          at(hipX + chest * 0.15, s.hipY),
+          at(ankle + s.kneeForwardInches * 1.2, frontKneeY),
+          at(ankle, s.feetY + frontDrop),
+        ]),
+        limb..strokeWidth = w(s.shinWidthInches * 1.15),
+      )
+      // Feet, pointing at the plate — square to the pitch, which is what makes
+      // the figure read as a batter in the box rather than a person standing
+      // beside it. Equidistant from the line by construction: same lateral
+      // position, same length, different depth.
+      ..drawPath(
+        polyline([
+          at(ankle, s.feetY + backDrop),
+          at(ankle + s.footLengthInches, s.feetY + backDrop),
+        ]),
+        limb..strokeWidth = w(s.statureInches * 0.045),
+      )
+      ..drawPath(
+        polyline([
+          at(ankle, s.feetY + frontDrop),
+          at(ankle + s.footLengthInches, s.feetY + frontDrop),
+        ]),
+        limb..strokeWidth = w(s.statureInches * 0.045),
+      )
+      // Torso, hips to shoulders, hinged forward over the plate.
+      ..drawPath(
+        polyline([at(hipX, s.hipY), at(shoulderX, s.shoulderY)]),
+        limb..strokeWidth = w(chest),
+      )
+      // Both arms, each with its own elbow, meeting at the hands. The front
+      // elbow drops toward the plate and the back elbow lifts away from it —
+      // drawing one arm made the figure read as a person with a hand raised.
+      ..drawPath(
+        polyline([
+          at(shoulderX + chest * 0.15, s.shoulderY - 0.05),
+          at(shoulderX + chest * 0.1, s.shoulderY - 0.34),
+          at(handsX, handsY),
+        ]),
+        limb..strokeWidth = w(s.armWidthInches),
+      )
+      ..drawPath(
+        polyline([
+          at(shoulderX - chest * 0.35, s.shoulderY - 0.02),
+          at(handsX - chest * 0.75, s.shoulderY - 0.22),
+          at(handsX, handsY),
+        ]),
+        limb..strokeWidth = w(s.armWidthInches),
+      )
+      // Bat, up and back over the rear shoulder — clear of the zone rect, and
+      // running off the top of the frame as in the reference.
+      ..drawPath(
+        polyline([at(handsX, handsY), at(handsX - chest * 1.3, handsY + 0.5)]),
+        limb..strokeWidth = w(s.statureInches * 0.038),
+      )
+      // Head, in profile and turned toward the pitcher. Frame-cut at
+      // upper-face level by the +1.5 top (§11.4) — as the reference is.
+      ..drawOval(
+        Rect.fromPoints(
+          at(shoulderX + chest * 0.25 - s.headDepthInches / 2, s.headTopY),
+          at(shoulderX + chest * 0.25 + s.headDepthInches / 2, s.chinY),
+        ),
+        Paint()..color = tone,
+      )
+      ..restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _SilhouettePainter oldDelegate) =>
+      oldDelegate.batterSide != batterSide ||
+      oldDelegate.brightness != brightness ||
+      oldDelegate.frontal != frontal ||
+      oldDelegate.silhouette != silhouette;
 }
 
 /// Top-down plate/dirt plane (§3.3, §11.4), shown after §11.1's hinge.
@@ -738,11 +1069,15 @@ class _TopDownBackgroundPainter extends CustomPainter {
     required this.geometry,
     required this.ballKind,
     required this.brightness,
+    required this.fidelity,
   });
 
   final TopDownGeometry geometry;
   final BallKind ballKind;
   final Brightness brightness;
+  final CanvasFidelity fidelity;
+
+  bool get _rich => fidelity == CanvasFidelity.rich;
 
   BatterBoxSpec get _box => ballKind == BallKind.softball
       ? BatterBoxSpec.fastpitch
@@ -769,6 +1104,7 @@ class _TopDownBackgroundPainter extends CustomPainter {
     // no atmosphere here and no ground/sky boundary to read — which is itself
     // most of what makes the two planes impossible to confuse.
     canvas.drawRect(Offset.zero & size, Paint()..color = dirt);
+    if (_rich) _paintDirtGrain(canvas, Offset.zero & size, dirt);
 
     _paintDepthRuler(canvas, size, structure);
     _paintBoxChalk(canvas, size);
@@ -847,15 +1183,32 @@ class _TopDownBackgroundPainter extends CustomPainter {
     }
     path.close();
 
+    if (_rich) {
+      canvas.drawPath(
+        path.shift(const Offset(0, 2)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.28)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+      );
+    }
+    final face = Paint();
+    if (_rich) {
+      face.shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [const Color(0xFFF2F2F2), const Color(0xFFC4C4C4)]
+            : [Colors.white, const Color(0xFFDCDCDC)],
+      ).createShader(path.getBounds());
+    } else {
+      face.color = isDark ? const Color(0xFFE0E0E0) : Colors.white;
+    }
     canvas
-      ..drawPath(
-        path,
-        Paint()..color = isDark ? const Color(0xFFE0E0E0) : Colors.white,
-      )
+      ..drawPath(path, face)
       ..drawPath(
         path,
         Paint()
-          ..color = Colors.black.withValues(alpha: 0.30)
+          ..color = Colors.black.withValues(alpha: _rich ? 0.38 : 0.30)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1.5,
       );
@@ -886,17 +1239,24 @@ class _TopDownBackgroundPainter extends CustomPainter {
         frontDepth - chalk,
         size,
       );
+      final inner = Rect.fromPoints(
+        corner,
+        _point(sign * outerEdge, backDepth, size),
+      );
+      final front = Rect.fromPoints(corner, outerFront);
+      if (_rich) {
+        for (final r in [inner, front]) {
+          _paintChalkBloom(canvas, Path()..addRect(r), paint);
+        }
+      }
       canvas
         // Inner line: back of the box up to its front line.
-        ..drawRect(
-          Rect.fromPoints(corner, _point(sign * outerEdge, backDepth, size)),
-          paint,
-        )
+        ..drawRect(inner, paint)
         // Front line: outward from the inner edge across the box width, its 3″
         // measured back toward the plate so the corner closes flush with the
         // inner line rather than overhanging it. Clipped by the canvas when the
         // sport puts it off-frame.
-        ..drawRect(Rect.fromPoints(corner, outerFront), paint);
+        ..drawRect(front, paint);
     }
   }
 
@@ -904,6 +1264,7 @@ class _TopDownBackgroundPainter extends CustomPainter {
   bool shouldRepaint(covariant _TopDownBackgroundPainter oldDelegate) =>
       oldDelegate.brightness != brightness ||
       oldDelegate.ballKind != ballKind ||
+      oldDelegate.fidelity != fidelity ||
       oldDelegate.geometry != geometry;
 }
 

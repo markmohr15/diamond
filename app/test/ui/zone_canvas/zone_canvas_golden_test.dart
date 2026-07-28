@@ -16,10 +16,16 @@ Widget _canvas({
   BounceCoord? bounceValue,
   Widget? underlay,
   BallKind ballKind = BallKind.baseball,
+  BatterSide batterSide = BatterSide.R,
+  CanvasFidelity fidelity = CanvasFidelity.restrained,
+  bool showBatterSilhouette = false,
 }) {
   return ZoneCanvas(
     mode: mode,
     value: value,
+    batterSide: batterSide,
+    showBatterSilhouette: showBatterSilhouette,
+    fidelity: fidelity,
     // Passing a bounce opens the canvas on the top-down plane, which is how
     // these reach it without driving the hinge gesture.
     bounceValue: bounceValue,
@@ -54,6 +60,19 @@ void main() {
             name: 'call, empty',
             constraints: BoxConstraints.tight(_tabletSize),
             child: _canvas(mode: ZoneCanvasIntent.call),
+          ),
+          // The silhouette is off on the entry canvas while its drawing is
+          // provisional (DIA-013). Kept switched on here, in one scenario, so
+          // the path stays covered and the figure can still be looked at
+          // without running the app.
+          GoldenTestScenario(
+            name: 'call, silhouette on, left-handed batter',
+            constraints: BoxConstraints.tight(_tabletSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.call,
+              batterSide: BatterSide.L,
+              showBatterSilhouette: true,
+            ),
           ),
           GoldenTestScenario(
             name: 'actual, marker + underlay, softball',
@@ -146,6 +165,57 @@ void main() {
     ),
   );
 
+  // §11.4 makes fidelity a question settled by field test in daylight, not by
+  // argument, so both treatments exist behind the *same* coordinate mapping and
+  // these sheets are what gets compared. Geometry is identical in both; only
+  // paint differs. One of the two is deleted once a choice is made.
+  goldenTest(
+    'ZoneCanvas rich fidelity',
+    fileName: 'zone_canvas_rich',
+    builder: () => _lightApp(
+      GoldenTestGroup(
+        columns: 2,
+        children: [
+          GoldenTestScenario(
+            name: 'frontal, tablet, rich',
+            constraints: BoxConstraints.tight(_tabletSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              value: ZoneCoord(x: 0.3, y: 0.6),
+              fidelity: CanvasFidelity.rich,
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'top-down, tablet, rich',
+            constraints: BoxConstraints.tight(_tabletSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: 0.6, depth: 1.4),
+              fidelity: CanvasFidelity.rich,
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'frontal, phone, rich',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.call,
+              fidelity: CanvasFidelity.rich,
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'top-down, phone, rich',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              bounceValue: BounceCoord(x: -0.4, depth: 2.1),
+              fidelity: CanvasFidelity.rich,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
   goldenTest(
     'ZoneCanvas in dark mode',
     fileName: 'zone_canvas_dark',
@@ -159,6 +229,15 @@ void main() {
             child: _canvas(
               mode: ZoneCanvasIntent.actual,
               value: ZoneCoord(x: 0.1, y: 0.7),
+            ),
+          ),
+          GoldenTestScenario(
+            name: 'frontal, dark theme, rich',
+            constraints: BoxConstraints.tight(_phoneSize),
+            child: _canvas(
+              mode: ZoneCanvasIntent.actual,
+              value: ZoneCoord(x: 0.1, y: 0.7),
+              fidelity: CanvasFidelity.rich,
             ),
           ),
           GoldenTestScenario(

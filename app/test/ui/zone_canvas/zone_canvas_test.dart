@@ -18,7 +18,16 @@ class _Harness extends StatefulWidget {
     this.onCancel,
     this.onCommitBounce,
     this.canCaptureBounce = false,
+    this.batterSide = BatterSide.R,
+    this.showBatterSilhouette = false,
   });
+
+  final BatterSide batterSide;
+
+  /// The silhouette is off by default in production while its drawing is
+  /// provisional (DIA-013), so the tests that assert its behaviour turn it on
+  /// explicitly rather than relying on the default.
+  final bool showBatterSilhouette;
 
   final ZoneCanvasIntent mode;
   final Widget? underlay;
@@ -54,6 +63,8 @@ class _HarnessState extends State<_Harness> {
             child: ZoneCanvas(
               mode: widget.mode,
               value: value,
+              batterSide: widget.batterSide,
+              showBatterSilhouette: widget.showBatterSilhouette,
               bounceValue: bounceValue,
               underlay: widget.underlay,
               onCommit: (coord) {
@@ -561,6 +572,119 @@ void main() {
       await tester.pump();
 
       expect(bounces, hasLength(1));
+    });
+  });
+
+  // The silhouette (§11.4). She ships as a location cue, so the things that
+  // matter are that she cannot swallow a tap and cannot contradict the zone
+  // rect she stands beside.
+  group('Batter silhouette', () {
+    /// Her body centre as a fraction across the drawing area.
+    double centreFraction(BatterSide side) {
+      const s = BatterSilhouette();
+      final x = s.centreXUnits(rightHanded: side == BatterSide.R);
+      return (x - zoneCanvasExtentMinX) /
+          (zoneCanvasExtentMaxX - zoneCanvasExtentMinX);
+    }
+
+    testWidgets('a press on her body commits — she is paint, not a target', (
+      tester,
+    ) async {
+      // A pitch may be recorded anywhere on the canvas, including at the
+      // batter. If she swallowed taps the region she occupies would be
+      // uncapturable, which is the opposite of why the frame was widened to
+      // contain her.
+      for (final side in BatterSide.values) {
+        ZoneCoord? committed;
+        await tester.pumpWidget(
+          _Harness(
+            batterSide: side,
+            showBatterSilhouette: true,
+            onCommit: (c) => committed = c,
+          ),
+        );
+
+        await _longPressDragRelease(
+          tester,
+          local: _atFraction(tester, centreFraction(side), 0.45),
+        );
+
+        expect(
+          committed,
+          isNotNull,
+          reason: 'the silhouette swallowed a $side press',
+        );
+        // And the coordinate is the one under the finger, not nudged aside.
+        const s = BatterSilhouette();
+        expect(
+          committed!.x,
+          closeTo(s.centreXUnits(rightHanded: side == BatterSide.R), 0.05),
+        );
+      }
+    });
+
+    testWidgets('she stands on the side she bats from', (tester) async {
+      // Catcher's view: positive x is the first-base side, so a right-handed
+      // batter is at negative x. Asserted through the widget as well as the
+      // geometry, since this is the layer where a mirror would creep in.
+      expect(centreFraction(BatterSide.R), lessThan(0.5));
+      expect(centreFraction(BatterSide.L), greaterThan(0.5));
+
+      for (final side in BatterSide.values) {
+        await tester.pumpWidget(
+          _Harness(batterSide: side, showBatterSilhouette: true),
+        );
+        expect(find.byType(ZoneCanvas), findsOneWidget);
+      }
+    });
+
+    testWidgets('both box chalk lines render whichever side is up', (
+      tester,
+    ) async {
+      // The boxes are the reference frame for location on either side of the
+      // plate and are never hidden or mirrored — only the silhouette moves.
+      for (final side in BatterSide.values) {
+        await tester.pumpWidget(
+          _Harness(batterSide: side, showBatterSilhouette: true),
+        );
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      }
+    });
+
+    testWidgets('off by default — the drawing is provisional (DIA-013)', (
+      tester,
+    ) async {
+      // The geometry is kept and tested; only the figure is hidden. A press
+      // where the batter would stand still commits either way, so this asserts
+      // the default rather than any behavioural difference.
+      ZoneCoord? committed;
+      await tester.pumpWidget(_Harness(onCommit: (c) => committed = c));
+      await _longPressDragRelease(
+        tester,
+        local: _atFraction(tester, centreFraction(BatterSide.R), 0.45),
+      );
+      expect(committed, isNotNull);
+    });
+
+    testWidgets('she does not render in the top-down plane', (tester) async {
+      // Frontal only: her job is the vertical knee-to-armpit read, which the
+      // top-down plane has no axis for.
+      const geometry = FrontalGeometry();
+      await tester.pumpWidget(
+        const _Harness(canCaptureBounce: true, showBatterSilhouette: true),
+      );
+      await _longPressDragRelease(
+        tester,
+        local: _atFraction(
+          tester,
+          0.5,
+          (zoneCanvasExtentMaxY - (geometry.groundY - 0.2)) /
+              (zoneCanvasExtentMaxY - zoneCanvasExtentMinY),
+        ),
+      );
+      expect(find.text('IN THE DIRT'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 

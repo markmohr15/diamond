@@ -367,6 +367,118 @@ void main() {
     });
   });
 
+  group('BatterSilhouette — derived from the zone, not drawn to a size', () {
+    const s = BatterSilhouette();
+
+    test('knee and armpit ARE the zone edges, for every profile', () {
+      // The whole reason she can ship: these two landmarks are definitional,
+      // so she cannot contradict the rect she stands beside. Driven at two
+      // profiles, since a fixed-size silhouette would pass at only one.
+      for (final profile in [
+        ZoneProfile.canonical12U,
+        const ZoneProfile(bottomInches: 13, topInches: 33),
+        const ZoneProfile(bottomInches: 20, topInches: 50),
+      ]) {
+        final sil = BatterSilhouette(profile: profile);
+        expect(sil.kneeY, zoneMinY);
+        expect(sil.armpitY, zoneMaxY);
+        expect(sil.feetY, closeTo(profile.groundY, 1e-12));
+      }
+    });
+
+    test('stature is implied by the zone — 58in at 12U', () {
+      expect(s.statureInches, closeTo(58, 0.05));
+      // And it moves: a taller zone means a taller athlete, so the silhouette
+      // grows with the rect rather than being re-specified beside it.
+      const taller = BatterSilhouette(
+        profile: ZoneProfile(bottomInches: 20, topInches: 50),
+      );
+      expect(taller.statureInches, greaterThan(s.statureInches));
+    });
+
+    test('landmarks run in anatomical order, feet on the ground line', () {
+      expect(s.feetY, lessThan(s.kneeY));
+      expect(s.kneeY, lessThan(s.hipY));
+      expect(s.hipY, lessThan(s.armpitY));
+      expect(s.armpitY, lessThan(s.shoulderY));
+      expect(s.shoulderY, lessThan(s.chinY));
+      expect(s.chinY, lessThan(s.headTopY));
+    });
+
+    test('her head is frame-cut by the +1.5 top, as §11.4 intends', () {
+      expect(s.headTopY, greaterThan(zoneCanvasExtentMaxY));
+      expect(s.headTopY, closeTo(1.771, 0.001));
+      // The chin stays on-canvas, so what is cut is the head and not the body.
+      expect(s.chinY, lessThan(zoneCanvasExtentMaxY));
+    });
+
+    test('a right-handed batter stands on the third-base side, negative x', () {
+      // Catcher's view, facing the pitcher: first base is on the right, so
+      // positive x is the first-base side (§3.1). Mirroring this is silent.
+      expect(s.centreXUnits(rightHanded: true), lessThan(0));
+      expect(s.centreXUnits(rightHanded: false), greaterThan(0));
+      expect(
+        s.centreXUnits(rightHanded: true),
+        closeTo(-s.centreXUnits(rightHanded: false), 1e-12),
+      );
+    });
+
+    test('the toes are the anchor, a few inches off the chalk', () {
+      // "A few inches off the inside line" is a statement about the feet — it
+      // is what a batter actually lines up — so the toes are positioned and the
+      // body follows, not the other way round. Asserted as the identity rather
+      // than against 20.5, so the number cannot drift from the rule.
+      final chalkOuterInches =
+          BatterBoxSpec.outerChalkXUnits * plateHalfWidthInches;
+      expect(
+        s.toeInchesFromPlate - chalkOuterInches,
+        closeTo(BatterSilhouette.stanceGapFromChalkInches, 1e-9),
+      );
+      expect(s.toeInchesFromPlate, closeTo(20.5, 0.01));
+      // Clear of the chalk entirely, not standing on it or over the line.
+      expect(s.toeInchesFromPlate, greaterThan(chalkOuterInches));
+      // And the body is a foot's length back from there.
+      expect(
+        s.stanceOffsetInches - s.footLengthInches,
+        closeTo(s.toeInchesFromPlate, 1e-9),
+      );
+    });
+
+    test('both feet stand the same distance from the box line', () {
+      // A batting stance separates the feet along the pitcher-catcher axis, not
+      // across the plate: they are parallel to the line and equidistant from
+      // it. So the separation is a depth, and there is no lateral term at all
+      // for a test to check — which is the point of asserting it here.
+      expect(s.stanceDepthHalfInches, greaterThan(0));
+      expect(s.stanceDepthHalfInches * 2, closeTo(58 * 0.44, 0.5));
+      // Neither foot crosses the line, since neither is nearer than the toes.
+      const chalkInnerInches =
+          plateHalfWidthInches + BatterBoxSpec.offsetInches;
+      expect(s.toeInchesFromPlate, greaterThan(chalkInnerInches));
+    });
+
+    test('the knees are driven forward of the ankles, toward the plate', () {
+      // The posture that makes it read as a loaded batting stance rather than
+      // someone standing next to the plate.
+      expect(s.kneeForwardInches, greaterThan(0));
+      expect(s.kneeForwardInches, closeTo(58 * 0.07, 0.05));
+    });
+
+    test('the batter stays inside the frame', () {
+      final centre = s.centreXUnits(rightHanded: false).abs();
+      // The outer edge stays inside +-4.0, so the figure is not cut in half.
+      // Read from the geometry, not recomputed here — a duplicated stance
+      // constant is exactly how the painter and the frame check drift apart.
+      expect(centre, greaterThan(0));
+      for (final rightHanded in [true, false]) {
+        expect(
+          s.outerXUnits(rightHanded: rightHanded),
+          lessThanOrEqualTo(zoneCanvasExtentMaxX),
+        );
+      }
+    });
+  });
+
   group('TopDownGeometry — parity and isotropy', () {
     const t = TopDownGeometry();
 
