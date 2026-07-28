@@ -51,12 +51,15 @@ enum CanvasFidelity {
   rich,
 }
 
-// Placeholder palette — no app theme exists yet (pending a dedicated theming
-// ticket). §18.7.3: the accent goes to the datum, not the frame — so the
-// accent belongs to the tap marker, and structural lines (zone border, call
-// grid) are dark on a light field, because light blue on white vanishes in
-// sunlight. Ground tones are the dirt/chalk pair.
-const Color _accentColor = Color(0xFF0A84FF);
+// Depiction of physical objects — dirt, chalk, ball leather, plate — rather
+// than palette. §23.4 governs these as per-surface fidelity, and whether any of
+// them should become theme tokens is a design question DIA-012 puts out of
+// scope; they are on that ticket's documented literal allowlist until it is
+// answered. The *accent* is not among them: it moved to
+// `Theme.of(context).colorScheme.primary`, because §23.1.3 puts the accent on
+// the datum (the tap marker) and the datum's colour is the team's, not the
+// canvas's. Structural lines stay dark on a light field — light blue on white
+// vanishes in sunlight.
 const Color _structureLight = Color(0xFF1F1F22);
 const Color _structureDark = Color(0xFFE8E8EA);
 const Color _dirtLight = Color(0xFFC9A87A);
@@ -512,6 +515,12 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                                 zoneRect: zoneRect,
                                 brightness: Theme.of(context).brightness,
                                 fidelity: widget.fidelity,
+                                atmosphere: Theme.of(
+                                  context,
+                                ).colorScheme.surface,
+                                zoneFill: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceBright,
                               ),
                       ),
                     ),
@@ -594,6 +603,8 @@ class _FrontalBackgroundPainter extends CustomPainter {
     required this.zoneRect,
     required this.brightness,
     required this.fidelity,
+    required this.atmosphere,
+    required this.zoneFill,
   });
 
   final FrontalGeometry geometry;
@@ -601,6 +612,14 @@ class _FrontalBackgroundPainter extends CustomPainter {
   final Rect zoneRect;
   final Brightness brightness;
   final CanvasFidelity fidelity;
+
+  /// The page behind the canvas — `colorScheme.surface`, passed in rather than
+  /// chosen here so the canvas sits on the app's surface rather than its own.
+  final Color atmosphere;
+
+  /// The strike zone's fill — `colorScheme.surfaceBright`, the brightest
+  /// surface in either mode: paper on light, a lifted plane on dark.
+  final Color zoneFill;
 
   bool get _rich => fidelity == CanvasFidelity.rich;
 
@@ -645,11 +664,7 @@ class _FrontalBackgroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final isDark = brightness == Brightness.dark;
 
-    final atmosphere = isDark
-        ? const Color(0xFF1C1C1E)
-        : const Color(0xFFF2F2F2);
     final dirt = isDark ? _dirtDark : _dirtLight;
-    final zoneFill = isDark ? const Color(0xFF2C2C2E) : Colors.white;
 
     final fadeTopY = localFromZoneCoord(
       ZoneCoord(x: 0, y: FrontalGeometry.groundFadeEndY),
@@ -820,7 +835,9 @@ class _FrontalBackgroundPainter extends CustomPainter {
       oldDelegate.brightness != brightness ||
       oldDelegate.ballKind != ballKind ||
       oldDelegate.fidelity != fidelity ||
-      oldDelegate.geometry != geometry;
+      oldDelegate.geometry != geometry ||
+      oldDelegate.atmosphere != atmosphere ||
+      oldDelegate.zoneFill != zoneFill;
 }
 
 /// Procedural dirt grain for [CanvasFidelity.rich].
@@ -1343,18 +1360,19 @@ class _DepthUnknownBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     return Positioned(
       left: x - _iconRadius,
       top: 0,
       bottom: 0,
-      child: const IgnorePointer(
+      child: IgnorePointer(
         child: SizedBox(
           width: _iconRadius * 2,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: Color(0x380A84FF), // _accentColor at 22%
+              color: accent.withValues(alpha: 0.22),
               border: Border.symmetric(
-                vertical: BorderSide(color: _accentColor, width: 2),
+                vertical: BorderSide(color: accent, width: 2),
               ),
             ),
           ),
@@ -1379,17 +1397,18 @@ class _ModeBanner extends StatelessWidget {
       (ZoneCanvasIntent.call, _) => 'CALL',
       (ZoneCanvasIntent.actual, _) => 'ACTUAL',
     };
+    final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: _accentColor,
+        color: scheme.primary,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
           label,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: scheme.onPrimary,
             fontWeight: FontWeight.bold,
             fontSize: 12,
             letterSpacing: 1.2,
@@ -1436,6 +1455,7 @@ class _DefaultMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = Theme.of(context).colorScheme.primary;
     return Positioned(
       left: center.dx - _iconRadius,
       top: center.dy - _iconRadius,
@@ -1446,8 +1466,8 @@ class _DefaultMarker extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _accentColor.withValues(alpha: 0.28),
-              border: Border.all(color: _accentColor, width: 2),
+              color: accent.withValues(alpha: 0.28),
+              border: Border.all(color: accent, width: 2),
             ),
           ),
         ),
@@ -1486,7 +1506,9 @@ class _MarkerIcon extends StatelessWidget {
             height: _iconRadius * 2,
             child: CustomPaint(
               painter: mode == ZoneCanvasIntent.call
-                  ? const _ReticlePainter()
+                  ? _ReticlePainter(
+                      accent: Theme.of(context).colorScheme.primary,
+                    )
                   : _BallPainter(ballKind: ballKind),
             ),
           ),
@@ -1497,14 +1519,16 @@ class _MarkerIcon extends StatelessWidget {
 }
 
 class _ReticlePainter extends CustomPainter {
-  const _ReticlePainter();
+  const _ReticlePainter({required this.accent});
+
+  final Color accent;
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = size.width / 2;
     final stroke = Paint()
-      ..color = _accentColor
+      ..color = accent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2;
 
@@ -1523,7 +1547,8 @@ class _ReticlePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ReticlePainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ReticlePainter oldDelegate) =>
+      oldDelegate.accent != accent;
 }
 
 class _BallPainter extends CustomPainter {
