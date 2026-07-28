@@ -53,7 +53,7 @@ interface ZoneCoord {
 - **Canonical profiles.** These are the inputs; every geometric quantity elsewhere in the spec is computed from them, never transcribed from a rounded figure in prose:
 
 | Profile | Zone bottom | Zone top | Height | Axis ratio | `y_ground` |
-|---|---|---|---|---|---|
+| --- | --- | --- | --- | --- | --- |
 | Fastpitch 10U (~52″) | 14.0″ | 34.0″ | 20.0″ | 0.425 | −0.700 |
 | **Fastpitch 12U (~58″)** — M1 default | **15.5″** | **39.5″** | **24.0″** | **0.354** | **−0.646** |
 | Fastpitch HS (~66″) | 17.5″ | 41.0″ | 23.5″ | 0.362 | −0.745 |
@@ -61,6 +61,7 @@ interface ZoneCoord {
 
   Until per-batter zone heights land, ship the 12U row as the placeholder and derive per batter thereafter.
   **Planned, not contested:** batter height becomes settable, and the *default* row is chosen by **sport and age level** rather than being hardcoded to 12U fastpitch. Everything derived from a profile — `y_ground`, the axis ratio, the top-down plane's depth extent, and the batter silhouette (§11.4) — is expressed as a function of these two numbers precisely so that drops in without a second geometry pass.
+
 - **Rounded figures in prose are display, not source.** `y_ground` at 12U is −0.6458 and is written "≈ −0.65" for readability. Tests assert against the value computed from the canonical inputs, never against the rounded text.
 - Softball vs. baseball zone dimensions are a `RuleSet` concern for *rendering* the zone overlay; the normalized coordinates themselves are sport-agnostic.
 
@@ -155,6 +156,7 @@ interface PitchTypeDef {
 ```
 
 Design notes:
+
 - **Intended vs. actual is the killer feature.** `intendedLocation` + `actualLocation` gives you a *command* metric no consumer app has: per-pitch command classification (§17.4) by pitch type, pitcher, count, and inning. `intendedType` vs `actualType` catches crossed-up signals and "she can't land the drop ball today."
 - Both intended fields are optional so scoring doesn't stall when nobody's calling pitches (opponent scouting mode: you don't know their calls).
 - Non-swing dead-ball weirdness (catcher's interference, batter interference on the swing) is handled by follow-up events, not more outcome variants.
@@ -209,6 +211,7 @@ interface FielderTouch {
 ```
 
 Design notes:
+
 - The classic "6-4-3" is three `FielderTouch` events (SS fielded, 2B received_throw, 1B received_throw) plus two `RunnerOut` events. Any sequence is expressible — the 9-3 putout at first, the 2-6-2 rundown, all of it.
 - **Touch types describe physics, not scoring.** There is deliberately no `error_*` touch type — whether a misplay is an official error is *derived* (§13), because "SS dropped the liner but threw the runner out anyway" contains a misplay worth tracking and zero official errors. The scorer records what happened; projections argue about the rulebook.
 - Foul ball entry flow: outcome `foul` on the pitch → optional quick tap on the field for `BallInPlay { fair: false }`. One extra tap, skippable when the game is moving fast.
@@ -309,7 +312,6 @@ interface RuleCall {
 - `RunnerAdvance` and `RunnerOut` gain an optional `enabledByCallId` alongside `enabledByTouchId` — "awarded second on the obstruction" links to the call exactly as "took second on the throw" links to the wild throw.
 - `umpire_reversal` exists because it happens and because a correction chain (§6) on the affected events, anchored to the reversal call, preserves both what was originally ruled and why the book changed — provenance for the "wait, why does the book say that?" conversation next week.
 
-
 ## 5. What Is Deliberately NOT an Event
 
 Count, outs, score, runners, batting order position, pitch count, times through the order — all **projections**. The projection engine folds the event stream into a `GameState` snapshot, and every one of these is a pure function of the stream. This is the invariant that makes corrections work: fix the event, replay, and every downstream number is automatically right.
@@ -327,7 +329,7 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 ## 8. Projections Roadmap (consumers of this taxonomy)
 
 | Projection | Key inputs |
-|---|---|
+| --- | --- |
 | Live scorebook / box score | all events |
 | Pitch location heat maps (by pitcher, type, count, batter side) | PitchThrown |
 | **Command classification** (executed / competitive / uncompetitive + direction, §17.4) | PitchThrown |
@@ -348,6 +350,7 @@ Replaying 250+ events per game is fast, but `InningHalfStart` events carry an op
 7. **Call-entry interaction for the freeform path (§10.1 v0.18):** does the coach pick a zone off the grid (snapping `intendedLocation` to its centroid) and then optionally drag/nudge further from there, or is freeform entry a fully separate gesture from zone-grid selection? Under consideration for the call-screen ticket; not yet decided.
 8. ~~**Scenery cap and batter's-box legibility (§11.4 v0.26–v0.28):**~~ **RESOLVED (v0.31):** the cap was protecting grid legibility, which a distance fade protects without truncating the ground furniture. Ground is drawn to its natural extent and bounded by contrast instead; the inner and front chalk lines both render, and the boxes read as boxes. Fade endpoints tune with the fidelity treatments (§11.4), not as a separate question.
 9. **Should the ground perspective tilt per batter handedness (§11.4)?** The canvas renders at azimuth 0 — camera directly behind the plate — so the plate is a symmetric trapezoid with no tilt. Broadcast reference footage is shot off-axis, which reads more naturally, and a batter does stand on one side, so the symmetric view is a mild fiction. Against: an off-axis camera breaks the exact lateral registration §11.4 requires and tests for, and the zone grid stays orthographic regardless — so only the ground furniture would tilt, risking a visible mismatch between the grid and the dirt beneath it. **Shelved: not required for v1 or Milestone 1, and explicitly out of scope for DIA-011.** Settle it on a real tablet if it ever matters, not on paper.
+10. **Accent seeds that collide with the semantic reservations (§23.2).** Amber and red carry meaning (§12.5, §13); some teams' actual colors sit squarely in that band. Three candidate resolutions, none obviously right: shift the accent out of the reserved band at derivation time (honest signal, but the coach's team color renders "wrong," which they notice immediately and read as a bug); keep the seed exact and lean on the non-color cues §23.1.7 already requires (§15.3's underline convention sets the precedent, but adjacency is still confusable at a glance in sunlight); or constrain the picker so the reserved band is unofferable (simple, never surprising afterward, but it tells a coach their team color is unavailable, which is a hard thing for the app to say). **Settle on a real tablet with a real team's real color.** Not blocking DIA-012, which builds the plumbing and a placeholder palette; blocking whichever ticket ships the picker.
 
 ---
 
@@ -443,7 +446,7 @@ The loop that runs 120+ times a game. Tap budget per pitch, full mode: **4** (ty
 ### 11.2 The Mode Ladder (degradation under pressure)
 
 | Mode | Captures | When |
-|---|---|---|
+| --- | --- | --- |
 | **Full** (default) | call + actual + outcome + batted ball detail | normal game flow |
 | **Scorer** | actual + outcome (skip call — e.g., opponent at bat, or catcher calling her own game) | opponent half-innings, tempo spikes |
 | **Bailout** | outcome only — one giant BALL / STRIKE / IN-PLAY row | chaos: conferences, injuries, arguments |
@@ -475,7 +478,7 @@ The canvas is not a bare rectangle. Both planes are anchored by home plate, beca
 **The projection.** Ground furniture is drawn through a pinhole projection — camera at height `H`, horizontal distance `d` to the plate's 17″ far edge, azimuth 0 — anchored so that ground at `u = d` maps to `y_ground`. Everything else follows:
 
 | Quantity | Formula | Value at H = 4 ft, d = 20 ft |
-|---|---|---|
+| --- | --- | --- |
 | Plate on-screen depth ÷ width | `H / (d − 17″)` | **0.215** |
 | Near-corner splay | `d / (d − 8.5″)` | 3.7% |
 | Horizon | `y_ground + H / zoneHeight` | y = +1.354 |
@@ -495,7 +498,7 @@ At H = 4 ft the ratio band binds first: d = 15 ft is not a legal camera despite 
 **Anchoring puts the plate's front edge on `y_ground`**, and that identity holds independently of `H` and `d`.
 
 | Canvas quantity | Value | Derivation |
-|---|---|---|
+| --- | --- | --- |
 | Axis scale ratio | **0.354** at 12U | `8.5″ / zoneHeight`; per-profile, never a literal (§3.1) |
 | Ground line `y_ground` | **−0.646** | §3.1's canonical inputs |
 | Plate on-screen depth | 0.152 y-units | 0.215 × (17″ / 24″) |
@@ -528,7 +531,7 @@ The ground plane's projection is **not** isotropic with the frontal plane above 
 **Batter's box dimensions are a `RuleSet` concern**, like zone dimensions (§3.1) — never an `if (softball)` branch:
 
 | | Box | Offset from plate | Fore/aft of plate center |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Baseball | 48″ × 72″ | 6″ | 36″ / 36″ |
 | Fastpitch softball | 36″ × 84″ | 6″ | 48″ / 36″ |
 
@@ -630,7 +633,7 @@ Reality: the scorer looks up and the count changed. Two mechanisms keep the book
 The sync engine is **transport-agnostic**: its only job is "exchange event batches I have that you don't" (per-device sequence vectors make gap detection trivial). Transports are pluggable pipes beneath it, attempted in order:
 
 | Transport | When | Notes |
-|---|---|---|
+| --- | --- | --- |
 | **Cloud relay** | any cellular/wifi on either device | ships first; reuses the post-game sync backend; store-and-forward, ~200 bytes/event |
 | **Local network (websocket)** | shared wifi or a $30 battery travel router in the gear bag | trivial code; the pragmatic dead-zone answer |
 | **BLE peer-to-peer** | true dead zones, no gear | custom GATT service (the only cross-platform iOS↔Android path); own milestone with real field testing — pairing UX, sleep/reconnect, iOS background modes |
@@ -650,7 +653,7 @@ v1 ships single-device (primary only) with capture toggles and count checkpoints
 ### 13.1 Three Layers, Cleanly Separated
 
 | Layer | Lives in | Examples |
-|---|---|---|
+| --- | --- | --- |
 | **Physical record** | FielderTouch types, RunnerAdvance/Out links | dropped, booted, wild_throw; "runner took third *on that throw*" |
 | **Judgment** | one flag: `ordinaryEffort` on misplay touches | "she should have had it" vs. "diving attempt, no play" |
 | **Official scoring** | projection output, never entered *(narrow exception: §13.5)* | E5, hit vs. E, earned vs. unearned runs, 6-3 |
@@ -691,32 +694,44 @@ Both are deliberately **narrow**: they override one specific run's ruling, not a
 Every play here is a design target, an entry-flow walkthrough, and — verbatim — a test fixture for the rules engine. Format: the physical sequence, the event encoding, and the expected projection outputs.
 
 ### Play #1 — Dropped liner, out recorded anyway *(Mark's founding grievance)*
+
 Line drive to SS; she drops it, recovers, throws the batter out at first.
+
 - **Events:** `BallInPlay{line, landing≈6}` → `FielderTouch{6, dropped, ordinaryEffort: true}` → `FielderTouch{6, fielded}` → `FielderTouch{3, received_throw}` → `RunnerOut{batter, at 1, force, putout→3's touch}`
 - **Box score:** 6-3 groundout... rendered as L6-3 style putout; **no error** (no consequence). **Development view:** SS charged a dropped catchable liner. **GC status:** unrecordable.
 
 ### Play #2 — Boot, then throw away, batter to third
+
 Ground ball booted by SS; recovery throw sails past first into dead territory... or live and batter takes third.
+
 - **Events:** `BallInPlay{ground, ≈6}` → `FielderTouch{6, booted, OE: true}` → `RunnerAdvance{batter, 0→1, error, ←boot}` → `FielderTouch{6, wild_throw, OE: true}` → `RunnerAdvance{batter, 1→3, wild_throw, ←throw}`
 - **Box:** E6 (fielding) + E6 (throwing), 0-for-1, no hit. Run scoring later by this runner: unearned. **Flip the boot's OE to false:** single + E6 throwing, advance to third on the error.
 
 ### Play #3 — Single, runner thrown out stretching, trail runner advances on the cutoff throw
+
 Clean single to RF; batter tries for second, thrown out 9-6 tag; meanwhile R3 scored, and the *throw* let nothing else happen — variant: throw gets away, batter safe.
+
 - **Events:** `BallInPlay{line, RF}` → `FielderTouch{9, fielded}` → `RunnerAdvance{R3, 3→4, batted_ball}` → `FielderTouch{6, received_throw}` → `FielderTouch{6, tag_applied}` → `RunnerOut{batter, at 2, tag, ←6}`
 - **Box:** single, batter out 9-6, RBI. Hit and an out on the same play — a combination GC's templates fight.
 
 ### Play #4 — Dropped foul pop, at-bat continues
+
 2-1 count, foul pop near the dugout, 3B camps under it and drops it.
+
 - **Events:** `PitchThrown{outcome: foul}` → `BallInPlay{fair: false, popup}` → `FielderTouch{5, dropped, OE: true}`
 - **Box:** E5 charged (at-bat prolonged), count now 2-2, **same batter still hitting.** If she then homers, the run is unearned. GC: no clean way to charge this while continuing the at-bat.
 
 ### Play #5 — D3K, throw away, everybody moves
+
 Two outs, R1. Strike three in the dirt, batter runs; catcher's throw to first is wild; batter safe at second, R1 to third.
+
 - **Events:** `PitchThrown{swinging_strike_blocked}` → `RunnerAdvance{batter, 0→1, dropped_third_strike}` → `FielderTouch{2, wild_throw, OE: true}` → `RunnerAdvance{batter, 1→2, wild_throw, ←throw}` → `RunnerAdvance{R1, 1→3, wild_throw, ←throw}`
 - **Box:** K for the pitcher (yes, a strikeout with no out), E2, runners at 2nd/3rd. Pitcher's K/inning ledger and the earned-run reconstruction both handle it.
 
 ### Play #6 — Rundown with a dropped exchange
+
 R1 picked off; 3-6-3-4, second baseman drops the last exchange, runner dives back safe.
+
 - **Events:** `FielderTouch{3, wild?no—received}` sequence: `{3 fielded(pickoff throw received... modeled as received_throw)}` → `{6 received_throw}` → `{3 received_throw}` → `{4 missed_catch, OE: true}` → `RunnerAdvance{R1, back to 1, error, ←4}` *(a from==to "advance" records surviving the rundown on the misplay)*
 - **Box:** E4 only if the runner would otherwise have been out — OE flag carries it; pickoff attempt logged for the pitcher/catcher ledger either way.
 
@@ -793,7 +808,7 @@ Resolution order at `GameStart`: **per-game override → team profile pick → b
 **Builtin presets** — draft values, to be finalized with real sanctioning-body specs before ship (⚠ verify):
 
 | Preset | Fence (line/gap/CF) | Base path | Pitching |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Fastpitch 10U | 180 / 190 / 200 | 60 | 35 |
 | Fastpitch 12U | 190 / 200 / 210 | 60 | 40 |
 | Fastpitch 14U+ / HS | 200 / 210 / 220 | 60 | 43 |
@@ -838,6 +853,7 @@ stat(filterSelect(allEvents)) → number
 ### 17.2 Filter Dimensions
 
 **Scope filters** (select games):
+
 - **Game(s)** — multi-select
 - **Date range** — any start/end; presets: last 7/30 days, this month, custom
 - **Tournament/Event** — games carry an optional `tournamentId`; coaches think in tournaments, and "how did we hit at state?" should be one tap, not a date-picker exercise
@@ -847,6 +863,7 @@ stat(filterSelect(allEvents)) → number
 - **Tags** — freeform, multiple per game ("bracket play", "vs. lefty starter", "rain-shortened"). Filterable individually or in combination; tag vocabulary auto-completes from the team's history.
 
 **Split filters** (select events within games — the Diamond-only tier):
+
 - vs. batter/pitcher handedness · by count state (ahead/behind/even/2-strike/3-ball) · by pitch type · runners on / RISP / bases empty · by inning · times-through-the-order · by call zone · by batter action (showed bunt / slap / etc.)
 
 **Saved filters:** any combination is nameable and pinnable ("Fall vs. Elite teams", "2-strike ABs"). A saved filter + a stat view is a bookmark — the coach's dashboard is just pinned bookmarks.
@@ -856,7 +873,7 @@ stat(filterSelect(allEvents)) → number
 **Tier 1 — table stakes (GC parity, correctly computed):**
 
 | Domain | Stats |
-|---|---|
+| --- | --- |
 | Batting | G, PA, AB, H, 2B, 3B, HR, R, RBI, BB, HBP, K, SB, CS, SAC, SF, AVG, OBP, SLG, OPS |
 | Pitching | G, GS, IP, BF, H, R, **ER (per §13.3 — actually right)**, BB, HBP, K, W/L/SV, ERA, WHIP, K/BB, pitch count, pitches/inning |
 | Fielding | PO, A, E, FPCT, DP |
@@ -867,7 +884,7 @@ Softball rendering nuances via `RuleSet`: 7-inning ERA normalization, tie games,
 **Tier 2 — pitch-level (impossible without Diamond's data):**
 
 | Domain | Stats |
-|---|---|
+| --- | --- |
 | Plate discipline | swing %, chase % (swings out of zone), whiff %, contact %, first-pitch swing %, pitches/PA |
 | Batted ball | GB/LD/FB/PU %, hard-hit % (contactQuality), avg distance, pull/center/oppo %, foul-ball direction tendencies |
 | Pitcher command | strike %, first-pitch strike %, **execution rate / uncompetitive rate by pitch type (§17.4)**, miss-direction bias, zone % by count, called-strike edge % |
@@ -884,7 +901,7 @@ Tier 2 stats degrade gracefully with capture gaps (§12.4): each shows its denom
 **The three buckets**, judged against the call, not against the strike zone alone:
 
 | Bucket | Meaning |
-|---|---|
+| --- | --- |
 | **Executed** | hit the target region |
 | **Competitive miss** | missed the target, but the pitch still plays — in the zone or on its edges; a hitter has to respect it |
 | **Uncompetitive** | no realistic strike and no realistic chase — nobody is swinging |
@@ -964,18 +981,9 @@ The flag renders only when notes exist; a count badge distinguishes one from man
 
 The scouting payoff at the moment of maximum leverage: on the calling grid (§10.3), a toggleable **translucent underlay of the current batter's heat map** — default metric: damage (results). The coach is picking a zone *on top of the hitter's cold map*. Off by default to keep the call screen stark; one tap on the batter's name toggles it. This single feature is the answer to "why chart opponents at all," made visceral.
 
-### 18.7 Design Language (the "lacks class" mandate)
+### 18.7 Design Language
 
-Applies to every stat and scouting surface. Principles, enforceable in review:
-
-1. **Data-ink first.** No card chrome, gradients, or mascot clip-art competing with numbers. Generous whitespace; tabular numerals; a real typographic hierarchy (stat values large, labels small and quiet).
-2. **One accent system.** Team color as the single accent; heat maps get one perceptually-uniform colormap (not red-green rainbow); semantic amber/red reserved for uncertainty and misplays.
-3. **The accent goes to the datum, not the frame.** Structural elements — zone borders, card edges, grids — are scaffolding and stay quiet; the accent belongs to whatever carries the information, which on the pitch canvas is the tap marker. Structural lines on a light field are dark, not tinted: light blue on white vanishes in sunlight.
-4. **Glanceable at arm's length in sunlight.** The dugout is the design environment: high contrast, big touch targets, no hover-dependent anything, dark mode for night games.
-5. **Numbers carry their honesty.** Denominators and coverage always visible (§17.3); no stat rendered without its n.
-6. **Motion is meaning.** Transitions only where they explain state change (deck advancing, count updating) — never decorative.
-
-Build note: frontend work runs through the frontend-design review pass; "serviceable" is the failure bar, not the target.
+Moved to **§23**, which is app-wide rather than scouting-scoped. Retained here as a pointer because tickets cite "§18.7 review pass" in their acceptance criteria.
 
 ---
 
@@ -1079,7 +1087,7 @@ Recorded with reasoning so future contributors (human or Claude) inherit the *wh
 ### 21.1 The Stack
 
 | Layer | Choice | One-line why |
-|---|---|---|
+| --- | --- | --- |
 | Mobile/tablet UI | **Flutter** (Dart) | Diamond is a custom-drawn, gesture-dense canvas app — Flutter's home turf |
 | On-device store | **SQLite via Drift** | offline-first is the prime directive; all projections run locally |
 | Backend | **Node.js + Express** | the server is a thin auth + event-ingest + websocket relay; Node excels at exactly that shape |
@@ -1129,3 +1137,137 @@ Per player × position (a kid who plays SS and CF gets two):
 ### 22.2 Development Use
 
 Cards support side-by-side date-range comparison ("April vs. June"), and the `ScorerNote` rollup (incl. mental-error tags, §13.2) renders alongside the physical data. Explicit non-goal: no cross-player public leaderboards — this view exists for coaching conversations and practice planning, not shaming twelve-year-olds; sharing follows the §19.5 privacy defaults.
+
+---
+
+## 23. Design Language (the "lacks class" mandate)
+
+The visual contract for every surface in the app — entry, stats, scouting, onboarding alike. Where
+§18.7 previously held this and was nominally scoped to "stat and scouting surfaces," the build had
+already outgrown that: DIA-005 and DIA-011 specify a design review pass for the pitch entry canvas,
+which is a §11 surface. This section is where that authority actually lives.
+
+**Precedence.** This section supersedes design guidance stated anywhere earlier in the spec. Where an
+earlier section's *look-and-feel* instruction conflicts with §23, §23 wins and the earlier text is a
+defect to be corrected, not a competing option.
+
+The boundary matters, though, and it is narrow: §23 governs **design language** — color, hierarchy,
+weight, motion, ink. It does **not** override **derived geometry** (§11.4's projection, canvas extents,
+and registration), **data-model rules** (§1–§7), or **surface composition** stated in a surface's own
+section (§11.4's plate anchor and control placement, §18.3's sparse-data thresholds). Those are
+computed or structural, not stylistic, and a design pass does not get to relitigate them. If §23 ever
+appears to contradict a derived value, that is a bug in §23.
+
+### 23.1 Principles
+
+Enforceable in review:
+
+1. **Data-ink first.** No card chrome, gradients, or mascot clip-art competing with numbers. Generous
+   whitespace; tabular numerals; a real typographic hierarchy (stat values large, labels small and quiet).
+2. **One accent system.** Exactly one accent color is live at a time; heat maps get one
+   perceptually-uniform colormap (not red-green rainbow). *Which* team's color fills the accent slot is
+   contextual — §23.3.
+3. **The accent goes to the datum, not the frame.** Structural elements — zone borders, card edges,
+   grids — are scaffolding and stay quiet; the accent belongs to whatever carries the information, which
+   on the pitch canvas is the tap marker. Structural lines on a light field are dark, not tinted: light
+   blue on white vanishes in sunlight.
+4. **Glanceable at arm's length in sunlight.** The dugout is the design environment: high contrast, big
+   touch targets, no hover-dependent anything, dark mode for night games.
+5. **Numbers carry their honesty.** Denominators and coverage always visible (§17.3); no stat rendered
+   without its n.
+6. **Motion is meaning.** Transitions only where they explain state change (deck advancing, count
+   updating, color context switching) — never decorative.
+7. **Never color alone.** Any state a coach must read — uncertainty, misplay, which team is in view —
+   carries a non-color cue as well. Colorblind users are the stated reason; sunlight and cheap tablet
+   panels are the practical one.
+
+### 23.2 Semantic Reservations
+
+Three colors carry fixed meaning app-wide and are **not available to any other purpose**, including
+accents:
+
+| Color | Means | Stated in |
+| --- | --- | --- |
+| **Amber** | uncertainty — the count is ambiguous | §12.5, §11.2 |
+| **Amber** | misplay — physical, fault not yet adjudicated | §13, §15.3 |
+| **Red** | error state / invalid input | — |
+
+Amber carrying both uncertainty and misplay is deliberate: both mean *"this needs your judgment
+later,"* which is one idea, and §13's whole design is that adjudication is deferrable. Per §23.1.7
+neither relies on color alone — §15.3 already establishes the pattern, rendering non-clean throw
+arrivals with a subtle underline rather than amber precisely because they are information, not fault.
+
+### 23.3 Color Contexts
+
+Diamond is used to look at two things: your own team, and one specific opponent. Color is how the app
+says which. This is a contract rather than a skin — it determines what may be hardcoded anywhere in
+the UI, which is why it is spec and not a theme file.
+
+**Three tiers, one accent slot.** §23.1.2 is preserved, not weakened: exactly one accent is live at
+any moment. What is contextual is its *value*, not its count.
+
+| Tier | Covers | Changes? |
+| --- | --- | --- |
+| **Brand baseline** | surfaces, backgrounds, nav chrome, app bar, logo lockup, splash, onboarding, typographic scale, and §23.2's reservations | never |
+| **Own-team accent** | the accent slot, by default, everywhere after onboarding | set once by the coach |
+| **Opponent accent** | the accent slot, while attention is scoped to one opponent | per opponent |
+
+- **The baseline is never overridden, including under an opponent accent.** Chrome staying Diamond's
+  own is what keeps the product identifiable at exactly the moment the user is deepest in another
+  team's data. The accent moves; the app does not become the other team's app.
+- **Own-team *secondary* color is captured but is not a second accent.** Its one sanctioned use is a
+  secondary series in own-team charts. A second highlight color appearing in the UI is a §23.1.2
+  violation, not a feature.
+- **§23.2 outranks team color.** A team whose actual color sits in the reserved band is a real case,
+  treated in Open Question #10 rather than waved away here.
+
+**Context follows attention, not game state.** The opponent accent is a *drill-in* condition; whether a
+game is live is irrelevant to it. A scouting report read on Tuesday themes exactly as the live game
+against that team does on Saturday.
+
+- **Swaps:** an opponent's hitter cards and full-screen detail (§18.1), their book and history, the
+  due-batter deck while scoped to them (§18.2), and scoring a game against them.
+- **Does not swap:** the schedule and any list or index showing more than one opponent, own-team stats,
+  roster, development view (§22), settings, and onboarding.
+- The rule underneath: **baseline accent means browsing; opponent accent means one team has your
+  attention.** A schedule rendered in eight accents is decoration competing with data (§23.1.1), and it
+  destroys the signal by making it constant.
+- **Observation mode (§19.5) needs no special case:** you are the observer and neither participant is
+  yours, so drilling into either team's book is an ordinary opponent context.
+
+**Color is data; the scheme is derived.** A team record carries a color as a value; the rendered scheme
+is computed from it at read time, exactly as every number in Diamond is computed from its events
+(§1.3). A stored, baked palette is the same class of bug as a stored count — it can silently disagree
+with its source.
+
+- **Derivation guarantees legibility; the seed does not.** Seeds are arbitrary — coaches pick their real
+  team color, and some of those are yellow, white, or near-black. Contrast in both light and dark
+  (§23.1.4 — night games are real) is the derivation's responsibility, never an assumption about the seed.
+- **An unset opponent color falls back to the baseline accent.** Never auto-assign; an invented color is
+  indistinguishable from a chosen one and will be read as fact.
+- **Context carries a persistent non-color label** naming the team in view (§23.1.7). Two opponents'
+  colors can be near neighbours no derivation can separate.
+
+### 23.4 Fidelity Is Per-Surface
+
+Generalized from §11.4, where it was first stated for the pitch canvas and where it plainly applies
+more broadly:
+
+- **Entry surfaces** — pitch canvas, field canvas, call grid — are used at speed, in sunlight, on a
+  clock, over a hundred times a game. Every decorated pixel competes with the markers and grids that
+  carry the information.
+- **Review surfaces** — stats, books, hitter cards, development views (§18, §22) — are used at leisure,
+  indoors, with the data already in place. Full richness is right there, and it is where a coach forms
+  their impression of the product.
+
+Craft and busyness are separable: what reads as *serious* is precision — correct proportions, exact
+registration, confident hierarchy — not photographic detail. Getting the geometry right is most of what
+makes any treatment look intentional.
+
+### 23.5 Review
+
+Frontend work runs through the frontend-design review pass. **"Serviceable" is the failure bar, not the
+target.** Where a decision is genuinely contested, settle it on a real tablet in daylight rather than in
+prose — the pattern §11.4 sets for canvas fidelity and §9 #9 sets for perspective tilt.
+
+---
