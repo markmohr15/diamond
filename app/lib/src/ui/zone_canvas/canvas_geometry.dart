@@ -30,6 +30,12 @@ const double plateSideInches = plateWidthInches / 2;
 /// per batter — neither may ever become a constant.
 ///
 /// Until per-batter heights land, [canonical12U] is the shipped placeholder.
+/// Planned, not contested (§3.1): batter height becomes settable, and the
+/// default profile is chosen by **sport and age level** rather than being
+/// hardcoded to 12U fastpitch. Everything derived from a profile — `y_ground`,
+/// the axis ratio, the top-down depth extent, the batter silhouette — is a
+/// function of these two numbers precisely so that drops in without a second
+/// geometry pass.
 class ZoneProfile {
   const ZoneProfile({required this.bottomInches, required this.topInches});
 
@@ -56,6 +62,132 @@ class ZoneProfile {
   /// x-unit is 8.5″ for everyone; one y-unit is this batter's zone height, so
   /// this is 0.354 at 12U and rises for a smaller athlete.
   double get axisScaleRatio => plateHalfWidthInches / heightInches;
+}
+
+/// The batter silhouette (§11.4) — a frontal-plane cue for where she stands,
+/// so a coach reads a call or an actual against a body rather than against an
+/// empty rectangle.
+///
+/// **Derived from [profile], never drawn at a fixed size.** Its two
+/// load-bearing landmarks are the zone's own edges: her knee is `y = 0` and
+/// her armpit is `y = 1`, by definition of what the zone *is* (§3.1). She
+/// therefore tracks the zone rect for every batter by construction and cannot
+/// drift from it — which is what makes shipping her honest. A silhouette drawn
+/// at one fixed height would be truthful only for a batter of that height and
+/// would visibly contradict the zone rect for a tall or short kid, which is
+/// why §11.4 kept her off the entry canvas until this was settled.
+///
+/// Everything else is human proportion expressed as a fraction of stature.
+/// Those fractions are the only tuned numbers here, and they are marked.
+class BatterSilhouette {
+  const BatterSilhouette({this.profile = ZoneProfile.canonical12U});
+
+  final ZoneProfile profile;
+
+  /// Where the armpit sits as a fraction of stature — the bridge between the
+  /// zone (which knows inches above ground) and anatomy (which knows fractions
+  /// of height). Taken from §3.1's canonical pairing of a 39.5″ zone top with a
+  /// ~58″ athlete, so [statureInches] returns 58″ at 12U and scales from there.
+  static const double armpitFractionOfStature = 39.5 / 58;
+
+  /// The batter's full height, implied by her zone rather than configured
+  /// separately — one number cannot then disagree with the other.
+  double get statureInches => profile.topInches / armpitFractionOfStature;
+
+  /// A height above the ground, in inches, expressed in `ZoneCoord.y`.
+  double yAtInches(double inchesAboveGround) =>
+      (inchesAboveGround - profile.bottomInches) / profile.heightInches;
+
+  /// A fraction of stature, expressed in `ZoneCoord.y`.
+  double yAtStatureFraction(double fraction) =>
+      yAtInches(statureInches * fraction);
+
+  // Vertical landmarks. The first three are definitional; the rest are
+  // proportion. Standing figure, feet on the ground line.
+  double get feetY => profile.groundY;
+  double get kneeY => zoneMinY; // y = 0, the zone's bottom edge
+  double get armpitY => zoneMaxY; // y = 1, the zone's top edge
+  double get hipY => yAtStatureFraction(0.47);
+  double get shoulderY => yAtStatureFraction(0.82);
+  double get chinY => yAtStatureFraction(0.87);
+
+  /// Top of the head — **above the canvas** at 12U (y = 1.771 against a +1.5
+  /// top), so she is frame-cut at upper-face level. That is the top trim doing
+  /// exactly what §11.4 designed it to do, not a shortfall: nothing above the
+  /// letters carries scouting information, and a figure continuing past the
+  /// frame reads as a figure rather than as a small complete person.
+  double get headTopY => yAtStatureFraction(1);
+
+  // Profile dimensions, in inches, as fractions of stature. The batter stands
+  // side-on with the chest turned toward the plate, so what the lateral axis
+  // shows is chest *depth*, not shoulder breadth — a batter in the box is a
+  // much narrower shape than a person standing square to the camera.
+  double get chestDepthInches => statureInches * 0.15;
+  double get headDepthInches => statureInches * 0.13;
+  double get thighWidthInches => statureInches * 0.09;
+  double get shinWidthInches => statureInches * 0.07;
+  double get armWidthInches => statureInches * 0.05;
+  double get batLengthInches => statureInches * 0.55;
+
+  /// Foot length as it reads laterally. The batter's feet point *at the plate*
+  /// — square to the pitch, not along it — so the lateral axis shows close to
+  /// their full length. Trimmed slightly from a true ~9″ shoe so the front toe
+  /// stops at the chalk's inner edge rather than crossing out of the box.
+  double get footLengthInches => statureInches * 0.15;
+
+  /// How far the knee sits toward the plate of the ankle. A batting stance is
+  /// a loaded athletic position: knees bent and driven forward over the feet,
+  /// not straight legs.
+  double get kneeForwardInches => statureInches * 0.07;
+
+  /// Gap between the chalk's outer edge and the batter's *toes* — a few inches,
+  /// which is where a batter actually sets up: close enough to cover the
+  /// outside corner, off the line rather than on it.
+  static const double stanceGapFromChalkInches = 3;
+
+  /// Where the toes sit, in inches from plate centre. This is the anchor the
+  /// whole figure is positioned by, because it is the thing a batter actually
+  /// lines up: the feet against the chalk.
+  double get toeInchesFromPlate =>
+      BatterBoxSpec.outerChalkXUnits * plateHalfWidthInches +
+      stanceGapFromChalkInches;
+
+  /// How far the body centre sits from plate centre — **derived** by standing
+  /// the feet at [toeInchesFromPlate] and working back along them. ≈ 29″ at
+  /// 12U.
+  double get stanceOffsetInches => toeInchesFromPlate + footLengthInches;
+
+  /// Half the distance between the feet, along the **pitcher–catcher axis**.
+  ///
+  /// A batting stance separates the feet in depth, not across the plate: both
+  /// feet sit the same distance from the box line, one simply stands nearer
+  /// the catcher than the other. So there is no lateral spread at all — what
+  /// separates them on screen is that nearer ground projects below `y_ground`
+  /// and further ground above it, which the painter reads from the ground
+  /// projector rather than approximating.
+  double get stanceDepthHalfInches => statureInches * 0.22;
+
+  /// Signed lateral position of the body centre in x-units, in the box that
+  /// side actually bats from.
+  ///
+  /// `x` is absolute and catcher's-view (§3.1), so this is the one place the
+  /// handedness convention is written down: facing the pitcher from behind the
+  /// plate, first base is on the right, so **positive x is the first-base
+  /// side**. A right-handed batter stands on the third-base side and therefore
+  /// at *negative* x — which the broadcast reference confirms. Getting this
+  /// backwards is the classic version of this bug, and it is silent.
+  double centreXUnits({required bool rightHanded}) =>
+      (rightHanded ? -1 : 1) * stanceOffsetInches / plateHalfWidthInches;
+
+  /// Which lateral direction the plate lies in from the batter, as a sign on
+  /// the x axis. The whole figure is built facing this way.
+  double towardPlateSign({required bool rightHanded}) => rightHanded ? 1 : -1;
+
+  /// Outermost extent in x-units — the back foot, which is what has to stay
+  /// inside the frame.
+  double outerXUnits({required bool rightHanded}) =>
+      centreXUnits(rightHanded: rightHanded).abs() +
+      (chestDepthInches / 2) / plateHalfWidthInches;
 }
 
 /// The virtual camera for the ground projection (§11.4): height [heightInches]
