@@ -489,7 +489,7 @@ The canvas is not a bare rectangle. Both planes are anchored by home plate, beca
 
 `d − 17″` is the plate's near point, which is closer to the camera than the 17″ edge `d` measures to.
 
-**Azimuth 0 is a constraint, not an incidental parameter.** An off-axis camera projects the 17″ edge's two corners at different distances from centre, so `x = ±1` no longer maps symmetrically onto it and the exact-registration requirement above breaks. That is why the plate renders as a symmetric trapezoid with no tilt, even though broadcast reference footage is shot off-axis. Whether the ground furniture should tilt per batter handedness is Open Question #9.
+**Azimuth 0 is a constraint, not an incidental parameter.** An off-axis camera projects the 17″ edge's two corners at different distances from center, so `x = ±1` no longer maps symmetrically onto it and the exact-registration requirement above breaks. That is why the plate renders as a symmetric trapezoid with no tilt, even though broadcast reference footage is shot off-axis. Whether the ground furniture should tilt per batter handedness is Open Question #9.
 
 Two further constraints apply, and they are **coupled** — satisfying one does not satisfy the other:
 
@@ -516,7 +516,7 @@ Drawn ground therefore spans the ground line, and **the trigger region is not id
 
 **The top stops where information stops.** +1.5 is half a zone height above the zone — ≈ 12″ over the letters, upper-face level at 12U. Higher than that carries nothing for scouting or development: a foot over the head and two inches over the head are the same observation, and §17.4 buckets both as uncompetitive-high. Such pitches stay recordable, just unresolved, landing on the top edge. Shoulder height (y ≈ 1.31) stays resolved, since an elevated fastball is a location rather than a miss. Trimming here is free in the side-by-side layout — see the note below on which dimension binds — and buys vertical room for the count HUD and outcome row.
 
-**The lateral range contains where the batter stands.** Reaching the chalk is not the requirement; a pitch may be recorded anywhere on the canvas, including at the batter, and the silhouette (below) simply lays over part of it. A 12U stance puts her body centre ≈ 26–30″ off plate centre — x ≈ 3.1–3.5, spanning roughly x ∈ [2.4, 4.3] — so ±4.0 leaves capture room on both sides of her. What this spends is horizontal room, which competes with the call grid; that is why it stops at ±4.0 and not ±6.0, where the entire 36″ box would fit but its outer ~20″ is chalk nobody stands in.
+**The lateral range contains where the batter stands.** Reaching the chalk is not the requirement; a pitch may be recorded anywhere on the canvas, including at the batter, and the silhouette (below) simply lays over part of it. A 12U stance puts her body center ≈ 26–30″ off plate center — x ≈ 3.1–3.5, spanning roughly x ∈ [2.4, 4.3] — so ±4.0 leaves capture room on both sides of her. What this spends is horizontal room, which competes with the call grid; that is why it stops at ±4.0 and not ±6.0, where the entire 36″ box would fit but its outer ~20″ is chalk nobody stands in.
 
 **What the frame costs depends on which dimension binds, and the two extents are not interchangeable.** The zone's on-screen size is set by the binding dimension alone:
 
