@@ -1,18 +1,18 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:flutter/material.dart';
 
-/// §23.2's reserved colours, carried on the theme so widgets read them the same
-/// way they read every other colour — `Theme.of(context)` — rather than
+/// §23.2's reserved colors, carried on the theme so widgets read them the same
+/// way they read every other color — `Theme.of(context)` — rather than
 /// importing [BrandBaseline] directly. Material's [ColorScheme] has a slot for
 /// `error` and none for "uncertainty" or "misplay", so they live here.
 ///
 /// These are load-bearing meaning, not decoration: nothing in tiers 2–3 may
 /// touch them, and no accent may be assigned a value in their band (§23.2
-/// outranks team colour; the collision case is Open Question #10).
+/// outranks team color; the collision case is Open Question #10).
 ///
 /// §23.1.7 still applies at every call site: neither state may be signalled by
-/// colour alone. The non-colour cue is the widget's job — this extension only
-/// guarantees the colour half is consistent app-wide.
+/// color alone. The non-color cue is the widget's job — this extension only
+/// guarantees the color half is consistent app-wide.
 @immutable
 class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
   const DiamondSemantics({
@@ -21,7 +21,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     required this.misplay,
   });
 
-  /// Built from the baseline, so a semantic colour can never drift from the
+  /// Built from the baseline, so a semantic color can never drift from the
   /// brand tier it belongs to.
   factory DiamondSemantics.fromBaseline(BrandBaseline baseline) =>
       DiamondSemantics(
@@ -38,7 +38,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
   /// Amber: a misplay — physical, fault not yet adjudicated (§13, §15.3).
   final Color misplay;
 
-  /// The error colour is [ColorScheme.error]; it is not duplicated here.
+  /// The error color is [ColorScheme.error]; it is not duplicated here.
   static DiamondSemantics of(BuildContext context) =>
       Theme.of(context).extension<DiamondSemantics>()!;
 

@@ -42,8 +42,8 @@ final accentTeamProvider = Provider<TeamColors?>((ref) {
 
 /// The seed filling the one accent slot (§23.1.2).
 ///
-/// An unset — or unknown — opponent colour falls back to the baseline accent
-/// (§23.3). Never auto-assigned: an invented colour is indistinguishable from a
+/// An unset — or unknown — opponent color falls back to the baseline accent
+/// (§23.3). Never auto-assigned: an invented color is indistinguishable from a
 /// chosen one and will be read as fact.
 final accentSeedProvider = Provider<Color>((ref) {
   final team = ref.watch(accentTeamProvider);

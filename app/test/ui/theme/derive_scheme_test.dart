@@ -25,7 +25,7 @@ void main() {
       });
 
       test('the accent is the seed itself — the datum carries the team '
-          'colour, not a tonal approximation of it (§23.1.3)', () {
+          'color, not a tonal approximation of it (§23.1.3)', () {
         expect(
           deriveScheme(accentSeed: crimson, brightness: brightness).primary,
           crimson,
@@ -55,7 +55,7 @@ void main() {
       });
 
       test('a seed inside the reserved amber/red band still leaves §23.2 '
-          'intact — the reservations outrank team colour', () {
+          'intact — the reservations outrank team color', () {
         final baseline = BrandBaseline.of(brightness);
         final scheme = deriveScheme(
           accentSeed: teamOrange,
@@ -138,7 +138,7 @@ void main() {
       expect(parseHexColor('#800A84FF'), const Color(0x800A84FF));
     });
 
-    test('throws rather than substituting a colour nobody chose', () {
+    test('throws rather than substituting a color nobody chose', () {
       expect(() => parseHexColor('#GGG'), throwsFormatException);
       expect(() => parseHexColor('#12345'), throwsFormatException);
       expect(() => parseHexColor('#ZZZZZZ'), throwsFormatException);

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// Every colour token on a [ColorScheme], by name.
+/// Every color token on a [ColorScheme], by name.
 ///
 /// Test-only: production code reads named getters, never the whole set. The
 /// tests need the set so that "only accent tokens differ between contexts" can
 /// be asserted exhaustively rather than over a handful of fields somebody
 /// remembered to list — a new Material token appearing here is exactly the kind
-/// of thing that would otherwise leak a seed colour into the brand tier
+/// of thing that would otherwise leak a seed color into the brand tier
 /// unnoticed.
 Map<String, Color> schemeTokens(ColorScheme s) => {
   'primary': s.primary,

@@ -6,11 +6,11 @@ import 'package:flutter/material.dart';
 /// identifiable at exactly the moment the user is deepest in another team's
 /// data (§23.3).
 ///
-/// **Every colour in this file is a placeholder and is expected to be thrown
+/// **Every color in this file is a placeholder and is expected to be thrown
 /// away.** The real palette is blocked on the logo/brand work (DIA-012's
 /// out-of-scope list). What is *not* provisional is the seam: this is the only
-/// file in `app/lib/src/ui/` permitted to contain colour literals, enforced by
-/// `test/ui/theme/no_color_literals_test.dart`. Everything else reads colour
+/// file in `app/lib/src/ui/` permitted to contain color literals, enforced by
+/// `test/ui/theme/no_color_literals_test.dart`. Everything else reads color
 /// from `Theme.of(context)`.
 ///
 /// The specific light/dark surface values below are inherited from DIA-011's
@@ -81,7 +81,7 @@ class BrandBaseline {
   /// neutral is the enforcement: a widget reaching for `colorScheme.secondary`
   /// gets quiet ink rather than a competing highlight.
   ///
-  /// Not to be confused with a team's *secondary colour*, which is chart-series
+  /// Not to be confused with a team's *secondary color*, which is chart-series
   /// data and never enters the scheme at all — see `TeamColors.secondaryHex`.
   final Color neutralHold;
   final Color onNeutralHold;

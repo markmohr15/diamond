@@ -7,7 +7,7 @@ void main() {
     WidgetTester tester,
   ) async {
     // The scope `main()` installs: DiamondApp reads its theme from the live
-    // colour context (§23.3), which lives above the MaterialApp.
+    // color context (§23.3), which lives above the MaterialApp.
     await tester.pumpWidget(const ProviderScope(child: DiamondApp()));
 
     expect(find.text('ZoneCanvas demo — DIA-005'), findsOneWidget);

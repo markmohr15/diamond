@@ -94,7 +94,7 @@ void main() {
     expect(schemeTokens(after.colorScheme), before);
   });
 
-  testWidgets('an opponent with no colour set falls back to the baseline '
+  testWidgets('an opponent with no color set falls back to the baseline '
       'accent rather than inventing one (§23.3)', (tester) async {
     await pumpApp(tester);
 

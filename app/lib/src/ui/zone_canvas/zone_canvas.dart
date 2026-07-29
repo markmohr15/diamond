@@ -57,7 +57,7 @@ enum CanvasFidelity {
 // scope; they are on that ticket's documented literal allowlist until it is
 // answered. The *accent* is not among them: it moved to
 // `Theme.of(context).colorScheme.primary`, because §23.1.3 puts the accent on
-// the datum (the tap marker) and the datum's colour is the team's, not the
+// the datum (the tap marker) and the datum's color is the team's, not the
 // canvas's. Structural lines stay dark on a light field — light blue on white
 // vanishes in sunlight.
 const Color _structureLight = Color(0xFF1F1F22);
@@ -696,7 +696,7 @@ class _FrontalBackgroundPainter extends CustomPainter {
 
   /// Ground is drawn to its natural extent and bounded by a distance fade, not
   /// a `y` cap (§11.4): full tone at and below the ground line, fading to the
-  /// atmosphere colour by [FrontalGeometry.groundFadeEndY] so it has reached
+  /// atmosphere color by [FrontalGeometry.groundFadeEndY] so it has reached
   /// neutral before it sits behind the zone rect. A treatment step at the
   /// ground line keeps the §11.1 trigger boundary legible — the trigger is
   /// never identified by "looks like dirt", since drawn ground spans the line.

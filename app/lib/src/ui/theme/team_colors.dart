@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
-/// A team's colours as **data** (§23.3): a hex string on the record, exactly as
+/// A team's colors as **data** (§23.3): a hex string on the record, exactly as
 /// a team record will carry it once the team/opponent entity exists. The
 /// rendered scheme is computed from it at read time, never stored — a baked
 /// palette is the same class of bug as a stored count (§1.3).
@@ -18,16 +18,16 @@ class TeamColors {
   final String id;
   final String name;
 
-  /// The team's single main colour, `#RRGGBB` or `#AARRGGBB`.
+  /// The team's single main color, `#RRGGBB` or `#AARRGGBB`.
   ///
   /// Null means **unset**, which falls back to the baseline accent (§23.3).
-  /// Never auto-assign a colour: an invented one is indistinguishable from a
+  /// Never auto-assign a color: an invented one is indistinguishable from a
   /// chosen one and will be read as fact.
   final String? primaryHex;
 
   /// Captured, but **not a second accent** (§23.1.2, §23.3). Its one sanctioned
   /// use is a secondary series in own-team charts; it deliberately never enters
-  /// the colour scheme. A second highlight colour appearing in the UI is a
+  /// the color scheme. A second highlight color appearing in the UI is a
   /// violation, not a feature — which is why nothing in this ticket reads it.
   final String? secondaryHex;
 
@@ -39,8 +39,8 @@ class TeamColors {
 
 /// Parses `#RRGGBB` / `#AARRGGBB` (with or without the leading `#`).
 ///
-/// Throws [FormatException] on anything else. Colours are data and data can be
-/// malformed; silently substituting a default here would put an invented colour
+/// Throws [FormatException] on anything else. Colors are data and data can be
+/// malformed; silently substituting a default here would put an invented color
 /// on screen, which §23.3 forbids for exactly the reason it forbids
 /// auto-assignment.
 Color parseHexColor(String hex) {
@@ -50,7 +50,7 @@ Color parseHexColor(String hex) {
   }
   final value = int.tryParse(digits, radix: 16);
   if (value == null) {
-    throw FormatException('Not a hex colour', hex);
+    throw FormatException('Not a hex color', hex);
   }
   return Color(digits.length == 6 ? 0xFF000000 | value : value);
 }
@@ -71,8 +71,8 @@ class StubTeamColors {
     secondaryHex: '#F2A900',
   );
 
-  /// One opponent with a colour and one deliberately without, so the §23.3
-  /// fallback ("an unset opponent colour falls back to the baseline accent")
+  /// One opponent with a color and one deliberately without, so the §23.3
+  /// fallback ("an unset opponent color falls back to the baseline accent")
   /// has something to exercise it.
   static const List<TeamColors> opponents = [
     TeamColors(id: 'hawks', name: 'Northside Hawks', primaryHex: '#B3122F'),

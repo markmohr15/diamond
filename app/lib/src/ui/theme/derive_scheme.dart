@@ -2,7 +2,7 @@ import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
 
-/// Colour is data; the scheme is derived (§23.3). A pure function from one
+/// Color is data; the scheme is derived (§23.3). A pure function from one
 /// accent seed plus the brand baseline to a full [ColorScheme] — no widget
 /// tree, no navigation, no state, so it is testable on its own and cannot
 /// silently disagree with its source the way a stored palette can.
@@ -13,7 +13,7 @@ import 'package:flutter/material.dart';
 /// would fill with a second and third accent that §23.1.2 does not permit us to
 /// have — they are pinned to neutral ink instead.
 ///
-/// [ColorScheme.fromSeed] is used only for the *on* and *container* colours of
+/// [ColorScheme.fromSeed] is used only for the *on* and *container* colors of
 /// the accent family: that is Material's tonal derivation doing the legibility
 /// work, which §23.3 makes the derivation's responsibility and never an
 /// assumption about the seed.
@@ -31,9 +31,9 @@ ColorScheme deriveScheme({
 
   return family.copyWith(
     // The accent goes to the datum (§23.1.3), and the datum should carry the
-    // team's actual colour rather than a tonal approximation of it — so
+    // team's actual color rather than a tonal approximation of it — so
     // `primary` is the seed itself, not `family.primary`. The on/container
-    // colours around it stay tonal.
+    // colors around it stay tonal.
     primary: accent,
     surfaceTint: accent,
 
@@ -83,7 +83,7 @@ ColorScheme deriveScheme({
 
 /// The single home for the contrast guardrail (§23.3: "derivation guarantees
 /// legibility; the seed does not") and for Open Question #10, the seed that
-/// lands in §23.2's reserved amber/red band — a team whose colour *is* orange.
+/// lands in §23.2's reserved amber/red band — a team whose color *is* orange.
 ///
 /// Today it is the identity function. It exists as a named seam so that when
 /// either is solved it is solved in one place rather than at call sites, and so

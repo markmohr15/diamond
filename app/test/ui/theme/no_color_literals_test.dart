@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 
-/// DIA-012's standing rule: **zero hardcoded colour literals in UI code.**
+/// DIA-012's standing rule: **zero hardcoded color literals in UI code.**
 /// Everything reads from `Theme.of(context)` so that a context swap (§23.3)
 /// reaches every pixel and the brand tier can never be quietly forked at a call
 /// site. A literal is invisible in review and permanent in practice — a grep is
@@ -12,9 +12,9 @@ import 'package:path/path.dart' as p;
 /// Runs as an ordinary test so `flutter test` (and therefore CI) enforces it
 /// with no workflow of its own.
 void main() {
-  /// Files permitted to contain colour literals, with the reason each is
+  /// Files permitted to contain color literals, with the reason each is
   /// allowed. Adding an entry is a design decision, not a formality: it says
-  /// "these colours are not theme tokens," which is a claim to be argued in
+  /// "these colors are not theme tokens," which is a claim to be argued in
   /// review, not a way to get a diff to pass.
   const allowlist = <String, String>{
     'theme/brand_baseline.dart':
@@ -30,13 +30,13 @@ void main() {
   };
 
   // `Colors.` catches the Material palette; `Color(0x…)` and `Color.fromARGB`
-  // catch raw values. Alpha and lerp helpers on an existing colour are fine —
+  // catch raw values. Alpha and lerp helpers on an existing color are fine —
   // they derive from a theme value rather than introduce one.
   final literalPattern = RegExp(
     r'(\bColors\.[a-zA-Z]|\bColor\(0x|\bColor\.fromARGB\(|\bColor\.fromRGBO\()',
   );
 
-  test('no colour literals in app/lib/src/ui/ outside the allowlist', () {
+  test('no color literals in app/lib/src/ui/ outside the allowlist', () {
     final uiDir = Directory(p.join('lib', 'src', 'ui'));
     expect(
       uiDir.existsSync(),
@@ -59,7 +59,7 @@ void main() {
       final lines = entity.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         final line = lines[i];
-        // Comments describing a colour are documentation, not a literal.
+        // Comments describing a color are documentation, not a literal.
         if (line.trimLeft().startsWith('//')) continue;
         if (literalPattern.hasMatch(line)) {
           offenders.add('$relative:${i + 1}: ${line.trim()}');
@@ -72,7 +72,7 @@ void main() {
       offenders,
       isEmpty,
       reason:
-          'Colour literals belong on the theme (§23.3). Read the colour from '
+          'Color literals belong on the theme (§23.3). Read the color from '
           'Theme.of(context) — or, if it genuinely is not a theme token, add '
           "the file to this test's allowlist with a stated reason.",
     );

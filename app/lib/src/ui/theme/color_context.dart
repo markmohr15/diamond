@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// Whose colour currently fills the single accent slot (§23.1.2, §23.3).
+/// Whose color currently fills the single accent slot (§23.1.2, §23.3).
 ///
 /// A *value*, not a boolean and not a live-game flag: context follows
 /// attention, not game state (§23.3). A scouting report read on Tuesday themes
@@ -16,8 +16,8 @@ import 'package:flutter/foundation.dart';
 sealed class ColorContext {
   const ColorContext();
 
-  /// Scoped to one opponent. [teamId] is the record's id, not its colour —
-  /// colour is data resolved at read time (§23.3), never carried in the state.
+  /// Scoped to one opponent. [teamId] is the record's id, not its color —
+  /// color is data resolved at read time (§23.3), never carried in the state.
   const factory ColorContext.opponent(String teamId) = OpponentContext;
 
   /// The default everywhere after onboarding.
