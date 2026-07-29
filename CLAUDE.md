@@ -63,6 +63,10 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
   ratio is wrong as soon as a second batter exists (§11.4).
 - **Geometric figures in prose are rounded for display; compute from §3.1's canonical inputs.**
 - Dart: `very_good_analysis` lints. TS: strict mode, eslint. Tests colocated per package convention.
+- **US spelling throughout** — `color`, never `colour`; likewise behavior, normalize, canceled. Applies to
+  prose as well as identifiers: comments, doc comments, tickets, commit messages, and PR bodies. The APIs
+  being described are US-spelled (`Color`, `ColorScheme`), so British prose reads as inconsistent with the
+  code it documents.
 - A method/field used only by the test suite (not by any production code path) gets a doc comment saying so at its definition.
 - Commits: conventional-ish, reference ticket IDs (e.g., `feat(rules): DIA-004 plays 01-03 passing`).
 - **Spec changes touch three places, always:** bump the version in `docs/spec.md`'s header; add the full
