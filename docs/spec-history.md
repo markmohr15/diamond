@@ -47,6 +47,15 @@ calling, observation mode.
 grid's geometry is fixed and never re-flows between types — only which cells are callable changes.
 Muscle memory across 120 pitches is worth more than larger targets.
 
+Two §10.3 corrections follow from the above. The type row is **no longer color-coded**: §23.1.2 allows
+one accent live at a time and it belongs to the selected type (§23.1.3), so per-type color was earlier
+guidance that §23's precedence rule makes a defect rather than a competing option. Color-coding pitch
+types remains plausible on a **review** surface, where it is categorical encoding in a chart rather
+than a second accent and §23.4's different rules apply; it is recorded as such so it is not re-added to
+the calling screen. And the **tap-and-hold chase gesture is removed**: with 25 callable cells every
+off-plate location is directly tappable, a hold could only ever resolve to a cell that is already
+callable, and it was undefined on the center cell, which has no outward direction.
+
 No event-schema change: only `intendedZoneId` (a string) reaches `pitch_thrown.schema.json`;
 `CallZone`'s shape is team configuration, so no codegen, fixtures, or regeneration are involved.
 
