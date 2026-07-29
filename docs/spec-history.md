@@ -3,6 +3,57 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.38
+
+**Replaced §10.1's authored call-zone rectangles with a canonical 5×5 partition of 25 cells.** The
+plate and its surround are now partitioned once — the 3×3 strike-zone grid, whose outer ring is the
+zone's edges (the black), plus one off-the-plate stop beyond it on each axis, corners included. Each
+axis reads *off-in, in, middle, out, off-out* laterally and *off-low, low, middle, high, off-high*
+vertically.
+
+The change came out of a question the old model couldn't answer: coaches mean different things by
+"down and away" depending on the count — the black on 0-0, off the corner on 1-2. The previous default
+(3×3 + 4 compass chase zones) had no diagonal, so the 1-2 version had no zone to be. 25 gives it one.
+Most teams will never separate the corners; the point is that the team that wants to call *too low and
+too far away* doesn't have to redraw the model to do it.
+
+**A team's layout is now a grouping of those cells, never an independent set.** `bounds` is derived
+from the grouping rather than authored, which makes overlapping zones and uncovered gaps
+unrepresentable instead of merely invalid — and containment classification (§17.4) depends on exactly
+that, since freeform intent and observation mode (§19.5) both need any point to resolve to one zone. A
+10U team groups a whole edge into one "chase high"; a 14U team leaves those cells separate.
+
+Grouping is also what keeps intent comparable over time. A player's history follows them (§22) across
+age groups whose vocabularies differ, and because every layout groups the same 25 cells, any two roll
+up to a common frame. Independently authored rectangles would not.
+
+**The callable set is per pitch type, and entirely the coach's.** Each type carries its own subset of
+the team's zones. Diamond has no opinion about which locations suit which pitch — a high drop and a low
+rise are real calls — so every cell is available to every type, the default is all-callable, and
+narrowing is always the coach's act rather than the app's inference. The matrix is sparse in practice,
+which is what keeps a six-pitch arsenal printable (cell count is the sum over types of that type's zone
+count × k, not the cross product), but nothing enforces sparsity. The call screen offers exactly what
+the **active card** can express and never more: a code the coach can yell must be a code the pitcher
+can look up, so editing a type's zones invalidates the card and requires a regenerate (§10.2).
+
+**Resolves Open Question #7.** The coach picks a zone off the grid and there is no sub-zone nudge on
+the call side. A nudged coordinate has no code — §10.2 keys codes to (pitch type × call zone) — so
+refining intent past the zone would record a target the pitcher was never told and then grade them
+against it in §17.4. Situational variation in what a zone *means* is read off `actualLocation` against
+the count instead. Freeform capture remains for contexts with no call at all: solo scoring, verbal
+calling, observation mode.
+
+**§10.3** now states that type precedes zone because the vocabulary depends on the type, and that the
+grid's geometry is fixed and never re-flows between types — only which cells are callable changes.
+Muscle memory across 120 pitches is worth more than larger targets.
+
+No event-schema change: only `intendedZoneId` (a string) reaches `pitch_thrown.schema.json`;
+`CallZone`'s shape is team configuration, so no codegen, fixtures, or regeneration are involved.
+
+This version also repairs a protocol lapse: v0.37's content landed in the spec, and its full entry
+landed here, but the spec's own header and status line were never updated and still read v0.36. The
+status line now carries v0.38 / v0.37 / v0.36.
+
 ## v0.37
 
 **Promoted design language to its own top-level section, §23**, and left §18.7 as a pointer stub. The
