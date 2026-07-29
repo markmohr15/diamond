@@ -1,5 +1,7 @@
 import 'package:alchemist/alchemist.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/theme/derive_scheme.dart';
+import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
 
@@ -38,15 +40,23 @@ Widget _canvas({
   );
 }
 
-Widget _lightApp(Widget child) => MaterialApp(
-  theme: ThemeData.light(),
+// The app's own theme, not Material's defaults: since DIA-012 the canvas reads
+// its accent, atmosphere, and zone fill from the scheme, so a golden rendered
+// under ThemeData.light() would be a picture of a theme the app never shows.
+// Own-team context, which is the default everywhere after onboarding (§23.3).
+Widget _themedApp(Widget child, Brightness brightness) => MaterialApp(
+  theme: buildTheme(
+    deriveScheme(
+      accentSeed: StubTeamColors.ownTeam.primary!,
+      brightness: brightness,
+    ),
+  ),
   home: Material(child: child),
 );
 
-Widget _darkApp(Widget child) => MaterialApp(
-  theme: ThemeData.dark(),
-  home: Material(child: child),
-);
+Widget _lightApp(Widget child) => _themedApp(child, Brightness.light);
+
+Widget _darkApp(Widget child) => _themedApp(child, Brightness.dark);
 
 void main() {
   goldenTest(
