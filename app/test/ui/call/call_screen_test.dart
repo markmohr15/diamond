@@ -177,6 +177,17 @@ void main() {
       expect(tester.getRect(find.byKey(zoneCanvasDrawingAreaKey)), before);
     });
 
+    testWidgets('the strip has a fixed height, so nothing about the text it '
+        'holds can move the canvas', (tester) async {
+      await pumpScreen(tester);
+      final before = tester.getSize(find.byKey(callScreenTypeRowKey)).height;
+
+      await selectType(tester, 'Fastball');
+      await tapAt(tester, ZoneCoord(x: 0, y: 0.5));
+
+      expect(tester.getSize(find.byKey(callScreenTypeRowKey)).height, before);
+    });
+
     testWidgets('nor when the arsenal collapses to one chip', (tester) async {
       await pumpScreen(tester);
       final before = tester.getRect(find.byKey(zoneCanvasDrawingAreaKey));

@@ -20,6 +20,15 @@ const Key callScreenTypeRowKey = Key('callScreenTypeRow');
 const double _codeFontSize = 120;
 const double _codeSlotHeight = _codeFontSize;
 
+/// Height of the pitch-type row, fixed rather than sized to its text.
+///
+/// The canvas begins directly below this strip, so anything that lets the
+/// strip's height float — a font whose line height differs by a pixel, a
+/// longer pitch name, a larger text scale — moves the whole canvas and every
+/// landmark on it. Pinning it keeps the drawing area in one place no matter
+/// what the chips contain.
+const double _typeRowHeight = 66;
+
 /// The call screen (§10.3): tap a pitch type, tap a zone, yell the code.
 ///
 /// The call grid is drawn *on* the canvas (§11.4, v0.38); the code and the
@@ -199,8 +208,10 @@ class _PitchTypeRow extends StatelessWidget {
         ? arsenal
         : arsenal.where((type) => type.id == selected).toList();
 
-    final row = Padding(
+    final row = Container(
       key: callScreenTypeRowKey,
+      height: _typeRowHeight,
+      alignment: Alignment.center,
       padding: const EdgeInsets.all(8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
