@@ -39,6 +39,13 @@ Widget _app(Widget child) => MaterialApp(
   home: Material(child: child),
 );
 
+// Deliberately one column. Alchemist sizes a column to its widest child, and
+// the scenario *label* participates in that — so with two columns the first
+// label's measured text width sets where the second panel starts. Long labels
+// made that a fractional x, which puts every vertical edge in the right-hand
+// panel on a half pixel and leaves its anti-aliasing to the rasterizer. It
+// matched locally and not on CI. One column gives every scenario the same
+// integral origin, so no label can move a pixel.
 void main() {
   // Both ends of §10.1's ladder on one sheet: the same 25 canonical cells, one
   // layout grouping the ring into four chase zones and one leaving all 25
@@ -49,7 +56,7 @@ void main() {
     fileName: 'call_grid_layouts',
     builder: () => _app(
       GoldenTestGroup(
-        columns: 2,
+        columns: 1,
         children: [
           GoldenTestScenario(
             name: 'coarse (13 zones), nothing selected',
@@ -74,7 +81,7 @@ void main() {
       final inZoneOnly = config.callableZonesByType['ch']!;
       return _app(
         GoldenTestGroup(
-          columns: 2,
+          columns: 1,
           children: [
             // The accent goes to the datum (§23.1.3): the selected zone, not
             // the frame around it.
@@ -109,7 +116,7 @@ void main() {
     fileName: 'call_grid_handedness',
     builder: () => _app(
       GoldenTestGroup(
-        columns: 2,
+        columns: 1,
         children: [
           GoldenTestScenario(
             name: 'right-handed batter, inside selected',

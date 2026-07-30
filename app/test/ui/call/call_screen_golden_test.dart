@@ -39,6 +39,13 @@ ProviderContainer _withCall({required String typeId, String? zoneId}) {
   return container;
 }
 
+// Deliberately one column. Alchemist sizes a column to its widest child, and
+// the scenario *label* participates in that — so with two columns the first
+// label's measured text width sets where the second panel starts. Long labels
+// made that a fractional x, which puts every vertical edge in the right-hand
+// panel on a half pixel and leaves its anti-aliasing to the rasterizer. It
+// matched locally and not on CI. One column gives every scenario the same
+// integral origin, so no label can move a pixel.
 void main() {
   // §10.3's flow, one scenario per state. What to look at: the arsenal sits
   // above the zone rect and collapses to the chosen pitch, and the code lands
@@ -53,7 +60,7 @@ void main() {
       addTearDown(called.dispose);
 
       return GoldenTestGroup(
-        columns: 2,
+        columns: 1,
         children: [
           GoldenTestScenario(
             name: '1 · no type chosen: the whole arsenal, tappable',
@@ -80,7 +87,7 @@ void main() {
       addTearDown(lefty.dispose);
 
       return GoldenTestGroup(
-        columns: 2,
+        columns: 1,
         children: [
           // Night games are real (§23.1.4).
           GoldenTestScenario(
