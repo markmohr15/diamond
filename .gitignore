@@ -21,3 +21,4 @@ server/dist/
 .DS_Store
 .idea/
 *.iml
+app/test/**/failures/
