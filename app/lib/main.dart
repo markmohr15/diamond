@@ -18,8 +18,10 @@ class DiamondApp extends ConsumerWidget {
       // MaterialApp so a swap re-themes everything below it.
       theme: ref.watch(lightThemeProvider),
       darkTheme: ref.watch(darkThemeProvider),
-      // Placeholder home screen — DIA-006/007 replace this with real
-      // navigation (§19.4). For now it just hosts the DIA-005 dev harness.
+      // Placeholder home screen — DIA-007 replaces this with the real pitch
+      // loop and §19.4's navigation. The harness now hosts DIA-006's call
+      // screen for the call step, keeping its dev toggles; DIA-007's cleanup
+      // deletes the whole page.
       home: const ZoneCanvasDemoPage(),
     );
   }

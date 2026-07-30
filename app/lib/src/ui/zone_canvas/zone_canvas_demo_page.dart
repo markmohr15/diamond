@@ -1,6 +1,9 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Dev-only harness for manually exercising [ZoneCanvas] outside of a real
 /// game: no event store, no pitcher/batter data, just a simulated one-batter
@@ -11,16 +14,16 @@ import 'package:flutter/material.dart';
 /// as the app's home screen — see DIA-007's Cleanup note. It deliberately
 /// stays minimal (e.g. no way to re-edit a committed value from the summary
 /// screen) since the real UI, not this harness, is where that belongs.
-class ZoneCanvasDemoPage extends StatefulWidget {
+class ZoneCanvasDemoPage extends ConsumerStatefulWidget {
   const ZoneCanvasDemoPage({super.key});
 
   @override
-  State<ZoneCanvasDemoPage> createState() => _ZoneCanvasDemoPageState();
+  ConsumerState<ZoneCanvasDemoPage> createState() => _ZoneCanvasDemoPageState();
 }
 
 enum _Step { call, actual, done }
 
-class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
+class _ZoneCanvasDemoPageState extends ConsumerState<ZoneCanvasDemoPage> {
   _Step _step = _Step.call;
   ZoneCoord? _intendedLocation;
   ZoneCoord? _actualLocation;
@@ -43,6 +46,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   BatterSide _batterSide = BatterSide.R;
 
   void _resetForNextPitch() {
+    ref.read(callDraftProvider.notifier).clear();
     setState(() {
       _step = _Step.call;
       _intendedLocation = null;
@@ -54,7 +58,7 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ZoneCanvas demo — DIA-005')),
+      appBar: AppBar(title: const Text('Pitch entry demo — DIA-005/006')),
       body: Column(
         children: [
           const Padding(
@@ -127,22 +131,42 @@ class _ZoneCanvasDemoPageState extends State<ZoneCanvasDemoPage> {
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: switch (_step) {
-                _Step.call => ZoneCanvas(
-                  mode: ZoneCanvasIntent.call,
-                  value: _intendedLocation,
-                  ballKind: _ballKind,
-                  fidelity: _fidelity,
-                  showBatterSilhouette: _showBatterSilhouette,
-                  batterSide: _batterSide,
-                  onCommit: (coord) => setState(() {
-                    _intendedLocation = coord;
-                    _step = _Step.actual;
-                  }),
-                  onSkip: () => setState(() {
-                    _intendedLocation = null;
-                    _step = _Step.actual;
-                  }),
-                  onCancel: () => setState(() => _intendedLocation = null),
+                // DIA-006's real call screen, not the raw canvas: tap a pitch,
+                // then a green zone, and the code appears. Advancing to the
+                // actual is the harness's own button — in the real loop the
+                // pitch being thrown is what advances it (DIA-007).
+                _Step.call => Column(
+                  children: [
+                    Expanded(
+                      child: CallScreen(
+                        ballKind: _ballKind,
+                        fidelity: _fidelity,
+                        showBatterSilhouette: _showBatterSilhouette,
+                        batterSide: _batterSide,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: FilledButton(
+                        onPressed: () {
+                          final pending = ref.read(callDraftProvider).pending;
+                          final zone = pending == null
+                              ? null
+                              : ref
+                                    .read(teamCallConfigProvider)
+                                    .layout
+                                    .byId(pending.zoneId);
+                          setState(() {
+                            _intendedLocation = zone?.absoluteCentroid(
+                              _batterSide,
+                            );
+                            _step = _Step.actual;
+                          });
+                        },
+                        child: const Text('Pitch thrown →'),
+                      ),
+                    ),
+                  ],
                 ),
                 _Step.actual => ZoneCanvas(
                   mode: ZoneCanvasIntent.actual,

@@ -1,0 +1,275 @@
+import 'package:diamond/src/call/team_config.dart';
+import 'package:diamond/src/call/wristband_card.dart';
+import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Keys the widget tests resolve against. Production code has no reason to look
+/// them up.
+@visibleForTesting
+const Key callScreenCodeKey = Key('callScreenCode');
+@visibleForTesting
+const Key callScreenTypeRowKey = Key('callScreenTypeRow');
+
+/// Height reserved for the code, whether or not one is showing.
+///
+/// §10.3 wants it at 120pt+; `height: 1` on the style makes the line box that
+/// tall exactly, so the constant and the font size move together.
+const double _codeFontSize = 120;
+const double _codeSlotHeight = _codeFontSize;
+
+/// The call screen (§10.3): tap a pitch type, tap a zone, yell the code.
+///
+/// The call grid is drawn *on* the canvas (§11.4, v0.38); the code and the
+/// pitch chips sit in a strip above it, outside the drawing area, so they never
+/// cover the top call zones or compete with a location tap.
+///
+/// Three states, and the pointer rule differs between them:
+///
+/// 1. **No type chosen** — the whole arsenal is on screen and takes taps. Zone
+///    taps do nothing, because type precedes zone (§10.1).
+/// 2. **Type chosen** — the others go away so the coach can see what they
+///    picked, and the surviving chip stops taking taps. It is a *label* now,
+///    and §11.4's rule for the batter silhouette applies: anything that
+///    swallows taps makes the region it covers uncapturable.
+/// 3. **Zone chosen** — the code appears above the chip, also pass-through. The
+///    grid stays live underneath, because tapping a new zone replaces the
+///    pending call (§10.3's shake-off reality).
+///
+/// Which zones may be tapped depends on `TeamCallConfig.usesWristbands`: the
+/// card bounds it when they are on, the layout when they are off, and with them
+/// off there is no code to show.
+///
+/// Cancel lives in the canvas's control strip, *below* the drawing area, where
+/// it structurally cannot compete with a location tap.
+class CallScreen extends ConsumerStatefulWidget {
+  const CallScreen({
+    this.batterSide = BatterSide.R,
+    this.ballKind = BallKind.softball,
+    this.fidelity = CanvasFidelity.restrained,
+    this.showBatterSilhouette = false,
+    super.key,
+  });
+
+  /// Which box the batter stands in. Moves the *labels* on the grid, never the
+  /// geometry — "In" is negative x for a righty (§10.1, §11.4).
+  final BatterSide batterSide;
+
+  final BallKind ballKind;
+
+  /// Passed through to the canvas so the dev harness can flip treatments on a
+  /// real tablet (§11.4).
+  final CanvasFidelity fidelity;
+
+  final bool showBatterSilhouette;
+
+  @override
+  ConsumerState<CallScreen> createState() => _CallScreenState();
+}
+
+class _CallScreenState extends ConsumerState<CallScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final config = ref.watch(teamCallConfigProvider);
+    final card = ref.watch(wristbandCardProvider);
+    final draft = ref.watch(callDraftProvider);
+    final pending = draft.pending;
+    final typeId = draft.pitchTypeId;
+
+    // With wristbands on, the *card* decides what may be offered — a code the
+    // coach yells has to be a code the pitcher can look up (§10.1). With them
+    // off there is no card to consult, so the layout decides and no code is
+    // shown.
+    final callableIds = typeId == null
+        ? <String>{}
+        : {
+            for (final zone in config.callableZones(typeId))
+              if (!config.usesWristbands ||
+                  card.canExpress(Call(pitchTypeId: typeId, zoneId: zone.id)))
+                zone.id,
+          };
+
+    return ZoneCanvas(
+      mode: ZoneCanvasIntent.call,
+      value: null,
+      batterSide: widget.batterSide,
+      ballKind: widget.ballKind,
+      fidelity: widget.fidelity,
+      showBatterSilhouette: widget.showBatterSilhouette,
+      // Always set, so the grid is on screen from the first frame and the
+      // freeform marker layer stays suppressed. What gates state 1 is
+      // [onZoneSelected] being null — the grid is visible but inert until a
+      // pitch is chosen, rather than absent and then appearing.
+      callLayout: config.layout,
+      // Empty until a pitch is chosen, so nothing reads as available while
+      // taps are still inert — green is a promise that a zone can be touched.
+      callableZoneIds: callableIds,
+      selectedZoneId: pending?.zoneId,
+      onZoneSelected: typeId == null
+          ? null
+          : (zone) => ref.read(callDraftProvider.notifier).selectZone(zone.id),
+      onReroll: pending == null
+          ? null
+          : () => ref.read(callDraftProvider.notifier).reroll(),
+      topStrip: _CallOverlay(
+        arsenal: config.arsenal,
+        selectedTypeId: typeId,
+        onTypeSelected: (id) =>
+            ref.read(callDraftProvider.notifier).selectType(id),
+        pending: config.usesWristbands ? pending : null,
+      ),
+      // Freeform capture is unreachable in grid-calling mode; these belong to
+      // the pitch loop (DIA-007).
+      onCommit: (_) {},
+      onSkip: () {},
+      onCancel: () => ref.read(callDraftProvider.notifier).clear(),
+    );
+  }
+}
+
+class _CallOverlay extends StatelessWidget {
+  const _CallOverlay({
+    required this.arsenal,
+    required this.selectedTypeId,
+    required this.onTypeSelected,
+    required this.pending,
+  });
+
+  final List<PitchType> arsenal;
+  final String? selectedTypeId;
+  final ValueChanged<String> onTypeSelected;
+
+  /// Null when there is no code to show — either no zone is chosen yet, or the
+  /// team does not use wristbands (§10.2).
+  final PendingCall? pending;
+
+  @override
+  Widget build(BuildContext context) {
+    // Code above the pitch, both at the top: the code is what the coach says
+    // out loud, so it leads. Nothing spells the call out in words — the chip
+    // names the pitch and the accent marks the zone, so a third statement of
+    // the same fact is ink without information (§23.1.1).
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // The slot is always this tall, empty or not. If it grew when the
+          // code appeared, the canvas below would shrink and every landmark on
+          // it — the plate above all — would jump at the exact moment the coach
+          // is reading a number off the screen.
+          SizedBox(
+            height: _codeSlotHeight,
+            child: pending == null ? null : _CodeDisplay(pending: pending!),
+          ),
+          _PitchTypeRow(
+            arsenal: arsenal,
+            selectedTypeId: selectedTypeId,
+            onTypeSelected: onTypeSelected,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The arsenal, above the zone rect. No per-type color (§10.3, v0.38) — the
+/// accent marks the *selected* type and nothing else (§23.1.2, §23.1.3).
+///
+/// Collapses to the chosen chip once a type is picked, and that chip stops
+/// taking taps so the chase-high zones under it stay callable.
+class _PitchTypeRow extends StatelessWidget {
+  const _PitchTypeRow({
+    required this.arsenal,
+    required this.selectedTypeId,
+    required this.onTypeSelected,
+  });
+
+  final List<PitchType> arsenal;
+  final String? selectedTypeId;
+  final ValueChanged<String> onTypeSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final selected = selectedTypeId;
+    final shown = selected == null
+        ? arsenal
+        : arsenal.where((type) => type.id == selected).toList();
+
+    final row = Padding(
+      key: callScreenTypeRowKey,
+      padding: const EdgeInsets.all(8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final type in shown)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: GestureDetector(
+                onTap: selected == null ? () => onTypeSelected(type.id) : null,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: type.id == selected
+                        ? scheme.primary
+                        : scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    child: Text(
+                      type.name,
+                      style: TextStyle(
+                        color: type.id == selected
+                            ? scheme.onPrimary
+                            : scheme.onSurface,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // A choice takes taps; a label must not (§11.4). Cancel — in the control
+    // strip below the canvas — is how the coach gets the arsenal back.
+    return selected == null ? row : IgnorePointer(child: row);
+  }
+}
+
+/// The code, huge (§10.3): readable at arm's length in sunlight, with the call
+/// echoed small underneath.
+///
+/// Pass-through, like every other label on this surface. Re-roll is a
+/// horizontal drag anywhere on the canvas rather than a swipe on the code
+/// itself, precisely so the grid underneath stays tappable.
+class _CodeDisplay extends StatelessWidget {
+  const _CodeDisplay({required this.pending});
+
+  final PendingCall pending;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Text(
+        pending.code ?? '—',
+        key: callScreenCodeKey,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.primary,
+          fontSize: _codeFontSize,
+          fontWeight: FontWeight.bold,
+          height: 1,
+        ),
+      ),
+    );
+  }
+}

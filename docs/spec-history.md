@@ -17,11 +17,39 @@ The change came out of a question the old model couldn't answer: coaches mean di
 Most teams will never separate the corners; the point is that the team that wants to call *too low and
 too far away* doesn't have to redraw the model to do it.
 
+Ring cells are **unbounded in extent but nominal in target**: their `bounds` run outward without limit,
+because the partition cannot have a hole and containment must resolve a pitch however far off the plate,
+while their centroid is placed as though the cell had the same dimensions as an in-zone cell sitting just
+beyond the edge. An unbounded region has no geometric centroid, so the target has to be nominal, and
+equal dimensions is both the simplest choice and the closest to what "off the plate that way" means. The
+target lands half a cell out — ≈2.8″ beyond the plate edge laterally and ≈4″ past knee and armpit
+vertically at 12U. The lateral figure is tight and is recorded as a starting place to revisit against
+practice, not as a derived constant.
+
 **A team's layout is now a grouping of those cells, never an independent set.** `bounds` is derived
 from the grouping rather than authored, which makes overlapping zones and uncovered gaps
 unrepresentable instead of merely invalid — and containment classification (§17.4) depends on exactly
 that, since freeform intent and observation mode (§19.5) both need any point to resolve to one zone. A
 10U team groups a whole edge into one "chase high"; a 14U team leaves those cells separate.
+
+**Zones are batter-relative; coordinates stay absolute.** §10.1's vocabulary was already relative
+("Up-In", "Low-Away") while `ZoneCoord` is absolute in the catcher's view (§3.1), and nothing said how
+one became the other. The wristband settles it: a code has to mean one thing to the pitcher reading it,
+so a zone is named from the batter's point of view and mirrored to an absolute `intendedLocation` when
+the pitch is written. `intendedZoneId` then aggregates across a lineup without mixing inside-to-a-lefty
+with away-to-a-righty, which §17.4's command rubric depends on. Nothing mirrors on screen: the call grid is
+drawn on the entry canvas itself, so the geometry stays absolute and fixed and only the *label*
+resolves — "In" sits at negative x for a righty, positive for a lefty — which preserves §11.4's
+never-mirror rule rather than excepting it.
+
+**The call grid lives on the entry canvas, not beside it.** §11.4 said both: line 481 had the zone rect
+carrying the grid, while the canvas-extents table and two notes below it described a side-by-side
+layout competing for horizontal room. The single-surface reading wins, and v0.38 is why — the canvas
+already spans x ∈ [±4.0] and y ∈ [−1.05, 1.5], which is exactly where the 16 ring cells sit (their
+nominal targets are at x ≈ ±1.33), so the 3×3 lands inside the zone rect and the ring fills the canvas
+around it. The coach calls and records on the same picture, and the width the side-by-side layout would
+have spent on a second grid is freed for the screen's other furniture. The stale side-by-side notes are
+corrected.
 
 Grouping is also what keeps intent comparable over time. A player's history follows them (§22) across
 age groups whose vocabularies differ, and because every layout groups the same 25 cells, any two roll
@@ -42,6 +70,23 @@ refining intent past the zone would record a target the pitcher was never told a
 against it in §17.4. Situational variation in what a zone *means* is read off `actualLocation` against
 the count instead. Freeform capture remains for contexts with no call at all: solo scoring, verbal
 calling, observation mode.
+
+**§10.2 records that k is per call, not per card** — as direction, not as implemented behavior. Calls
+are not thrown equally often, and a code's job is to keep the frequent ones from becoming recognizable,
+so a call's code count should follow how often it is expected to be called; uniform k stays the starting
+default. Card size therefore reads as the sum over calls of their code counts, and the three-digit format
+caps a card at 9 x 90 = 810 cells, which the generator must enforce rather than silently emitting
+four-digit codes. Allocation belongs with wristband setup, which has no ticket yet — hence recording the
+direction here so it is not rediscovered.
+
+**§11.4 states what the grid draws, and when.** The 3x3 strike zone renders at all times, on the
+calling surface and the actual-location surface alike, because it is the frame every location is read
+against. The sixteen cells around it are drawn only while a pitch is being called and only where that
+pitch can actually be called, since they are the available choices; on the actual-location surface they
+are not drawn at all and are merely implied, containment still resolving any point into exactly one of
+them (§17.4). A callable zone draws as one swatch the size of a strike-zone cell, centered on its
+target, never one mark per member cell — a grouped zone is one call with one code, and painting its
+cells separately shows several targets where there is one.
 
 **§10.3** now states that type precedes zone because the vocabulary depends on the type, and that the
 grid's geometry is fixed and never re-flows between types — only which cells are callable changes.

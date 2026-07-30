@@ -41,6 +41,7 @@ class BrandBaseline {
     required this.uncertaintyAmber,
     required this.onUncertaintyAmber,
     required this.misplayAmber,
+    required this.callableGreen,
     required this.errorRed,
     required this.onErrorRed,
     required this.errorRedContainer,
@@ -101,6 +102,16 @@ class BrandBaseline {
   /// name the one they mean.
   final Color misplayAmber;
 
+  /// Available to call — the zones on the wristband for the pitch in hand
+  /// (§10.1).
+  ///
+  /// Not an accent and not one of §23.2's reservations: it marks *what can be
+  /// touched*, which is a property of the control rather than of the datum, and
+  /// it never competes with the accent because the accent marks the one zone
+  /// already chosen. Green is provisional here — see the note on §23 in
+  /// DIA-006's PR.
+  final Color callableGreen;
+
   /// §23.2: error state / invalid input.
   final Color errorRed;
   final Color onErrorRed;
@@ -130,6 +141,7 @@ class BrandBaseline {
     uncertaintyAmber: Color(0xFFB26A00),
     onUncertaintyAmber: Color(0xFFFFFFFF),
     misplayAmber: Color(0xFFB26A00),
+    callableGreen: Color(0xFF2E7D32),
     errorRed: Color(0xFFB3261E),
     onErrorRed: Color(0xFFFFFFFF),
     errorRedContainer: Color(0xFFF9DEDC),
@@ -159,6 +171,7 @@ class BrandBaseline {
     uncertaintyAmber: Color(0xFFFFB74D),
     onUncertaintyAmber: Color(0xFF3A2400),
     misplayAmber: Color(0xFFFFB74D),
+    callableGreen: Color(0xFF66BB6A),
     errorRed: Color(0xFFF2B8B5),
     onErrorRed: Color(0xFF601410),
     errorRedContainer: Color(0xFF8C1D18),
