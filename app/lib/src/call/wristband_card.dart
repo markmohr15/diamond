@@ -66,6 +66,9 @@ class WristbandCard {
   /// exercise lookup and to make the card's *size* visible — the cell count is
   /// the sum over types of that type's zone count × k, never the cross product
   /// (§10.1).
+  ///
+  /// Throws [ArgumentError] when that count exceeds the 810 cells three digits
+  /// can address (§10.2).
   factory WristbandCard.forConfig(
     TeamCallConfig config, {
     required Random random,
@@ -90,7 +93,24 @@ class WristbandCard {
     // rows are the entire reason lookup is O(1) — a pitcher finds row 5, then
     // scans that row for column 39.
     const rowCount = 9;
+    const maxColumnCount = 90;
     final columnCount = (slots.length / rowCount).ceil();
+
+    // Three digits address 9 rows x 90 columns and no more, so 810 cells is the
+    // format's ceiling and §10.2 makes enforcing it the generator's job. Say so
+    // here: past the ceiling the label pool below runs out, which would surface
+    // as a RangeError on the 91st column with nothing in it a coach could act
+    // on.
+    if (columnCount > maxColumnCount) {
+      throw ArgumentError.value(
+        codesPerCall,
+        'codesPerCall',
+        'card needs ${slots.length} cells (${calls.length} calls x '
+            '$codesPerCall) but the three-digit format addresses at most '
+            '${rowCount * maxColumnCount} (§10.2) — lower k, or narrow the '
+            'callable zones',
+      );
+    }
 
     // Column labels are drawn from the whole two-digit range rather than
     // running 10, 11, 12… Contiguous labels make every code on an 80-cell card
@@ -99,7 +119,7 @@ class WristbandCard {
     // labels are printed across the top of the card either way. Sorted, so
     // scanning a row stays monotonic and the lookup is no slower.
     final labels = (List.generate(
-      90,
+      maxColumnCount,
       (i) => i + 10,
     )..shuffle(random)).take(columnCount).toList()..sort();
 
@@ -126,6 +146,12 @@ class WristbandCard {
   /// 539 one pitch and 217 three pitches later. This is the sign-stealing
   /// defense, and it beats a static laminated sheet, where pattern-hunting
   /// parents in the stands are a real thing.
+  ///
+  /// Nothing reads it yet — not even the tests, which pass `k` to
+  /// [WristbandCard.forConfig] and then count entries. It is carried because a
+  /// card that cannot say what k it was cut at can't be reprinted or
+  /// regenerated at the same k (M2), and because §10.2's per-call k lands here
+  /// as the thing this field generalizes.
   final int codesPerCall;
 
   /// Every code mapped to [call]. Empty when the card cannot express it — the

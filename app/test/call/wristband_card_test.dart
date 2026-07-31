@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:diamond/src/call/canonical_cells.dart';
 import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,23 @@ void main() {
   // Seeded so the shuffle and every pick are reproducible: a card whose
   // contents changed run to run would make these assertions meaningless.
   Random seeded() => Random(20260729);
+
+  // Exactly 27 calls — three types over the nine in-zone cells — so k alone
+  // sets the cell count against §10.2's ceiling: k = 30 is 810 cells, the
+  // largest card three digits can address, and k = 31 is the first card past
+  // it. Not the stub config, whose 20 calls cannot land on 810.
+  TeamCallConfig cappedConfig() {
+    final types = StubTeamCallConfig.arsenal.take(3).toList();
+    final inZone = {
+      for (final cell in canonicalCells.where((cell) => cell.isInZone)) cell.id,
+    };
+    return TeamCallConfig(
+      teamId: 'own',
+      arsenal: types,
+      layout: StubTeamCallConfig.fineLayout(),
+      callableZonesByType: {for (final type in types) type.id: inZone},
+    );
+  }
 
   group('card generation', () {
     test('carries k codes for every callable call, and nothing else', () {
@@ -108,6 +126,38 @@ void main() {
       }
       // Nine columns squeezed into 10..18 is the pattern this guards against.
       expect(labels.last - labels.first, greaterThan(labels.length));
+    });
+
+    test('fills the card to the 810-cell ceiling and still reads as three '
+        'digits (§10.2)', () {
+      final card = WristbandCard.forConfig(
+        cappedConfig(),
+        random: seeded(),
+        codesPerCall: 30,
+      );
+
+      expect(card.entries, hasLength(810));
+      for (final entry in card.entries) {
+        expect(entry.code, matches(RegExp(r'^[1-9]\d{2}$')));
+      }
+    });
+
+    test('refuses a card past the ceiling — the format is out of coordinates, '
+        'and a wrong code is worse than no card', () {
+      expect(
+        () => WristbandCard.forConfig(
+          cappedConfig(),
+          random: seeded(),
+          codesPerCall: 31,
+        ),
+        throwsA(
+          isA<ArgumentError>()
+              // Pinned so the guard, not some other ArgumentError, is what
+              // fired — and so the message keeps naming the way out.
+              .having((e) => e.name, 'name', 'codesPerCall')
+              .having((e) => e.message, 'message', contains('810')),
+        ),
+      );
     });
 
     test('k is honored — the card shrinks with it', () {
