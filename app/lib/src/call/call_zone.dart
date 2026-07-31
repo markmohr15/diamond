@@ -22,6 +22,11 @@ class CallZone {
 
   /// The union's extent. Unbounded whenever any member cell is, which is the
   /// normal case for a zone touching the ring.
+  ///
+  /// Used only by the test suite. Nothing in production wants a zone's extent:
+  /// classification goes through [contains]/[CallZoneLayout.zoneFor] and the
+  /// render goes through [nominalBounds], precisely because this rect is
+  /// usually infinite.
   ZoneRect get bounds {
     var minX = double.infinity;
     var maxX = double.negativeInfinity;
@@ -53,6 +58,17 @@ class CallZone {
     return ZoneCoord(x: sumX / cells.length, y: sumY / cells.length);
   }
 
+  /// The rect this zone *draws* as (§11.4): one strike-zone cell centered on
+  /// [centroid], whatever the zone's true extent.
+  ///
+  /// Not [bounds], which is what a pitch is classified against and runs to
+  /// infinity for any zone touching the ring — a swatch covering half the
+  /// canvas would say the zone is enormous when what it means is "off the plate
+  /// this way." Not one rect per member cell either: a grouped zone is a single
+  /// call with a single code, and painting its cells separately shows several
+  /// targets where there is one.
+  ZoneRect get nominalBounds => ZoneRect.nominalCellAround(centroid);
+
   /// [centroid] resolved into the absolute frame for the batter in the box —
   /// what `PitchThrown.intendedLocation` stores (§10.1). Mirroring the mean is
   /// the same as the mean of the mirrored cells, since the mirror is linear.
@@ -71,6 +87,12 @@ class CallZone {
   bool get isChase =>
       centroid.x < -1 || centroid.x > 1 || centroid.y < 0 || centroid.y > 1;
 
+  /// Whether [coord] resolves to this zone (§17.4).
+  ///
+  /// Used only by the test suite, where it states the partition invariant one
+  /// zone at a time. Production asks the layout instead —
+  /// [CallZoneLayout.zoneFor] answers the same question without scanning zones
+  /// that cannot own the point.
   bool contains(ZoneCoord coord) => cells.contains(cellContaining(coord));
 
   @override

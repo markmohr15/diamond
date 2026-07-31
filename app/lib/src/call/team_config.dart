@@ -116,6 +116,11 @@ class TeamCallConfig {
   /// The (type × zone) combinations the card must carry. Sparse in practice —
   /// which is what keeps a six-pitch arsenal printable — but nothing enforces
   /// sparsity (§10.1).
+  ///
+  /// Used only by the test suite today, where it is how a card's expected size
+  /// is stated. Card generation counts its own slots; M2's wristband setup,
+  /// which has to show a coach whether a configuration will fit on a card, is
+  /// the production caller this is waiting for.
   int get callCount =>
       callableZonesByType.values.fold(0, (sum, zones) => sum + zones.length);
 }

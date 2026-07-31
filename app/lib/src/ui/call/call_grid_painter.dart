@@ -1,5 +1,4 @@
 import 'package:diamond/src/call/call_zone.dart';
-import 'package:diamond/src/call/canonical_cells.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -46,35 +45,25 @@ class CallGridPainter extends CustomPainter {
   double _absoluteX(double relativeX) =>
       batterSide == BatterSide.L ? -relativeX : relativeX;
 
-  /// One swatch per zone, always the size of one of the nine strike-zone
-  /// cells, centered on the zone's target.
-  ///
-  /// Deliberately **not** one block per member cell. A grouped "chase up" is a
-  /// single call with a single code, so painting its five cells separately
-  /// would show five targets where there is one — and with three grouped chase
-  /// zones on the card that lights most of the canvas, which reads as
-  /// "everything is available" and tells the coach nothing.
+  /// [CallZone.nominalBounds] mirrored for the batter in the box and projected
+  /// to the canvas — the model decides the swatch's size and where it sits, and
+  /// this decides only which way "in" faces.
   ///
   /// The swatch is the indicator, not the hit area: the zone still owns
   /// everything its cells cover, so a tap well off the plate lands correctly
   /// (§17.4 containment) even though the green mark beside the plate is small.
   Rect _zoneRect(CallZone zone, Size size) {
-    final centroid = zone.centroid;
-    final left = _absoluteX(centroid.x - CanonicalCell.columnWidth / 2);
-    final right = _absoluteX(centroid.x + CanonicalCell.columnWidth / 2);
+    final nominal = zone.nominalBounds;
+    // Mirroring negates x, so the min and max edges swap for a lefty.
+    final left = _absoluteX(nominal.minX);
+    final right = _absoluteX(nominal.maxX);
     return Rect.fromPoints(
       localFromZoneCoord(
-        ZoneCoord(
-          x: left < right ? left : right,
-          y: centroid.y + CanonicalCell.rowHeight / 2,
-        ),
+        ZoneCoord(x: left < right ? left : right, y: nominal.maxY),
         size,
       ),
       localFromZoneCoord(
-        ZoneCoord(
-          x: left < right ? right : left,
-          y: centroid.y - CanonicalCell.rowHeight / 2,
-        ),
+        ZoneCoord(x: left < right ? right : left, y: nominal.minY),
         size,
       ),
     );

@@ -16,6 +16,23 @@ class ZoneRect {
     required this.maxY,
   });
 
+  /// §10.1's *nominal* cell: one in-zone cell's dimensions, centered on
+  /// [center].
+  ///
+  /// A ring cell's extent is unbounded — the partition may not have a hole, so
+  /// containment (§17.4) resolves points however far off the plate — which
+  /// leaves it with no geometric center and no rect anything could draw. §10.1
+  /// supplies both by treating it as a cell of in-zone dimensions sitting
+  /// immediately beyond the edge, and §11.4 makes that rect the swatch a
+  /// callable zone paints. Equal dimensions throughout, so for anything already
+  /// in the zone the nominal rect *is* the true one.
+  factory ZoneRect.nominalCellAround(ZoneCoord center) => ZoneRect(
+    minX: center.x - CanonicalCell.columnWidth / 2,
+    maxX: center.x + CanonicalCell.columnWidth / 2,
+    minY: center.y - CanonicalCell.rowHeight / 2,
+    maxY: center.y + CanonicalCell.rowHeight / 2,
+  );
+
   final double minX;
   final double maxX;
   final double minY;
@@ -113,20 +130,6 @@ class CanonicalCell {
     maxY: _rowEdges[row + 1],
   );
 
-  /// The cell at the size an in-zone cell would be (§10.1).
-  ///
-  /// [bounds] is what a pitch is *classified* against and runs outward without
-  /// limit for a ring cell. This is the finite stand-in the ring cell's target
-  /// is centered in — and the only rect a ring cell can sensibly be *drawn* as,
-  /// since a swatch covering half the canvas would say the zone is enormous
-  /// when what it means is "off the plate this way."
-  ZoneRect get nominalBounds => ZoneRect(
-    minX: _centerX - columnWidth / 2,
-    maxX: _centerX + columnWidth / 2,
-    minY: _centerY - rowHeight / 2,
-    maxY: _centerY + rowHeight / 2,
-  );
-
   /// The cell's target point (§10.1).
   ///
   /// In-zone cells use their true center. Ring cells are unbounded and so have
@@ -148,6 +151,10 @@ class CanonicalCell {
   /// This is the only crossing from the relative frame to the absolute one, and
   /// it happens when the pitch is written (DIA-007), not when the call is made
   /// — the call screen has no batter.
+  ///
+  /// Used only by the test suite: production crosses frames a zone at a time,
+  /// through `CallZone.absoluteCentroid` and [relativeToBatter]. Kept because a
+  /// cell is what §10.1 defines the mirror on, and the tests pin it there.
   ZoneCoord absoluteCentroid(BatterSide side) =>
       ZoneCoord(x: side == BatterSide.L ? -_centerX : _centerX, y: _centerY);
 
@@ -212,10 +219,6 @@ ZoneCoord relativeToBatter(ZoneCoord absolute, BatterSide side) => ZoneCoord(
   x: side == BatterSide.L ? -absolute.x : absolute.x,
   y: absolute.y,
 );
-
-/// The cell a point on screen falls in, for the batter in the box.
-CanonicalCell cellContainingAbsolute(ZoneCoord absolute, BatterSide side) =>
-    cellContaining(relativeToBatter(absolute, side));
 
 /// The one cell containing [coord].
 ///
