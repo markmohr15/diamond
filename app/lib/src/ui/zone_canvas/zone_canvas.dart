@@ -1,6 +1,10 @@
 import 'dart:math' as math;
 
+import 'package:diamond/src/call/call_zone.dart';
+import 'package:diamond/src/call/canonical_cells.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/call/call_grid_painter.dart';
+import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -171,6 +175,12 @@ class ZoneCanvas extends StatefulWidget {
     this.fidelity = CanvasFidelity.restrained,
     this.geometry = const FrontalGeometry(),
     this.underlay,
+    this.callLayout,
+    this.callableZoneIds,
+    this.selectedZoneId,
+    this.onZoneSelected,
+    this.topStrip,
+    this.onReroll,
     super.key,
   });
 
@@ -240,6 +250,50 @@ class ZoneCanvas extends StatefulWidget {
   /// daylight comparison picks one.
   final CanvasFidelity fidelity;
 
+  /// The team's call-zone layout (§10.1), which turns this canvas into the
+  /// **calling** surface in [ZoneCanvasIntent.call].
+  ///
+  /// Null keeps the freeform behavior: intent is captured as a raw tap, which
+  /// is what §10.1's freeform path is for — solo scoring, a coach calling
+  /// verbally, observation mode where the opponent's layout isn't yours to
+  /// know. Non-null switches the gesture from long-press-and-drag to a single
+  /// tap on a zone, because a call is a choice from a vocabulary rather than a
+  /// coordinate.
+  final CallZoneLayout? callLayout;
+
+  /// Zones the selected pitch type may be called to. Null means all of them.
+  ///
+  /// The rest render quiet and refuse taps: a code the coach yells has to be a
+  /// code the pitcher can look up (§10.1). Which zones are callable changes
+  /// with the pitch type; the grid's **geometry never does** (§10.3).
+  final Set<String>? callableZoneIds;
+
+  /// The pending call's zone, carrying the accent (§23.1.3 — the accent goes
+  /// to the datum).
+  final String? selectedZoneId;
+
+  /// Fired on a tap inside a callable zone. Nothing is committed to the event
+  /// stream here; the parent holds the pending call until the pitch resolves
+  /// (§10.3).
+  final ValueChanged<CallZone>? onZoneSelected;
+
+  /// A strip above the drawing area — the pitch-type chips and the code
+  /// display (§10.3) live here.
+  ///
+  /// Outside the drawing area, mirroring the control strip below it, and for
+  /// the same reason (§11.4): overlaid on the canvas they would cover the top
+  /// call zones, and the chase-high band is a real target. Being outside means
+  /// they can never compete with a location tap at all, so nothing here has to
+  /// be made transparent to touch.
+  final Widget? topStrip;
+
+  /// §10.3's re-roll — a different code for the same call, without re-tapping.
+  ///
+  /// A horizontal drag anywhere on the canvas, rather than a swipe on the code
+  /// itself, precisely so the code can stay a pass-through label. Calling mode
+  /// has no other drag gesture to compete with.
+  final VoidCallback? onReroll;
+
   /// The coordinate mapping and camera the canvas draws through (§11.4) — a
   /// parameter rather than hardcoded geometry, so the zone profile and virtual
   /// camera can change without touching the widget.
@@ -278,6 +332,27 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
   /// when the parent can actually receive one.
   bool get _hingeEnabled =>
       widget.mode == ZoneCanvasIntent.actual && widget.onCommitBounce != null;
+
+  /// A tap in grid-calling mode: resolve the point to a zone and offer it.
+  ///
+  /// A tap on a zone this pitch type cannot be called to does nothing — no
+  /// selection, no feedback beyond the cell already reading as quiet. Silently
+  /// selecting the nearest callable zone instead would put a call on screen
+  /// that the coach did not make.
+  void _handleCallTap(TapUpDetails details, Size size) {
+    final layout = widget.callLayout;
+    final onSelected = widget.onZoneSelected;
+    if (layout == null || onSelected == null) return;
+
+    // The tap is at an absolute position; cells are indexed batter-relative
+    // (§10.1), so it crosses frames before it can be resolved.
+    final absolute = zoneCoordFromLocal(details.localPosition, size);
+    final zone = layout.zoneFor(relativeToBatter(absolute, widget.batterSide));
+
+    if (widget.callableZoneIds?.contains(zone.id) ?? true) {
+      onSelected(zone);
+    }
+  }
 
   void _handleLongPressStart(LongPressStartDetails details) {
     setState(() => _dragLocal = details.localPosition);
@@ -356,6 +431,7 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
     final topDown = _plane == ZoneCanvasPlane.topDown;
     return Column(
       children: [
+        if (widget.topStrip != null) widget.topStrip!,
         Expanded(child: _buildCanvas(context)),
         Padding(
           padding: const EdgeInsets.all(8),
@@ -461,6 +537,12 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
         );
 
         final topDown = _plane == ZoneCanvasPlane.topDown;
+        // Grid calling replaces freeform capture on this surface: a call is a
+        // choice from a vocabulary, so it is one tap, not a press-and-drag.
+        final calling =
+            widget.mode == ZoneCanvasIntent.call &&
+            widget.callLayout != null &&
+            !topDown;
         return Center(
           child: SizedBox(
             key: zoneCanvasDrawingAreaKey,
@@ -484,20 +566,40 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                   child: RawGestureDetector(
                     behavior: HitTestBehavior.opaque,
                     gestures: {
-                      LongPressGestureRecognizer:
-                          GestureRecognizerFactoryWithHandlers<
-                            LongPressGestureRecognizer
-                          >(
-                            () => LongPressGestureRecognizer(
-                              duration: zoneCanvasArmDuration,
+                      if (calling) ...{
+                        TapGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<
+                              TapGestureRecognizer
+                            >(
+                              TapGestureRecognizer.new,
+                              (instance) =>
+                                  instance.onTapUp = (details) =>
+                                      _handleCallTap(details, size),
                             ),
-                            (instance) => instance
-                              ..onLongPressStart = _handleLongPressStart
-                              ..onLongPressMoveUpdate =
-                                  _handleLongPressMoveUpdate
-                              ..onLongPressEnd = (details) =>
-                                  _handleLongPressEnd(details, size),
-                          ),
+                        if (widget.onReroll != null)
+                          HorizontalDragGestureRecognizer:
+                              GestureRecognizerFactoryWithHandlers<
+                                HorizontalDragGestureRecognizer
+                              >(
+                                HorizontalDragGestureRecognizer.new,
+                                (instance) =>
+                                    instance.onEnd = (_) => widget.onReroll!(),
+                              ),
+                      } else
+                        LongPressGestureRecognizer:
+                            GestureRecognizerFactoryWithHandlers<
+                              LongPressGestureRecognizer
+                            >(
+                              () => LongPressGestureRecognizer(
+                                duration: zoneCanvasArmDuration,
+                              ),
+                              (instance) => instance
+                                ..onLongPressStart = _handleLongPressStart
+                                ..onLongPressMoveUpdate =
+                                    _handleLongPressMoveUpdate
+                                ..onLongPressEnd = (details) =>
+                                    _handleLongPressEnd(details, size),
+                            ),
                     },
                     child: ClipRect(
                       child: CustomPaint(
@@ -556,6 +658,29 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                       child: ClipRect(child: widget.underlay),
                     ),
                   ),
+                // Under the zone border, so the strike zone still reads as the
+                // strike zone with the swatches behind it. In calling mode the
+                // selection *is* the marker layer, so the freeform markers are
+                // suppressed rather than drawn alongside a second indicator.
+                if (calling)
+                  IgnorePointer(
+                    child: CustomPaint(
+                      size: size,
+                      painter: CallGridPainter(
+                        layout: widget.callLayout!,
+                        callableZoneIds:
+                            widget.callableZoneIds ??
+                            {
+                              for (final zone in widget.callLayout!.zones)
+                                zone.id,
+                            },
+                        selectedZoneId: widget.selectedZoneId,
+                        batterSide: widget.batterSide,
+                        callableFill: DiamondSemantics.of(context).callable,
+                        accent: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  ),
                 if (!topDown)
                   IgnorePointer(
                     child: CustomPaint(
@@ -566,7 +691,10 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                       ),
                     ),
                   ),
-                ..._buildMarkerLayer(size, topDown: topDown),
+                // Markers stay *above* the border, as they always have — the
+                // marker is the datum and the border is scaffolding (§23.1.3).
+                // Only the call grid goes underneath it.
+                if (!calling) ..._buildMarkerLayer(size, topDown: topDown),
                 // Paint, never a hit target — the same rule the markers and
                 // the future silhouette follow. A label that swallows taps
                 // makes the region it covers uncapturable, and a pitch may be

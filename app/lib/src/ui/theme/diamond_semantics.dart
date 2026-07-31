@@ -19,6 +19,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     required this.uncertainty,
     required this.onUncertainty,
     required this.misplay,
+    required this.callable,
   });
 
   /// Built from the baseline, so a semantic color can never drift from the
@@ -28,6 +29,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
         uncertainty: baseline.uncertaintyAmber,
         onUncertainty: baseline.onUncertaintyAmber,
         misplay: baseline.misplayAmber,
+        callable: baseline.callableGreen,
       );
 
   /// Amber: the count is ambiguous (§12.5, §11.2).
@@ -38,6 +40,11 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
   /// Amber: a misplay — physical, fault not yet adjudicated (§13, §15.3).
   final Color misplay;
 
+  /// Green: this zone can be called for the pitch in hand (§10.1). A property
+  /// of the control, not of the datum — the accent still marks the one zone
+  /// already chosen.
+  final Color callable;
+
   /// The error color is [ColorScheme.error]; it is not duplicated here.
   static DiamondSemantics of(BuildContext context) =>
       Theme.of(context).extension<DiamondSemantics>()!;
@@ -47,10 +54,12 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     Color? uncertainty,
     Color? onUncertainty,
     Color? misplay,
+    Color? callable,
   }) => DiamondSemantics(
     uncertainty: uncertainty ?? this.uncertainty,
     onUncertainty: onUncertainty ?? this.onUncertainty,
     misplay: misplay ?? this.misplay,
+    callable: callable ?? this.callable,
   );
 
   @override
@@ -60,6 +69,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       uncertainty: Color.lerp(uncertainty, other.uncertainty, t)!,
       onUncertainty: Color.lerp(onUncertainty, other.onUncertainty, t)!,
       misplay: Color.lerp(misplay, other.misplay, t)!,
+      callable: Color.lerp(callable, other.callable, t)!,
     );
   }
 
@@ -68,8 +78,10 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       other is DiamondSemantics &&
       other.uncertainty == uncertainty &&
       other.onUncertainty == onUncertainty &&
-      other.misplay == misplay;
+      other.misplay == misplay &&
+      other.callable == callable;
 
   @override
-  int get hashCode => Object.hash(uncertainty, onUncertainty, misplay);
+  int get hashCode =>
+      Object.hash(uncertainty, onUncertainty, misplay, callable);
 }

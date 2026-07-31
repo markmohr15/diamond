@@ -29,9 +29,15 @@ jobs:
       - name: Fail if codegen output drifted from committed files
         run: git diff --exit-code -- app/lib/src/events/generated server/src/events/generated
 
+      # Pinned, not tracking stable. Golden tests compare rendered pixels, so a
+      # Flutter release that changes text metrics or rasterization breaks every
+      # golden with no code change — and it lands on whichever PR happens to be
+      # open that day. Bump this deliberately, regenerating goldens in the same
+      # commit, so a rendering change is reviewed rather than discovered.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.41.8
 
       - name: flutter pub get
         run: flutter pub get
@@ -44,6 +50,19 @@ jobs:
       - name: flutter test
         run: flutter test
         working-directory: app
+
+      # Golden failures write the master, test and masked-diff images next to
+      # the test, and without this they die with the runner — leaving a pixel
+      # count to reason backwards from. Keep it after the test step and gated
+      # on failure so green runs upload nothing.
+      - name: Upload golden failure images
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: app/test/**/failures/**
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: TypeScript type-check generated server types
         run: npm run typecheck
