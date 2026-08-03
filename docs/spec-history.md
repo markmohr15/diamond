@@ -3,6 +3,44 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.39
+
+**Split duty is the design center at full capture depth.** Calling pitches is a full-attention job:
+read the count and the batter, choose, yell the code, watch the glove. So is scoring a 9-3-2-5-1
+double play. One person cannot do both at full capture depth, and the spec stops pretending
+otherwise: the canonical full-capture arrangement is **caller + scorer** on two devices (§12.2),
+with combined single-operator play kept as the supported compromise — a scorer with `pitchCalling`
+off, or a caller-scorer with `battedBallDetail` off riding §11.2's ladder. §10.3 states whose
+screen the calling UI is; §11.2 notes the ladder and the split are different axes. This inverts
+the framing of Open Question #1's v0.2 resolution without unresolving it: Diamond is still the
+calling mechanism; what changed is which arrangement the UI optimizes for.
+
+**The caller's bundle grows to everything read at the plate.** The seam between duties falls where
+attention falls: the caller's eyes are on the glove at plate-crossing for every pitch — including
+the ones the scorer physically cannot locate, because contact snapped their attention to the play.
+So the caller's bundle is the call, the actual location, and the actual type when the pitcher
+crossed up the sign; the scorer's bundle is everything after — outcome, batted ball, fielding,
+runners. Mechanically this is a sketched `PitchObserved` annotation event (`actualLocation?`,
+`bounceLocation?`, `actualType?`, same mutual exclusion as `PitchThrown`) plus a `pitchObservation`
+capability, paired to `PitchThrown` by time adjacency exactly as `PitchCalled` is. The schema lands
+with M2's sync work, like `PitchCalled` — nothing here changed `schema/`. Granting the capability
+flips the primary's location capture off, so overlap is configuration-prevented; where it happens
+anyway the primary is authoritative and the audit view shows both. §12.7 gains the sequencing
+consequence: two-device sync is what makes calling usable at full capture depth — the calling
+feature's completion, not an enhancement.
+
+**Ball-in-play location: both orders, and backfill at any time (§11.1).** On contact the scorer's
+attention leaves the zone, so location-first is often impossible — but an implied skip on `in_play`
+would throw away the times it isn't. Both orders exist: the actual-location step stays in the loop,
+and the outcome row is reachable without it — score the whole play, and the loop's return offers
+"record last pitch," which the scorer takes or doesn't. The offer never expires: a missing location
+can be added from the pitch summary between innings or from the game stream after the game, video
+up, charting every ball in play at leisure — the event inspector (§12.3) offers it on any
+`PitchThrown` missing a location. All of it is one mechanism, a §6 correction to the committed
+`PitchThrown` — the same post-hoc pattern as batter-action chips — so the pitch commits promptly
+with `actualLocation` null, nothing is held open, and provenance shows exactly when and by whom
+each location arrived.
+
 ## v0.38
 
 **Replaced §10.1's authored call-zone rectangles with a canonical 5×5 partition of 25 cells.** The
