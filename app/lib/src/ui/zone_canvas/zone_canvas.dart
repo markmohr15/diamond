@@ -181,6 +181,7 @@ class ZoneCanvas extends StatefulWidget {
     this.onZoneSelected,
     this.topStrip,
     this.onReroll,
+    this.skipLabel = 'Skip location',
     super.key,
   });
 
@@ -286,6 +287,14 @@ class ZoneCanvas extends StatefulWidget {
   /// they can never compete with a location tap at all, so nothing here has to
   /// be made transparent to touch.
   final Widget? topStrip;
+
+  /// What the skip affordance in the control strip says while the frontal
+  /// plane is up. The *meaning* is the caller's to define — the call screen
+  /// passes "Skip call" because skipping there skips the whole call (§11.2),
+  /// while location entry keeps the default. Labels only; the callback is
+  /// [onSkip] either way, and the top-down plane's "Depth unknown" is not
+  /// affected.
+  final String skipLabel;
 
   /// §10.3's re-roll — a different code for the same call, without re-tapping.
   ///
@@ -446,7 +455,7 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
               const SizedBox(width: 8),
               Expanded(
                 child: _AffordanceButton(
-                  label: topDown ? 'Depth unknown' : 'Skip location',
+                  label: topDown ? 'Depth unknown' : widget.skipLabel,
                   onPressed: topDown ? _handleSkipDepth : widget.onSkip,
                 ),
               ),
