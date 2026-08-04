@@ -3,6 +3,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
@@ -162,8 +163,13 @@ void main() {
     expect(gs.batterDue('opp'), 'opp-2');
     expect(find.text('0-0'), findsOneWidget);
 
-    // P7 — opp-2 puts it in play; nobody saw where it crossed.
+    // P7 — opp-2 puts it in play; nobody saw where it crossed. The field
+    // surface opens (§15.1, DIA-008a); this script discards the play — its
+    // subject is the pitch loop, and DIA-009's scripted half-inning is where
+    // plays get scored for real.
     await quickPitch(tester, 'In play');
+    await tester.tap(find.byKey(fieldDiscardKey));
+    await tester.pumpAndSettle();
 
     // The loop returns offering to fix that (§11.1 v0.39) — blocking nothing.
     expect(find.byKey(recordLastPitchKey), findsOneWidget);

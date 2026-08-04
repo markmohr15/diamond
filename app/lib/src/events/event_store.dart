@@ -12,6 +12,17 @@ class EventStore {
 
   final AppDatabase _db;
 
+  /// Appends [events] in one database transaction — §15.5's atomic play
+  /// commit. All-or-nothing at the storage layer: a crash mid-commit leaves
+  /// the stream without the play, never with half of it.
+  Future<void> appendAll(List<GameEvent> events) {
+    return _db.transaction(() async {
+      for (final event in events) {
+        await append(event);
+      }
+    });
+  }
+
   Future<void> append(GameEvent event) {
     return _db.into(_db.events).insert(
       EventsCompanion.insert(

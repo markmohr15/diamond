@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/event_store.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_projector.dart';
@@ -11,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// it would unmake the game.
 const _undoableTypes = {
   'PitchThrown',
+  'BallInPlay',
   'RunnerOut',
   'RunnerAdvance',
   'FielderTouch',
@@ -20,8 +22,10 @@ const _undoableTypes = {
 /// Action roots (§11.3 v0.41): the events a scorer authors directly, one per
 /// action. Everything the loop auto-appends after a root — a strikeout's
 /// RunnerOut, a walk's forced chain, a D3K resolution — belongs to that
-/// root's undo unit.
-const _actionRootTypes = {'PitchThrown', 'CountCorrection'};
+/// root's undo unit. A committed play is one action (§15.5): its BallInPlay
+/// leads the atomic batch, so it roots the unit and the play voids whole —
+/// without reaching back through it to the pitch, which stays its own action.
+const _actionRootTypes = {'PitchThrown', 'BallInPlay', 'CountCorrection'};
 
 /// The UI's one writer and one reader of the event stream: append an event,
 /// re-project [GameState] (§5's pure fold, snapshot-aware via
@@ -93,6 +97,18 @@ class GameController extends AsyncNotifier<GameState> {
     );
     state = AsyncData(await _projector.project(_session.gameId));
     return event;
+  }
+
+  /// Appends a committed play's whole sequence (§15.5) — one storage
+  /// transaction, one refold. Entries arrive in stream order; envelopes
+  /// (ids, seqs) are built here, as everywhere.
+  Future<void> appendAllPending(List<PendingEvent> entries) async {
+    final events = [
+      for (final entry in entries)
+        _buildEvent(type: entry.type, payload: entry.payload),
+    ];
+    await _store.appendAll(events);
+    state = AsyncData(await _projector.project(_session.gameId));
   }
 
   /// Top-level undo (§6), **action-scoped** (§11.3 v0.41): one tap reverses
@@ -183,8 +199,19 @@ class GameController extends AsyncNotifier<GameState> {
     required Map<String, dynamic> payload,
     String? corrects,
   }) async {
+    final event = _buildEvent(type: type, payload: payload, corrects: corrects);
+    await _store.append(event);
+    return event;
+  }
+
+  /// Envelope construction alone — consumes the next seq, writes nothing.
+  GameEvent _buildEvent({
+    required String type,
+    required Map<String, dynamic> payload,
+    String? corrects,
+  }) {
     final seq = _nextSeq++;
-    final event = GameEvent(
+    return GameEvent(
       // Unique per device: seq strictly increases and survives restarts.
       id: '${_session.deviceId}-$seq',
       gameId: _session.gameId,
@@ -196,8 +223,6 @@ class GameController extends AsyncNotifier<GameState> {
       payload: payload,
       corrects: corrects,
     );
-    await _store.append(event);
-    return event;
   }
 }
 
