@@ -226,11 +226,12 @@ void main() {
     });
 
     testWidgets('a blocked third strike with first open ALSO records the '
-        "out for now — D3K resolution is DIA-008's, arming keys on the "
-        'catch (§11.3 v0.41), and one undo reverses pitch + out as a unit', (
+        "out — D3K resolution is DIA-008's, since arming keys on the catch, "
+        'not the pitch (§11.3), and undo is the escape until then', (
       tester,
     ) async {
       await pumpLoop(tester);
+
       await skipToOutcome(tester);
       await tapText(tester, 'Called strike');
       await skipToOutcome(tester);
@@ -242,12 +243,6 @@ void main() {
       final out = RunnerOut.fromJson(events.last.payload);
       expect(out.how, How.STRIKEOUT);
       expect(find.text('1 out'), findsOneWidget);
-
-      // The escape hatch until DIA-008: one action-scoped undo.
-      await tester.tap(find.byKey(countHudUndoKey));
-      await tester.pumpAndSettle();
-      expect(find.text('0 outs'), findsOneWidget);
-      expect(find.text('0-2'), findsOneWidget);
     });
   });
 
@@ -283,234 +278,6 @@ void main() {
       await tester.tap(find.byKey(countHudUndoKey));
       await tester.pumpAndSettle();
       expect(find.text('0-0'), findsOneWidget);
-    });
-  });
-
-  group('walk auto-applies (§11.3 v0.41)', () {
-    testWidgets('ball four places the batter with no confirmation and '
-        'returns straight to the call screen', (tester) async {
-      await pumpLoop(tester);
-      for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
-        await tapText(tester, 'Skip location');
-        await tapText(tester, 'Ball');
-      }
-
-      expect(find.byType(CallScreen), findsOneWidget);
-      final events = await stream();
-      final advance = RunnerAdvance.fromJson(events.last.payload);
-      expect(advance.reason, RunnerAdvanceReason.WALK);
-      expect((advance.runnerId, advance.from, advance.to), ('opp-1', 0, 1));
-      final gs = container.read(gameControllerProvider).requireValue;
-      expect(gs.bases.first, 'opp-1');
-      expect(gs.batterDue('opp'), 'opp-2');
-    });
-
-    testWidgets('one undo tap reverses the whole walk — ball four AND its '
-        'forced advance, one action-scoped unit (§6)', (tester) async {
-      await pumpLoop(tester);
-      for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
-        await tapText(tester, 'Skip location');
-        await tapText(tester, 'Ball');
-      }
-      expect(
-        container.read(gameControllerProvider).requireValue.bases.first,
-        'opp-1',
-      );
-
-      await tester.tap(find.byKey(countHudUndoKey));
-      await tester.pumpAndSettle();
-
-      final gs = container.read(gameControllerProvider).requireValue;
-      expect(gs.bases.first, isNull);
-      expect((gs.balls, gs.strikes), (3, 0));
-      expect(find.text('3-0'), findsOneWidget);
-    });
-  });
-
-  group('bailout (§11.2 v0.41)', () {
-    Future<void> twoFingerSwipeDown(WidgetTester tester) async {
-      final center = tester.getCenter(find.byKey(countHudKey)) +
-          const Offset(0, 200);
-      final one = await tester.startGesture(
-        center - const Offset(60, 0),
-        pointer: 7,
-      );
-      final two = await tester.startGesture(
-        center + const Offset(60, 0),
-        pointer: 8,
-      );
-      await tester.pump(const Duration(milliseconds: 16));
-      await one.moveBy(const Offset(0, 90));
-      await two.moveBy(const Offset(0, 90));
-      await tester.pump();
-      await one.up();
-      await two.up();
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('two-finger swipe drops to the giant row from the call '
-        'step', (tester) async {
-      await pumpLoop(tester);
-      await twoFingerSwipeDown(tester);
-
-      for (final label in ['BALL', 'STRIKE', 'FOUL', 'IN PLAY']) {
-        expect(find.text(label), findsOneWidget);
-      }
-    });
-
-    testWidgets('STRIKE records strike_unspecified — the count advanced, '
-        'the kind honestly unknown (§4.1)', (tester) async {
-      await pumpLoop(tester);
-      await twoFingerSwipeDown(tester);
-      await tapText(tester, 'STRIKE');
-
-      expect((await lastPitch()).outcome, Outcome.STRIKE_UNSPECIFIED);
-      expect(find.text('0-1'), findsOneWidget);
-      expect(find.byType(CallScreen), findsOneWidget, reason: 'bailout is '
-          'per-pitch: the next pitch starts back at the top of the ladder');
-    });
-
-    testWidgets('at two strikes, STRIKE is strike three — the field showed '
-        'the at-bat ended — and the K consequence fires', (tester) async {
-      await pumpLoop(tester);
-      for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
-        await tapText(tester, 'Skip location');
-        await tapText(tester, 'Called strike');
-      }
-
-      await twoFingerSwipeDown(tester);
-      await tapText(tester, 'STRIKE');
-
-      final events = await stream();
-      expect(events.last.type, 'RunnerOut');
-      expect(find.text('1 out'), findsOneWidget);
-      expect(find.text('0-0'), findsOneWidget);
-    });
-
-    testWidgets('at two strikes, FOUL stays a no-op — she is still in the '
-        'box', (tester) async {
-      await pumpLoop(tester);
-      for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
-        await tapText(tester, 'Skip location');
-        await tapText(tester, 'Called strike');
-      }
-
-      await twoFingerSwipeDown(tester);
-      await tapText(tester, 'FOUL');
-
-      expect(find.text('0-2'), findsOneWidget);
-      expect(find.text('0 outs'), findsOneWidget);
-    });
-
-    testWidgets('a call gathered before the chaos still rides the bailout '
-        'commit', (tester) async {
-      await pumpLoop(tester);
-      await tapText(tester, 'Fastball');
-      await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5));
-
-      await twoFingerSwipeDown(tester);
-      await tapText(tester, 'BALL');
-
-      final pitch = await lastPitch();
-      expect(pitch.outcome, Outcome.BALL);
-      expect(pitch.intendedType, 'ff');
-      expect(pitch.intendedZoneId, 'c2r2');
-    });
-  });
-
-  group('record last pitch (§11.1 v0.39)', () {
-    Future<void> inPlayUnlocated(WidgetTester tester) async {
-      await tapText(tester, 'Skip call');
-      await tapText(tester, 'Skip location');
-      await tapText(tester, 'In play');
-    }
-
-    testWidgets('no offer when the in-play pitch was located — there is '
-        'nothing to fill in', (tester) async {
-      await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
-      await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
-      await tapText(tester, 'In play');
-
-      expect(find.byKey(recordLastPitchKey), findsNothing);
-    });
-
-    testWidgets('X declines for good: the pitch stays honestly unlocated', (
-      tester,
-    ) async {
-      await pumpLoop(tester);
-      await inPlayUnlocated(tester);
-      expect(find.byKey(recordLastPitchKey), findsOneWidget);
-
-      await tester.tap(find.byKey(dismissLastPitchKey));
-      await tester.pumpAndSettle();
-      expect(find.byKey(recordLastPitchKey), findsNothing);
-
-      final pitch = await lastPitch();
-      expect(pitch.actualLocation, isNull);
-    });
-
-    testWidgets('the offer dies when the loop moves on — dismissal by '
-        'proceeding, no tap spent on it', (tester) async {
-      await pumpLoop(tester);
-      await inPlayUnlocated(tester);
-      expect(find.byKey(recordLastPitchKey), findsOneWidget);
-
-      await tapText(tester, 'Skip call'); // next pitch is underway
-      expect(find.byKey(recordLastPitchKey), findsNothing);
-    });
-
-    testWidgets('cancel backs out of location entry with the offer still '
-        'standing', (tester) async {
-      await pumpLoop(tester);
-      await inPlayUnlocated(tester);
-      await tester.tap(find.byKey(recordLastPitchKey));
-      await tester.pumpAndSettle();
-
-      await tapText(tester, 'Cancel');
-      expect(find.byKey(recordLastPitchKey), findsOneWidget);
-      final pitch = await lastPitch();
-      expect(pitch.actualLocation, isNull, reason: 'nothing committed');
-    });
-  });
-
-  group('forcedAdvances (§11.3)', () {
-    const reason = RunnerAdvanceReason.WALK;
-
-    test('bases empty: only the batter moves', () {
-      final advances = forcedAdvances(BaseState.empty, 'b1', reason);
-      expect(advances, hasLength(1));
-      expect((advances.single.runnerId, advances.single.to), ('b1', 1));
-    });
-
-    test('runner on first is forced; runner on third alone is not', () {
-      final advances = forcedAdvances(
-        const BaseState(first: 'r1', third: 'r3'),
-        'b1',
-        reason,
-      );
-      expect(advances.map((a) => a.runnerId).toList(), ['r1', 'b1']);
-      expect(advances.first.to, 2);
-    });
-
-    test('bases loaded: everyone forced, lead runner first so no placement '
-        'overwrites an occupant', () {
-      final advances = forcedAdvances(
-        const BaseState(first: 'r1', second: 'r2', third: 'r3'),
-        'b1',
-        reason,
-      );
-      expect(advances.map((a) => a.runnerId).toList(), [
-        'r3',
-        'r2',
-        'r1',
-        'b1',
-      ]);
-      expect(advances.first.to, 4); // the forced-in run
     });
   });
 

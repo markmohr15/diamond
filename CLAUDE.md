@@ -37,6 +37,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
+
 docs/spec.md        authoritative spec (v0.41)
 docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
