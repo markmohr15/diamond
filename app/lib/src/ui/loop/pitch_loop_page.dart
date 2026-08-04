@@ -1,10 +1,19 @@
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/loop/award_steps.dart';
+import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+/// Keys the widget tests resolve against. Production code has no reason to
+/// look them up.
+@visibleForTesting
+const Key recordLastPitchKey = Key('recordLastPitch');
+@visibleForTesting
+const Key dismissLastPitchKey = Key('dismissLastPitch');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
@@ -29,14 +38,48 @@ class PitchLoopPage extends ConsumerWidget {
           children: [
             const CountHud(),
             Expanded(
-              child: switch (flow.step) {
+              // §11.2's two-finger swipe wraps every step surface, so bailout
+              // is reachable from anywhere in the pitch — a Listener, not a
+              // gesture-arena participant, so it can never steal a tap, a
+              // long-press, or the reroll drag from the surfaces beneath it.
+              child: _TwoFingerSwipeDetector(
+                onSwipe: controller.bailout,
+                child: switch (flow.step) {
                 // The pitch-happened checkmark lives beside the code, inside
                 // the call screen's own top strip (§10.3, v0.40) — no page
-                // chrome of this page's own.
-                PitchStep.call => CallScreen(
-                  batterSide: batterSide,
-                  onSkipCall: controller.skipCall,
-                  onPitchThrown: controller.pitchThrown,
+                // chrome of this page's own beyond the standing offer below.
+                PitchStep.call => Column(
+                  children: [
+                    // §11.1 v0.39: the offer to locate the pitch that just
+                    // committed unlocated. It blocks nothing — the loop
+                    // moving on is itself the dismissal — and the X declines
+                    // for good.
+                    if (flow.lastPitchOffer != null)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          OutlinedButton.icon(
+                            key: recordLastPitchKey,
+                            onPressed: controller.takeLastPitchOffer,
+                            icon: const Icon(Icons.my_location),
+                            label: const Text('Record last pitch'),
+                          ),
+                          IconButton(
+                            key: dismissLastPitchKey,
+                            onPressed: controller.dismissLastPitchOffer,
+                            icon: const Icon(Icons.close),
+                            tooltip: 'Keep unlocated',
+                          ),
+                        ],
+                      ),
+                    Expanded(
+                      child: CallScreen(
+                        batterSide: batterSide,
+                        onSkipCall: controller.skipCall,
+                        onPitchThrown: controller.pitchThrown,
+                      ),
+                    ),
+                  ],
                 ),
                 PitchStep.actual => ZoneCanvas(
                   mode: ZoneCanvasIntent.actual,
@@ -56,11 +99,103 @@ class PitchLoopPage extends ConsumerWidget {
                   ),
                   onChosen: controller.commitOutcome,
                 ),
-              },
+                PitchStep.d3k => D3kPromptStep(
+                  batterId: flow.d3kBatterId!,
+                  onOutTag: controller.d3kOutTag,
+                  onOutThrow: controller.d3kOutThrow,
+                  onSafeWildPitch: controller.d3kSafeWildPitch,
+                  onSafePassedBall: controller.d3kSafePassedBall,
+                ),
+                // Location entry for the already-committed pitch (§11.1
+                // v0.39). Same canvas, same gesture; only what the release
+                // writes differs — a §6 correction rather than a new event.
+                // No bounce hinge: the offer exists only for in-play pitches.
+                PitchStep.recordLast => ZoneCanvas(
+                  mode: ZoneCanvasIntent.actual,
+                  value: null,
+                  batterSide: batterSide,
+                  ballKind: BallKind.softball,
+                  onCommit: controller.recordLastLocation,
+                  skipLabel: 'Keep unlocated',
+                  onSkip: controller.dismissLastPitchOffer,
+                  onCancel: controller.cancelRecordLast,
+                ),
+                PitchStep.bailout => BailoutStep(
+                  onChosen: controller.commitOutcome,
+                ),
+                },
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// §11.2's two-finger swipe, as a [Listener] rather than a gesture-arena
+/// recognizer — deliberately: the surfaces underneath already use taps,
+/// long-presses, and a horizontal drag (the reroll), and an arena participant
+/// spanning all of them would compete for every one of those. A Listener only
+/// watches; it can't win or lose anything.
+///
+/// Fires once per touch: both pointers down together, both moved downward
+/// past the threshold, dominant axis vertical. Resets when the screen clears.
+class _TwoFingerSwipeDetector extends StatefulWidget {
+  const _TwoFingerSwipeDetector({required this.onSwipe, required this.child});
+
+  final VoidCallback onSwipe;
+  final Widget child;
+
+  @override
+  State<_TwoFingerSwipeDetector> createState() =>
+      _TwoFingerSwipeDetectorState();
+}
+
+class _TwoFingerSwipeDetectorState extends State<_TwoFingerSwipeDetector> {
+  static const double _threshold = 48;
+
+  final Map<int, Offset> _start = {};
+  final Map<int, Offset> _current = {};
+  bool _fired = false;
+
+  bool get _twoFingersSwipedDown {
+    if (_start.length != 2) return false;
+    for (final pointer in _start.keys) {
+      final delta = _current[pointer]! - _start[pointer]!;
+      if (delta.dy < _threshold || delta.dy.abs() < delta.dx.abs()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (event) {
+        _start[event.pointer] = event.position;
+        _current[event.pointer] = event.position;
+      },
+      onPointerMove: (event) {
+        _current[event.pointer] = event.position;
+        if (!_fired && _twoFingersSwipedDown) {
+          _fired = true;
+          widget.onSwipe();
+        }
+      },
+      onPointerUp: (event) {
+        _start.remove(event.pointer);
+        _current.remove(event.pointer);
+        if (_start.isEmpty) _fired = false;
+      },
+      onPointerCancel: (event) {
+        _start.remove(event.pointer);
+        _current.remove(event.pointer);
+        if (_start.isEmpty) _fired = false;
+      },
+      child: widget.child,
     );
   }
 }
