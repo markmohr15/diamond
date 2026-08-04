@@ -5,7 +5,7 @@ scoring with pitch calling (wristband codes), pitch locations (intended AND actu
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.40). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.41). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -37,7 +37,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.40)
+docs/spec.md        authoritative spec (v0.41)
 docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)

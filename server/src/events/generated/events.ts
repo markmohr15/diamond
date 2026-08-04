@@ -238,8 +238,15 @@ export interface PitchThrown {
      * CallZone id (§10.1)
      */
     intendedZoneId?: string;
-    outcome:         Outcome;
-    pitcherId:       string;
+    /**
+     * strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or
+     * possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
+     * effect (strike three at two strikes); excluded from swing/contact analytics. At two
+     * strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
+     * pitch.
+     */
+    outcome:   Outcome;
+    pitcherId: string;
     /**
      * mph, optional
      */
@@ -293,7 +300,14 @@ export interface BounceCoord {
     x: number;
 }
 
-export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
+/**
+ * strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or
+ * possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
+ * effect (strike three at two strikes); excluded from swing/contact analytics. At two
+ * strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
+ * pitch.
+ */
+export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
 
 /**
  * Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).
@@ -782,6 +796,7 @@ const typeMap: any = {
         "illegal_pitch",
         "in_play",
         "no_pitch",
+        "strike_unspecified",
         "swinging_strike",
         "swinging_strike_blocked",
         "unknown",

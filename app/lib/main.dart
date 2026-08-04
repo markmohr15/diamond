@@ -19,8 +19,9 @@ class DiamondApp extends ConsumerWidget {
       theme: ref.watch(lightThemeProvider),
       darkTheme: ref.watch(darkThemeProvider),
       // DIA-007's pitch loop is the home screen until §19.4's navigation
-      // exists. The DIA-005/006 harness page still compiles for its dev
-      // toggles; DIA-007b's cleanup deletes it.
+      // exists. The DIA-005/006 dev harness is gone (DIA-007's cleanup) —
+      // its fidelity/silhouette toggles come back as real settings when a
+      // settings surface exists.
       home: const PitchLoopPage(),
     );
   }

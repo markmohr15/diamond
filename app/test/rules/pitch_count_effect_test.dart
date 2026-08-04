@@ -29,6 +29,10 @@ void main() {
       Outcome.CALLED_STRIKE,
       Outcome.SWINGING_STRIKE,
       Outcome.SWINGING_STRIKE_BLOCKED,
+      // v0.41, bailout's word (§11.2): kind unknown, count effect certain —
+      // at two strikes the scorer distinguishes FOUL from STRIKE by whether
+      // the at-bat ended, so strike three here is real.
+      Outcome.STRIKE_UNSPECIFIED,
       Outcome.FOUL_TIP,
       Outcome.FOUL_BUNT,
     ]) {
