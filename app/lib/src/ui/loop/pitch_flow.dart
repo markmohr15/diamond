@@ -174,17 +174,15 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     );
 
     // Strike three: the loop records the out itself — automatic state, §11.3.
-    // Except when D3K is live (uncaught third strike with first open or two
-    // outs): then assuming the out would be wrong, and the runner-resolution
-    // prompt is DIA-007b. `unknown` never reaches here: no known outcome, no
-    // consequence.
+    // `unknown` never reaches here: no known outcome, no consequence. A real
+    // D3K — uncaught, batter runs — is reversed by undo until DIA-008's
+    // resolution flow lands: arming it keys on the catch, not the pitch, and
+    // the catcher-misplay entry that detects half the uncaught cases is
+    // DIA-008's play chain, so no per-outcome guard here could be honest.
     if (outcome != Outcome.UNKNOWN) {
       final effect = applyPitchCountEffect(gs.balls, gs.strikes, outcome);
       final struckOut = effect.endsPlateAppearance && effect.strikes >= 3;
-      final d3kLive =
-          outcome == Outcome.SWINGING_STRIKE_BLOCKED &&
-          (gs.bases.first == null || gs.outs == 2);
-      if (struckOut && !d3kLive) {
+      if (struckOut) {
         await game.append(
           type: 'RunnerOut',
           payload: RunnerOut(

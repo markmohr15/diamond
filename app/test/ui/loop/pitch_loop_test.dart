@@ -224,8 +224,11 @@ void main() {
       expect(gs.batterDue('opp'), 'opp-2');
     });
 
-    testWidgets('an uncaught third strike with first base open does NOT '
-        'assume the out — D3K is armed instead (§11.3)', (tester) async {
+    testWidgets('a blocked third strike with first open ALSO records the '
+        "out — D3K resolution is DIA-008's, since arming keys on the catch, "
+        'not the pitch (§11.3), and undo is the escape until then', (
+      tester,
+    ) async {
       await pumpLoop(tester);
 
       await skipToOutcome(tester);
@@ -236,9 +239,9 @@ void main() {
       await tapText(tester, 'Swinging (in dirt)');
 
       final events = await stream();
-      expect(events.last.type, 'PitchThrown',
-          reason: 'no RunnerOut: the batter may run on a D3K');
-      expect(find.text('0 outs'), findsOneWidget);
+      final out = RunnerOut.fromJson(events.last.payload);
+      expect(out.how, How.STRIKEOUT);
+      expect(find.text('1 out'), findsOneWidget);
     });
   });
 
