@@ -550,6 +550,12 @@ class PitchThrown {
     
     ///CallZone id (§10.1)
     final String? intendedZoneId;
+    
+    ///strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or
+    ///possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
+    ///effect (strike three at two strikes); excluded from swing/contact analytics. At two
+    ///strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
+    ///pitch.
     final Outcome outcome;
     final String pitcherId;
     
@@ -696,6 +702,12 @@ class BounceCoord {
     };
 }
 
+
+///strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or
+///possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
+///effect (strike three at two strikes); excluded from swing/contact analytics. At two
+///strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
+///pitch.
 enum Outcome {
     BALL,
     BALL_INTENTIONAL,
@@ -707,6 +719,7 @@ enum Outcome {
     ILLEGAL_PITCH,
     IN_PLAY,
     NO_PITCH,
+    STRIKE_UNSPECIFIED,
     SWINGING_STRIKE,
     SWINGING_STRIKE_BLOCKED,
     UNKNOWN
@@ -723,6 +736,7 @@ final outcomeValues = EnumValues({
     "illegal_pitch": Outcome.ILLEGAL_PITCH,
     "in_play": Outcome.IN_PLAY,
     "no_pitch": Outcome.NO_PITCH,
+    "strike_unspecified": Outcome.STRIKE_UNSPECIFIED,
     "swinging_strike": Outcome.SWINGING_STRIKE,
     "swinging_strike_blocked": Outcome.SWINGING_STRIKE_BLOCKED,
     "unknown": Outcome.UNKNOWN

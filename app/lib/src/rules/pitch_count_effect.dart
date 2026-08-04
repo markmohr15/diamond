@@ -49,6 +49,11 @@ PitchCountEffect applyPitchCountEffect(
     case Outcome.CALLED_STRIKE:
     case Outcome.SWINGING_STRIKE:
     case Outcome.SWINGING_STRIKE_BLOCKED:
+    // §11.2 bailout (v0.41): kind unknown — called, swinging, or possibly an
+    // uncaught foul — but the count advanced, which is the part that must be
+    // right. At two strikes the scorer distinguishes FOUL from STRIKE by
+    // whether the at-bat ended, so strike three here is a real strike three.
+    case Outcome.STRIKE_UNSPECIFIED:
     case Outcome.FOUL_TIP: // caught by definition — always a strike (spec §4.1)
     case Outcome.FOUL_BUNT: // strike three on a 2-strike bunt foul (spec §4.1)
       final s = strikes + 1;
