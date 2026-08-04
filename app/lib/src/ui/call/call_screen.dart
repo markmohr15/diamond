@@ -12,6 +12,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key callScreenCodeKey = Key('callScreenCode');
 @visibleForTesting
 const Key callScreenTypeRowKey = Key('callScreenTypeRow');
+@visibleForTesting
+const Key callScreenPitchThrownKey = Key('callScreenPitchThrown');
 
 /// Height reserved for the code, whether or not one is showing.
 ///
@@ -59,6 +61,8 @@ class CallScreen extends ConsumerStatefulWidget {
     this.ballKind = BallKind.softball,
     this.fidelity = CanvasFidelity.restrained,
     this.showBatterSilhouette = false,
+    this.onSkipCall,
+    this.onPitchThrown,
     super.key,
   });
 
@@ -73,6 +77,19 @@ class CallScreen extends ConsumerStatefulWidget {
   final CanvasFidelity fidelity;
 
   final bool showBatterSilhouette;
+
+  /// §11.2's per-pitch Scorer mode: this pitch gets no recorded intent. Wired
+  /// to the control strip's skip affordance, relabeled "Skip call" here —
+  /// skipping on this screen skips the whole call, not just a location. Null
+  /// (the DIA-006 harness and tests) leaves the affordance inert.
+  final VoidCallback? onSkipCall;
+
+  /// §10.3's pitch-happened checkmark (v0.40): confirms the pending call was
+  /// used and advances the loop to actual-location entry. Rendered beside the
+  /// code — or alone in the code's slot when the team calls verbally and has
+  /// no code (§10.2) — and only once a pending call exists: a half-made call
+  /// has nothing to confirm. Null hides the checkmark entirely.
+  final VoidCallback? onPitchThrown;
 
   @override
   ConsumerState<CallScreen> createState() => _CallScreenState();
@@ -127,12 +144,17 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         selectedTypeId: typeId,
         onTypeSelected: (id) =>
             ref.read(callDraftProvider.notifier).selectType(id),
-        pending: config.usesWristbands ? pending : null,
+        pending: pending,
+        // §10.2: the code exists only when a card does. The checkmark keys
+        // off the pending call instead, so verbal-calling teams still get it.
+        showCode: config.usesWristbands,
+        onPitchThrown: widget.onPitchThrown,
       ),
-      // Freeform capture is unreachable in grid-calling mode; these belong to
-      // the pitch loop (DIA-007).
+      // Freeform capture is unreachable in grid-calling mode, so onCommit
+      // never fires here.
       onCommit: (_) {},
-      onSkip: () {},
+      skipLabel: 'Skip call',
+      onSkip: widget.onSkipCall ?? () {},
       onCancel: () => ref.read(callDraftProvider.notifier).clear(),
     );
   }
@@ -144,15 +166,24 @@ class _CallOverlay extends StatelessWidget {
     required this.selectedTypeId,
     required this.onTypeSelected,
     required this.pending,
+    required this.showCode,
+    required this.onPitchThrown,
   });
 
   final List<PitchType> arsenal;
   final String? selectedTypeId;
   final ValueChanged<String> onTypeSelected;
 
-  /// Null when there is no code to show — either no zone is chosen yet, or the
-  /// team does not use wristbands (§10.2).
+  /// Null until a zone is chosen. Everything in the code slot keys off this:
+  /// the code (when [showCode]) and the checkmark both exist only for a
+  /// completed call.
   final PendingCall? pending;
+
+  /// Whether the code is displayed (§10.2, wristbands on). Verbal-calling
+  /// teams have a pending call — and a checkmark — but no code to read out.
+  final bool showCode;
+
+  final VoidCallback? onPitchThrown;
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +202,34 @@ class _CallOverlay extends StatelessWidget {
           // is reading a number off the screen.
           SizedBox(
             height: _codeSlotHeight,
-            child: pending == null ? null : _CodeDisplay(pending: pending!),
+            child: pending == null
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showCode) _CodeDisplay(pending: pending!),
+                      // The pitch-happened checkmark (§10.3, v0.40). A real
+                      // control, unlike everything else up here — allowed
+                      // because the strip is outside the drawing area, so it
+                      // can never shadow a zone tap (§11.4).
+                      if (onPitchThrown != null)
+                        Padding(
+                          padding: EdgeInsets.only(left: showCode ? 20 : 0),
+                          child: FilledButton(
+                            key: callScreenPitchThrownKey,
+                            onPressed: onPitchThrown,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size(76, 76),
+                              padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            child: const Icon(Icons.check, size: 46),
+                          ),
+                        ),
+                    ],
+                  ),
           ),
           _PitchTypeRow(
             arsenal: arsenal,

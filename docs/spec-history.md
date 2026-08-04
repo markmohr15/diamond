@@ -3,6 +3,21 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.40
+
+**The pitch-happened checkmark (§10.3), and an honest tap budget (§11.1).** The loop's transition
+from calling to recording needs an observable act — the pitch *happening* is not something Diamond
+can observe, and nothing else on the surface can tell "the pitch is in the air" from "the coach is
+still deciding." DIA-007a first built that act as a free-standing "Pitch thrown" button below the
+canvas, which read as page chrome; v0.40 replaces it with a checkmark sitting beside the code — with
+the artifact it confirms — which doubles as "this call was the one used." For a verbal-calling team
+(§10.2), which has a pending call but no code, the checkmark stands alone in the code's slot. It
+appears only once a pending call exists: a half-made call has nothing to confirm, so the coach
+finishes it, replaces it, or takes §11.2's skip — which also retires the transitional type-without-zone
+intent capture DIA-007a briefly allowed. §11.1's full-mode tap budget is restated as **5** (type,
+zone → code; ✓; actual location; outcome confirm) — the confirm tap was never in the old count of 4,
+which predated any statement of how the loop learns the pitch happened.
+
 ## v0.39
 
 **Split duty is the design center at full capture depth.** Calling pitches is a full-attention job:
