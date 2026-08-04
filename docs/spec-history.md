@@ -3,6 +3,29 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.42
+
+**§15.6: the idle field — between-pitch runner events (DIA-008d).** Field testing of the DIA-008
+design surfaced a gap: the field canvas existed only while a ball was in play, so there was no way
+to look at the field between pitches — and no entry surface at all for steals, caught stealings,
+pickoffs, or runners advancing on a wild pitch or passed ball, even though §4.3 has carried the
+event vocabulary since v0.1. A field affordance on the loop's idle surfaces now opens the same
+canvas with no ball in play: defense and runners visible (alignment drag remains §16.4, M2), and
+runner drags enter between-pitch events via a reason chip row — advances `stolen_base` (default) /
+`wild_pitch` / `passed_ball` / `defensive_indifference`, outs `caught_stealing` (default) /
+`picked_off`. The chip tap commits immediately, with no ✓ and no journal: each entry is a single
+fact, not an accumulating chain, so §15.5's commit machinery deliberately does not apply.
+
+Two rules keep it consistent with the rest of the spec. The `passed_ball` chip emits §13.2's
+physics pair — `FielderTouch{2, dropped, ordinaryEffort: true}` anchored to the most recent pitch,
+advance linked via `enabledByTouchId`, and later runners advancing in the same window reuse the
+touch (one PB, one touch, N advances) — while `wild_pitch` is the advance alone, exactly the D3K
+Safe pair's logic. And each entry is one action-scoped undo unit (§11.3) that never rides along
+with the preceding pitch's unit — which forces the undo-root mechanism to stop keying on event
+type alone, since a `RunnerAdvance` is a consequence after a walk but a root when the scorer
+authored it directly. A steal noticed late stays a §6 insert with `effectiveAfter`; the idle field
+is for the ones seen live.
+
 ## v0.41
 
 **Walk and HBP forced advances auto-apply; undo becomes action-scoped (§11.3).** The forced chain
