@@ -3,6 +3,43 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.41
+
+**Walk and HBP forced advances auto-apply; undo becomes action-scoped (§11.3).** The forced chain
+on a ball four or HBP is rulebook arithmetic — batter to first, each runner moved only while the
+chain of occupied bases behind them reaches first — with nothing in it to decide, so DIA-007b's
+confirmation step is removed before it ships: it protected against an error (a mistapped outcome)
+that confirmation cannot catch and undo can. The consequence that makes this safe: undo is restated
+as **action-scoped** — one tap voids the last scorer-authored root event (a `PitchThrown`, a
+`CountCorrection`, a committed play) together with every event the loop auto-appended for it, so a
+bases-loaded walk reverses in one tap rather than five. Unlimited depth is unchanged; the unit
+changed.
+
+**The D3K prompt gets its four one-tap resolutions (§11.3).** Uncaught third strike, play live:
+Out (tag) → `RunnerOut{atBase: 1, how: tag}`; Out (throw) → `RunnerOut{atBase: 1, how:
+strikeout_d3k_throw}`; Safe (wild pitch) → `RunnerAdvance{0→1, dropped_third_strike}` alone; Safe
+(passed ball) → `FielderTouch{2, dropped, ordinaryEffort: true}` anchored to the pitch, then the
+same advance linked via `enabledByTouchId`. Encodings follow play #5's conventions — the batter's
+D3K advance always carries `dropped_third_strike`, and a D3K touch anchors to the pitch event. An
+interim subset of §15's full runner resolution, kept because this is among GameChanger's most
+fumbled plays.
+
+**§13.2 gains the WP/PB derivation rule the ER reconstruction was already assuming.** A passed
+ball is an ordinary-effort catcher misplay touch (`dropped`/`missed_catch`, `ordinaryEffort: true`)
+recorded against an uncaught pitch; a wild pitch is an uncaught pitch with no such touch. Derived
+from physics at projection time, never stored as a ruling — the same pattern as every other §13
+judgment, and the missing definition behind §13.3's "as if errors and passed balls hadn't happened."
+
+**§4.1 adds `strike_unspecified` (schema change), and §11.2's bailout row becomes BALL / STRIKE /
+FOUL / IN-PLAY.** Bailout's word for "the count advanced and I don't know how": a strike of unknown
+kind — called, swinging, or possibly an uncaught foul — with full count effect (strike three at two
+strikes) and exclusion from swing/contact analytics. Below two strikes a missed foul tapped as
+STRIKE is harmless (identical count effect); at two strikes FOUL vs STRIKE is a read of whether the
+at-bat ended — which the field shows — not a judgment about the pitch, so the outs invariant never
+rides on an ambiguity. Chosen over recording `called_strike` by convention (fabricates a no-swing)
+and over a three-button row with uncertainty machinery at two strikes (drags amber into exactly the
+moment bailout exists to keep simple).
+
 ## v0.40
 
 **The pitch-happened checkmark (§10.3), and an honest tap budget (§11.1).** The loop's transition
