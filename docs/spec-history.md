@@ -15,14 +15,17 @@ as **action-scoped** — one tap voids the last scorer-authored root event (a `P
 bases-loaded walk reverses in one tap rather than five. Unlimited depth is unchanged; the unit
 changed.
 
-**The D3K prompt gets its four one-tap resolutions (§11.3).** Uncaught third strike, play live:
-Out (tag) → `RunnerOut{atBase: 1, how: tag}`; Out (throw) → `RunnerOut{atBase: 1, how:
-strikeout_d3k_throw}`; Safe (wild pitch) → `RunnerAdvance{0→1, dropped_third_strike}` alone; Safe
-(passed ball) → `FielderTouch{2, dropped, ordinaryEffort: true}` anchored to the pitch, then the
-same advance linked via `enabledByTouchId`. Encodings follow play #5's conventions — the batter's
-D3K advance always carries `dropped_third_strike`, and a D3K touch anchors to the pitch event. An
-interim subset of §15's full runner resolution, kept because this is among GameChanger's most
-fumbled plays.
+**D3K arming is redefined to key on the catch, not the pitch (§11.3).** An earlier draft of this
+version armed on `swinging_strike_blocked` alone — conflating "in the dirt" with "uncaught." A
+catcher can drop a clean third strike, called or swinging, and that fact lives on the catch (a
+`FielderTouch{2, dropped}`, §13.2), never on the pitch. Since the misplay-touch entry surface is
+§15's play chain, the whole resolution flow moves to DIA-008: play #5 enterable end-to-end, plus
+one-tap fast paths for the plays that end at first — Out (tag), Out (throw), Safe (wild pitch),
+Safe (passed ball) — encoded per play #5's conventions (the batter's advance always carries
+`dropped_third_strike`; a D3K touch anchors to the pitch event; the Safe pair is §13.2 physics,
+never a ruling). Until DIA-008 lands, the loop records the strike-three out unconditionally and a
+real D3K reverses with one action-scoped undo. Kept on the roadmap prominently because this is
+among GameChanger's most fumbled plays.
 
 **§13.2 gains the WP/PB derivation rule the ER reconstruction was already assuming.** A passed
 ball is an ordinary-effort catcher misplay touch (`dropped`/`missed_catch`, `ordinaryEffort: true`)

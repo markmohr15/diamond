@@ -1,5 +1,4 @@
 import 'package:diamond/src/ui/call/call_screen.dart';
-import 'package:diamond/src/ui/loop/award_steps.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
@@ -98,13 +97,6 @@ class PitchLoopPage extends ConsumerWidget {
                     bounce: flow.bounce,
                   ),
                   onChosen: controller.commitOutcome,
-                ),
-                PitchStep.d3k => D3kPromptStep(
-                  batterId: flow.d3kBatterId!,
-                  onOutTag: controller.d3kOutTag,
-                  onOutThrow: controller.d3kOutThrow,
-                  onSafeWildPitch: controller.d3kSafeWildPitch,
-                  onSafePassedBall: controller.d3kSafePassedBall,
                 ),
                 // Location entry for the already-committed pitch (§11.1
                 // v0.39). Same canvas, same gesture; only what the release

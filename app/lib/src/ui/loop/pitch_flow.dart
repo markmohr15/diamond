@@ -9,13 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Which step of §11.1's loop is on screen.
 ///
-/// [call], [actual], and [outcome] are the loop proper. The rest are the
-/// judgment calls and repairs that interleave with it: [d3k] is §11.3's
-/// dropped-third-strike prompt (the one consequence with something to
-/// decide — walks auto-apply, v0.41), and [recordLast] the v0.39 location
-/// backfill for the pitch just committed. [bailout] is §11.2's bottom rung:
-/// outcome only, reached by two-finger swipe from any entry step.
-enum PitchStep { call, actual, outcome, d3k, recordLast, bailout }
+/// [call], [actual], and [outcome] are the loop proper. [recordLast] is the
+/// v0.39 location backfill for the pitch just committed, and [bailout] is
+/// §11.2's bottom rung: outcome only, reached by two-finger swipe from any
+/// entry step. D3K resolution is deliberately absent — its arming keys on
+/// the catch, not the pitch (§11.3 v0.41), and the catcher-misplay entry it
+/// needs is DIA-008's play chain.
+enum PitchStep { call, actual, outcome, recordLast, bailout }
 
 /// Which box the batter stands in. Session-level stub for M1 — DIA-008/009's
 /// lineup work replaces this with per-batter data; the loop already reads it
@@ -63,8 +63,6 @@ class PitchFlowState {
     this.intent,
     this.actual,
     this.bounce,
-    this.d3kBatterId,
-    this.d3kPitchEventId,
     this.lastPitchOffer,
   });
 
@@ -76,17 +74,6 @@ class PitchFlowState {
   /// Mutually exclusive with [bounce], as on the event (§4.1).
   final ZoneCoord? actual;
   final BounceCoord? bounce;
-
-  /// The batter free to run, while [step] is [PitchStep.d3k] — held here
-  /// because the fold already closed the plate appearance, so
-  /// `currentBatterId` no longer names her.
-  final String? d3kBatterId;
-
-  /// The strike-three pitch's event id, while [step] is [PitchStep.d3k]:
-  /// the anchor for a passed ball's catcher-misplay touch (play #5's
-  /// convention — a D3K `FielderTouch` references the pitch, since no
-  /// `BallInPlay` exists).
-  final String? d3kPitchEventId;
 
   /// Set while an offer to locate the previous pitch stands (§11.1 v0.39).
   /// Survives the idle call screen and dies the moment the loop moves on —
@@ -246,21 +233,14 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     if (outcome != Outcome.UNKNOWN) {
       final effect = applyPitchCountEffect(gs.balls, gs.strikes, outcome);
       final struckOut = effect.endsPlateAppearance && effect.strikes >= 3;
-      final d3kLive =
-          outcome == Outcome.SWINGING_STRIKE_BLOCKED &&
-          (gs.bases.first == null || gs.outs == 2);
 
-      // D3K: the batter may run, so the out is never assumed — the scorer
-      // resolves it (§11.3). Full throw/error sequences are DIA-008; this
-      // prompt records only the resolution.
-      if (struckOut && d3kLive) {
-        state = PitchFlowState(
-          step: PitchStep.d3k,
-          d3kBatterId: batterId,
-          d3kPitchEventId: event.id,
-        );
-        return;
-      }
+      // Strike three: the loop records the out itself (§11.3). A real D3K —
+      // uncaught, batter runs — is reversed with one action-scoped undo (the
+      // pitch and this out, one unit) until DIA-008's resolution flow lands.
+      // Arming that flow keys on the catch, not the pitch (§11.3 v0.41): a
+      // blocked ball and a dropped clean strike are equally live, and the
+      // catcher-misplay entry that detects the second is DIA-008's play
+      // chain, so no per-outcome guard here could be honest.
       if (struckOut) {
         await game.append(
           type: 'RunnerOut',
@@ -304,75 +284,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     );
   }
 
-  /// D3K, tagged: `RunnerOut{atBase: 1, how: tag}` (§11.3 v0.41).
-  Future<void> d3kOutTag() => _d3kOut(How.TAG);
-
-  /// D3K, thrown out at first: the schema's own word for it.
-  Future<void> d3kOutThrow() => _d3kOut(How.STRIKEOUT_D3_K_THROW);
-
-  Future<void> _d3kOut(How how) async {
-    final batter = state.d3kBatterId;
-    if (batter == null) return;
-    await ref
-        .read(gameControllerProvider.notifier)
-        .append(
-          type: 'RunnerOut',
-          payload: RunnerOut(runnerId: batter, atBase: 1, how: how).toJson(),
-        );
-    state = const PitchFlowState();
-  }
-
-  /// D3K, safe on a wild pitch: the advance alone — the ball getting away
-  /// was the pitcher's, and there is no catcher misplay to record (§13.2).
-  Future<void> d3kSafeWildPitch() async {
-    final batter = state.d3kBatterId;
-    if (batter == null) return;
-    await ref
-        .read(gameControllerProvider.notifier)
-        .append(
-          type: 'RunnerAdvance',
-          payload: _d3kAdvance(batter).toJson(),
-        );
-    state = const PitchFlowState();
-  }
-
-  /// D3K, safe on a passed ball: §13 working as designed — the catcher's
-  /// misplay is recorded as *physics* (an ordinary-effort drop, anchored to
-  /// the pitch event per play #5's convention), and the passed-ball ruling is
-  /// derived from it (§13.2), never stored.
-  Future<void> d3kSafePassedBall() async {
-    final batter = state.d3kBatterId;
-    final pitchEventId = state.d3kPitchEventId;
-    if (batter == null || pitchEventId == null) return;
-
-    final game = ref.read(gameControllerProvider.notifier);
-    final touch = await game.append(
-      type: 'FielderTouch',
-      payload: FielderTouch(
-        ballInPlayEventId: pitchEventId,
-        position: 2,
-        touchType: TouchType.DROPPED,
-        ordinaryEffort: true,
-      ).toJson(),
-    );
-    await game.append(
-      type: 'RunnerAdvance',
-      payload: _d3kAdvance(batter, enabledByTouchId: touch.id).toJson(),
-    );
-    state = const PitchFlowState();
-  }
-
-  /// Play #5's convention: the batter's D3K advance always carries
-  /// `dropped_third_strike`, whatever let the ball get away.
-  RunnerAdvance _d3kAdvance(String batter, {String? enabledByTouchId}) =>
-      RunnerAdvance(
-        runnerId: batter,
-        from: 0,
-        to: 1,
-        reason: RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
-        enabledByTouchId: enabledByTouchId,
-      );
-
   /// Take the standing offer (§11.1 v0.39): open location entry for the
   /// pitch that already committed.
   void takeLastPitchOffer() {
@@ -415,11 +326,10 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// outcome-only row, keeping whatever was already gathered — a call or a
   /// location entered before the chaos still rides the commit.
   ///
-  /// Inert on [PitchStep.d3k] and [PitchStep.recordLast]: there the pitch is
-  /// already committed, and bailing would strand a live resolution or a §6
-  /// correction, not simplify entry.
+  /// Inert on [PitchStep.recordLast]: there the pitch is already committed,
+  /// and bailing would strand a §6 correction, not simplify entry.
   void bailout() {
-    if (state.step == PitchStep.d3k || state.step == PitchStep.recordLast) {
+    if (state.step == PitchStep.recordLast) {
       return;
     }
     // Bailing from the call step: the intent snapshot that [pitchThrown]

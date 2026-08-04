@@ -6,7 +6,6 @@ import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
-import 'package:diamond/src/ui/loop/award_steps.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
@@ -226,96 +225,29 @@ void main() {
       expect(gs.batterDue('opp'), 'opp-2');
     });
 
-    Future<void> throwD3k(WidgetTester tester) async {
+    testWidgets('a blocked third strike with first open ALSO records the '
+        "out for now — D3K resolution is DIA-008's, arming keys on the "
+        'catch (§11.3 v0.41), and one undo reverses pitch + out as a unit', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
       await skipToOutcome(tester);
       await tapText(tester, 'Called strike');
       await skipToOutcome(tester);
       await tapText(tester, 'Swinging strike');
       await skipToOutcome(tester);
       await tapText(tester, 'Swinging (in dirt)');
-    }
-
-    testWidgets('an uncaught third strike with first base open does NOT '
-        'assume the out — the D3K prompt asks instead (§11.3)', (tester) async {
-      await pumpLoop(tester);
-      await throwD3k(tester);
 
       final events = await stream();
-      expect(events.last.type, 'PitchThrown',
-          reason: 'no RunnerOut: the batter may run on a D3K');
-      expect(find.text('0 outs'), findsOneWidget);
-      expect(
-        find.text('Uncaught third strike — batter may run'),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('Out (tag) and Out (throw) record the out with the right '
-        'how (§11.3 v0.41)', (tester) async {
-      await pumpLoop(tester);
-      await throwD3k(tester);
-      await tester.tap(find.byKey(d3kOutTagKey));
-      await tester.pumpAndSettle();
-
-      var events = await stream();
-      var out = RunnerOut.fromJson(events.last.payload);
-      expect(out.how, How.TAG);
-      expect(out.runnerId, 'opp-1');
+      final out = RunnerOut.fromJson(events.last.payload);
+      expect(out.how, How.STRIKEOUT);
       expect(find.text('1 out'), findsOneWidget);
 
-      await throwD3k(tester);
-      await tester.tap(find.byKey(d3kOutThrowKey));
+      // The escape hatch until DIA-008: one action-scoped undo.
+      await tester.tap(find.byKey(countHudUndoKey));
       await tester.pumpAndSettle();
-
-      events = await stream();
-      out = RunnerOut.fromJson(events.last.payload);
-      expect(out.how, How.STRIKEOUT_D3_K_THROW);
-      expect(find.text('2 outs'), findsOneWidget);
-    });
-
-    testWidgets('Safe (wild pitch): the advance alone — no catcher misplay '
-        'to record (§13.2)', (tester) async {
-      await pumpLoop(tester);
-      await throwD3k(tester);
-      await tester.tap(find.byKey(d3kSafeWildPitchKey));
-      await tester.pumpAndSettle();
-
-      final events = await stream();
-      final advance = RunnerAdvance.fromJson(events.last.payload);
-      expect(advance.reason, RunnerAdvanceReason.DROPPED_THIRD_STRIKE);
-      expect((advance.from, advance.to), (0, 1));
-      expect(advance.enabledByTouchId, isNull);
-      expect(
-        events.where((e) => e.type == 'FielderTouch'),
-        isEmpty,
-        reason: 'wild pitch is the absence of a catcher misplay',
-      );
-      final gs = container.read(gameControllerProvider).requireValue;
-      expect(gs.bases.first, 'opp-1');
-    });
-
-    testWidgets("Safe (passed ball): the catcher's misplay recorded as "
-        'physics, anchored to the pitch (play #5 convention)', (tester) async {
-      await pumpLoop(tester);
-      await throwD3k(tester);
-      await tester.tap(find.byKey(d3kSafePassedBallKey));
-      await tester.pumpAndSettle();
-
-      final events = await stream();
-      final pitchEvent = events.lastWhere((e) => e.type == 'PitchThrown');
-      final touchEvent = events.lastWhere((e) => e.type == 'FielderTouch');
-      final touch = FielderTouch.fromJson(touchEvent.payload);
-      expect(touch.ballInPlayEventId, pitchEvent.id,
-          reason: 'no BallInPlay exists on a D3K; the touch anchors to the '
-              'pitch');
-      expect(touch.position, 2);
-      expect(touch.touchType, TouchType.DROPPED);
-      expect(touch.ordinaryEffort, isTrue);
-
-      final advance = RunnerAdvance.fromJson(events.last.payload);
-      expect(advance.reason, RunnerAdvanceReason.DROPPED_THIRD_STRIKE);
-      expect(advance.enabledByTouchId, touchEvent.id);
       expect(find.text('0 outs'), findsOneWidget);
+      expect(find.text('0-2'), findsOneWidget);
     });
   });
 
