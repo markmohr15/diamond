@@ -23,8 +23,9 @@
       "enum": ["ball", "called_strike", "swinging_strike", "swinging_strike_blocked",
                "strike_unspecified",
                "foul", "foul_tip", "foul_bunt", "in_play", "hit_by_pitch",
+               "catcher_interference",
                "ball_intentional", "illegal_pitch", "no_pitch", "unknown"],
-      "description": "strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count effect (strike three at two strikes); excluded from swing/contact analytics. At two strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the pitch."
+      "description": "strike_unspecified (§4.1, §11.2 bailout): a strike of unknown kind — called, swinging, or possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count effect (strike three at two strikes); excluded from swing/contact analytics. At two strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the pitch. catcher_interference (§4.1 v0.43): dead ball, no count effect, plate appearance ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern; scored E2 by derivation (§13.2)."
     }
   },
   "required": ["pitcherId", "batterId", "batterSide", "outcome"],

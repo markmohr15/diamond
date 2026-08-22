@@ -189,6 +189,20 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     state = PitchFlowState(intent: state.intent);
   }
 
+  /// Dismissing the outcome sheet without a choice: back to the location
+  /// step with everything gathered intact — nothing committed, nothing
+  /// lost. The placed location stays on the canvas; re-placing or
+  /// re-confirming reopens the sheet.
+  void backToActual() {
+    state = PitchFlowState(
+      step: PitchStep.actual,
+      intent: state.intent,
+      actual: state.actual,
+      bounce: state.bounce,
+      lastPitchOffer: state.lastPitchOffer,
+    );
+  }
+
   /// The one write of the loop: `PitchThrown`, plus the strikeout's
   /// `RunnerOut` when the loop itself is sure of it (§11.3).
   Future<void> commitOutcome(Outcome outcome) async {
@@ -259,15 +273,28 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // reads the *pre-advance* bases, which the fold hasn't moved (bases
       // only change on RunnerAdvance, never inferred from an outcome).
       final walked = effect.endsPlateAppearance && effect.balls >= 4;
-      if (walked || outcome == Outcome.HIT_BY_PITCH) {
-        final reason = outcome == Outcome.HIT_BY_PITCH
-            ? RunnerAdvanceReason.HBP
-            : RunnerAdvanceReason.WALK;
-        for (final advance in forcedAdvances(gs.bases, batterId, reason)) {
+      if (walked ||
+          outcome == Outcome.HIT_BY_PITCH ||
+          outcome == Outcome.CATCHER_INTERFERENCE) {
+        // Catcher's interference carries its ⚖ (§4.5) ahead of the award —
+        // the judicial fact the E2 derivation reads (§13.2 v0.43).
+        if (outcome == Outcome.CATCHER_INTERFERENCE) {
           await game.append(
-            type: 'RunnerAdvance',
-            payload: advance.toJson(),
+            type: 'RuleCall',
+            payload: RuleCall(
+              callType: CallType.INTERFERENCE_CATCHER,
+              againstPosition: 2,
+            ).toJson(),
           );
+        }
+        final reason = switch (outcome) {
+          Outcome.HIT_BY_PITCH => RunnerAdvanceReason.HBP,
+          Outcome.CATCHER_INTERFERENCE =>
+            RunnerAdvanceReason.CATCHER_INTERFERENCE,
+          _ => RunnerAdvanceReason.WALK,
+        };
+        for (final advance in forcedAdvances(gs.bases, batterId, reason)) {
+          await game.append(type: 'RunnerAdvance', payload: advance.toJson());
         }
       }
     }

@@ -80,6 +80,13 @@ export interface BallInPlay {
      * (§15.1). Absent = same as landing.
      */
     retrieved?: FieldCoord;
+    /**
+     * scorer judgment (§13, v0.43): this batted ball was a sacrifice. Required for a sac bunt —
+     * no physical record distinguishes bunting to advance a runner from bunting for a hit — and
+     * optional for a sac fly, which derives (§13.6) and which this overrides when present.
+     * Plate appearance, not an at-bat.
+     */
+    sacrifice?: boolean;
     trajectory: Trajectory;
 }
 
@@ -243,7 +250,9 @@ export interface PitchThrown {
      * possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
      * effect (strike three at two strikes); excluded from swing/contact analytics. At two
      * strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
-     * pitch.
+     * pitch. catcher_interference (§4.1 v0.43): dead ball, no count effect, plate appearance
+     * ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern;
+     * scored E2 by derivation (§13.2).
      */
     outcome:   Outcome;
     pitcherId: string;
@@ -305,9 +314,11 @@ export interface BounceCoord {
  * possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
  * effect (strike three at two strikes); excluded from swing/contact analytics. At two
  * strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
- * pitch.
+ * pitch. catcher_interference (§4.1 v0.43): dead ball, no count effect, plate appearance
+ * ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern;
+ * scored E2 by derivation (§13.2).
  */
-export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
+export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "catcher_interference" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
 
 /**
  * Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).
@@ -640,6 +651,7 @@ const typeMap: any = {
         { json: "offWall", js: "offWall", typ: u(undefined, true) },
         { json: "pitchEventId", js: "pitchEventId", typ: "" },
         { json: "retrieved", js: "retrieved", typ: u(undefined, r("FieldCoord")) },
+        { json: "sacrifice", js: "sacrifice", typ: u(undefined, true) },
         { json: "trajectory", js: "trajectory", typ: r("Trajectory") },
     ], false),
     "FieldCoord": o([
@@ -789,6 +801,7 @@ const typeMap: any = {
         "ball",
         "ball_intentional",
         "called_strike",
+        "catcher_interference",
         "foul",
         "foul_bunt",
         "foul_tip",

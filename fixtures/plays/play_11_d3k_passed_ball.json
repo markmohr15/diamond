@@ -1,0 +1,22 @@
+{
+  "id": "play-11",
+  "title": "D3K on a passed ball: batter reaches first, strikeout credited, no error",
+  "specRef": "§13.2, §11.3",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 2 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.2, "y": -0.6 }, "outcome": "swinging_strike_blocked" } },
+    { "id": "e2", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e1", "position": 2, "touchType": "dropped", "ordinaryEffort": true } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "dropped_third_strike", "enabledByTouchId": "e2" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "pitcherStrikeouts": { "p1": "+1" },
+    "officialErrors": [],
+    "misplays": [ { "position": 2, "touchType": "dropped" } ],
+    "batterResult": { "batterId": "b1", "scoring": "dropped_third_strike", "hit": false, "rbi": 0, "atBat": true },
+    "runnerBases": { "b1": 1 },
+    "pitchGetaways": [ { "kind": "passed_ball", "pitcherId": "p1", "position": 2, "advances": 1 } ],
+    "note": "A passed ball is not an error (§13.2) — the two are separate statistics, and the rulebook charges a batter reaching on a passed ball or wild pitch on strike three to nobody's glove. The catcher's drop is still recorded as a misplay: layer 1 is physics and does not depend on what official scoring makes of it. Contrast play-05, where the catcher's *throw* to first sails and E2 throwing is charged — a thrown ball is not a pitch."
+  }
+}

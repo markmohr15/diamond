@@ -9,12 +9,16 @@ Key trajectoryKey(Trajectory trajectory) =>
 
 /// Display labels, in the row's fixed order (§11.1's five buttons).
 const _labels = <Trajectory, String>{
-  Trajectory.GROUND: 'Ground',
-  Trajectory.LINE: 'Line',
-  Trajectory.FLY: 'Fly',
+  Trajectory.GROUND: 'Grounder',
+  Trajectory.LINE: 'Line drive',
+  Trajectory.FLY: 'Fly ball',
   Trajectory.POPUP: 'Popup',
   Trajectory.BUNT: 'Bunt',
 };
+
+/// The display name of one trajectory — the header chip and the modal share
+/// this vocabulary.
+String trajectoryLabel(Trajectory trajectory) => _labels[trajectory]!;
 
 /// §11.1's trajectory row: five buttons, one selection, shown once the
 /// landing is down. Selection is repeatable — a re-tap re-chooses, since
@@ -31,18 +35,17 @@ class TrajectoryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 8,
+      runSpacing: 8,
       children: [
         for (final entry in _labels.entries)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ChoiceChip(
-              key: trajectoryKey(entry.key),
-              label: Text(entry.value),
-              selected: selected == entry.key,
-              onSelected: (_) => onChosen(entry.key),
-            ),
+          ChoiceChip(
+            key: trajectoryKey(entry.key),
+            label: Text(entry.value),
+            selected: selected == entry.key,
+            onSelected: (_) => onChosen(entry.key),
           ),
       ],
     );

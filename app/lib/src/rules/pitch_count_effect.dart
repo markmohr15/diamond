@@ -84,6 +84,9 @@ PitchCountEffect applyPitchCountEffect(
 
     case Outcome.IN_PLAY:
     case Outcome.HIT_BY_PITCH:
+    // Catcher's interference (§4.1 v0.43): dead ball, no count effect, PA
+    // over, batter awarded first — structurally the HBP pattern.
+    case Outcome.CATCHER_INTERFERENCE:
       return PitchCountEffect(
         balls: balls,
         strikes: strikes,

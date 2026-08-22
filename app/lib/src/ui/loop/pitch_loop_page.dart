@@ -1,5 +1,6 @@
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
@@ -33,6 +34,17 @@ class PitchLoopPage extends ConsumerWidget {
     final controller = ref.read(pitchFlowProvider.notifier);
     final batterSide = ref.watch(batterSideProvider);
 
+    // The outcome presents as a sheet over the location canvas — the same
+    // popup design as the field surface's what-happened sheet, so every
+    // "several options, pick one" moment reads the same. Dismissing it
+    // without choosing returns to the location step; nothing commits.
+    ref.listen<PitchFlowState>(pitchFlowProvider, (previous, next) {
+      if (next.step == PitchStep.outcome &&
+          previous?.step != PitchStep.outcome) {
+        _showOutcomeSheet(context, ref, next);
+      }
+    });
+
     // An uncommitted play owns the screen (§15.5), however it got here —
     // the pitch flow on `in_play`, or the crash journal on relaunch. It sits
     // outside the two-finger detector on purpose: bailout simplifies *pitch*
@@ -64,77 +76,84 @@ class PitchLoopPage extends ConsumerWidget {
               child: _TwoFingerSwipeDetector(
                 onSwipe: controller.bailout,
                 child: switch (flow.step) {
-                // The pitch-happened checkmark lives beside the code, inside
-                // the call screen's own top strip (§10.3, v0.40) — no page
-                // chrome of this page's own beyond the standing offer below.
-                PitchStep.call => Column(
-                  children: [
-                    // §11.1 v0.39: the offer to locate the pitch that just
-                    // committed unlocated. It blocks nothing — the loop
-                    // moving on is itself the dismissal — and the X declines
-                    // for good.
-                    if (flow.lastPitchOffer != null)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          OutlinedButton.icon(
-                            key: recordLastPitchKey,
-                            onPressed: controller.takeLastPitchOffer,
-                            icon: const Icon(Icons.my_location),
-                            label: const Text('Record last pitch'),
-                          ),
-                          IconButton(
-                            key: dismissLastPitchKey,
-                            onPressed: controller.dismissLastPitchOffer,
-                            icon: const Icon(Icons.close),
-                            tooltip: 'Keep unlocated',
-                          ),
-                        ],
+                  // The pitch-happened checkmark lives beside the code, inside
+                  // the call screen's own top strip (§10.3, v0.40) — no page
+                  // chrome of this page's own beyond the standing offer below.
+                  PitchStep.call => Column(
+                    children: [
+                      // §11.1 v0.39: the offer to locate the pitch that just
+                      // committed unlocated. It blocks nothing — the loop
+                      // moving on is itself the dismissal, and starting the
+                      // next call IS moving on: the first type tap removes it.
+                      if (flow.lastPitchOffer != null &&
+                          ref.watch(callDraftProvider).pitchTypeId == null)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            OutlinedButton.icon(
+                              key: recordLastPitchKey,
+                              onPressed: controller.takeLastPitchOffer,
+                              icon: const Icon(Icons.my_location),
+                              label: const Text('Record last pitch'),
+                            ),
+                            IconButton(
+                              key: dismissLastPitchKey,
+                              onPressed: controller.dismissLastPitchOffer,
+                              icon: const Icon(Icons.close),
+                              tooltip: 'Keep unlocated',
+                            ),
+                          ],
+                        ),
+                      Expanded(
+                        child: CallScreen(
+                          batterSide: batterSide,
+                          onSkipCall: controller.skipCall,
+                          onPitchThrown: controller.pitchThrown,
+                        ),
                       ),
-                    Expanded(
-                      child: CallScreen(
-                        batterSide: batterSide,
-                        onSkipCall: controller.skipCall,
-                        onPitchThrown: controller.pitchThrown,
-                      ),
-                    ),
-                  ],
-                ),
-                PitchStep.actual => ZoneCanvas(
-                  mode: ZoneCanvasIntent.actual,
-                  value: flow.actual,
-                  bounceValue: flow.bounce,
-                  batterSide: batterSide,
-                  ballKind: BallKind.softball,
-                  onCommit: controller.actualCommitted,
-                  onCommitBounce: controller.bounceCommitted,
-                  onSkip: controller.skipLocation,
-                  onCancel: controller.backToCall,
-                ),
-                PitchStep.outcome => OutcomeStep(
-                  suggestion: suggestOutcome(
-                    actual: flow.actual,
-                    bounce: flow.bounce,
+                    ],
                   ),
-                  onChosen: controller.commitOutcome,
-                ),
-                // Location entry for the already-committed pitch (§11.1
-                // v0.39). Same canvas, same gesture; only what the release
-                // writes differs — a §6 correction rather than a new event.
-                // No bounce hinge: the offer exists only for in-play pitches.
-                PitchStep.recordLast => ZoneCanvas(
-                  mode: ZoneCanvasIntent.actual,
-                  value: null,
-                  batterSide: batterSide,
-                  ballKind: BallKind.softball,
-                  onCommit: controller.recordLastLocation,
-                  skipLabel: 'Keep unlocated',
-                  onSkip: controller.dismissLastPitchOffer,
-                  onCancel: controller.cancelRecordLast,
-                ),
-                PitchStep.bailout => BailoutStep(
-                  onChosen: controller.commitOutcome,
-                ),
+                  PitchStep.actual => ZoneCanvas(
+                    mode: ZoneCanvasIntent.actual,
+                    value: flow.actual,
+                    bounceValue: flow.bounce,
+                    batterSide: batterSide,
+                    ballKind: BallKind.softball,
+                    onCommit: controller.actualCommitted,
+                    onCommitBounce: controller.bounceCommitted,
+                    onSkip: controller.skipLocation,
+                    onCancel: controller.backToCall,
+                  ),
+                  // The outcome sheet (shown by the listener above) floats
+                  // over the location canvas the scorer just used — context
+                  // behind the scrim, choices in front.
+                  PitchStep.outcome => ZoneCanvas(
+                    mode: ZoneCanvasIntent.actual,
+                    value: flow.actual,
+                    bounceValue: flow.bounce,
+                    batterSide: batterSide,
+                    ballKind: BallKind.softball,
+                    onCommit: (_) {},
+                    onSkip: () {},
+                    onCancel: () {},
+                  ),
+                  // Location entry for the already-committed pitch (§11.1
+                  // v0.39). Same canvas, same gesture; only what the release
+                  // writes differs — a §6 correction rather than a new event.
+                  // No bounce hinge: the offer exists only for in-play pitches.
+                  PitchStep.recordLast => ZoneCanvas(
+                    mode: ZoneCanvasIntent.actual,
+                    value: null,
+                    batterSide: batterSide,
+                    ballKind: BallKind.softball,
+                    onCommit: controller.recordLastLocation,
+                    skipLabel: 'Keep unlocated',
+                    onSkip: controller.dismissLastPitchOffer,
+                    onCancel: controller.cancelRecordLast,
+                  ),
+                  PitchStep.bailout => BailoutStep(
+                    onChosen: controller.commitOutcome,
+                  ),
                 },
               ),
             ),
@@ -142,6 +161,39 @@ class PitchLoopPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// §11.1's outcome, as the same popup design the field surface uses for
+  /// its what-happened sheet: suggestion + full override row over a scrim,
+  /// with the just-placed location visible behind it. Barrier dismiss →
+  /// back to the location step; the ump's call still requires a tap, so
+  /// nothing here commits without one.
+  Future<void> _showOutcomeSheet(
+    BuildContext context,
+    WidgetRef ref,
+    PitchFlowState flow,
+  ) async {
+    final chosen = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 620),
+          child: OutcomeStep(
+            suggestion: suggestOutcome(
+              actual: flow.actual,
+              bounce: flow.bounce,
+            ),
+            onChosen: (outcome) {
+              Navigator.pop(dialogContext, true);
+              ref.read(pitchFlowProvider.notifier).commitOutcome(outcome);
+            },
+          ),
+        ),
+      ),
+    );
+    if (chosen != true) {
+      ref.read(pitchFlowProvider.notifier).backToActual();
+    }
   }
 }
 

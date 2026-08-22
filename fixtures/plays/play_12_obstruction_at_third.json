@@ -1,0 +1,23 @@
+{
+  "id": "play-12",
+  "title": "Single with R2 aboard; R2 obstructed rounding third, awarded home",
+  "specRef": "§4.5, §13.2 (v0.43)",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 0 }, "runners": { "2": "r2" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.2, "y": -0.2 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "contactQuality": "average", "landing": { "x": -88, "y": 172 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 7, "touchType": "fielded", "location": { "x": -92, "y": 180 } } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e5", "type": "RuleCall", "payload": { "callType": "obstruction", "againstPosition": 5, "runnerId": "r2", "location": { "x": -42, "y": 62 } } },
+    { "id": "e6", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 2, "to": 4, "reason": "obstruction", "enabledByCallId": "e5" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 1,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
+    "runnerBases": { "b1": 1 },
+    "note": "Obstruction where it actually happens — a fielder without the ball in a runner's path between the bases. No error: the E-charge for obstruction is scoped to the batter-runner awarded first (§13.2 v0.43), who did not hit her way on. The obstructed runner's award still counts as a run but earns no RBI, since the leg's reason is the umpire's award, not the batted ball."
+  }
+}

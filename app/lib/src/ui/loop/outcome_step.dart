@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 /// look it up.
 @visibleForTesting
 const Key outcomeConfirmKey = Key('outcomeConfirm');
+@visibleForTesting
+const Key outcomeInPlayKey = Key('outcomeInPlay');
 
 /// Display labels for the outcomes the M1 row offers. `ball_intentional`,
 /// `no_pitch`, and the batter-action-dependent reads are deliberately absent
@@ -20,6 +22,7 @@ const _rowOutcomes = <Outcome, String>{
   Outcome.FOUL_TIP: 'Foul tip',
   Outcome.IN_PLAY: 'In play',
   Outcome.HIT_BY_PITCH: 'HBP',
+  Outcome.CATCHER_INTERFERENCE: "Catcher's interference",
   Outcome.ILLEGAL_PITCH: 'Illegal pitch',
   Outcome.UNKNOWN: 'Unknown',
 };
@@ -44,27 +47,42 @@ class OutcomeStep extends StatelessWidget {
   final Outcome? suggestion;
   final ValueChanged<Outcome> onChosen;
 
+  /// The two outcomes worth a full row of their own: the suggestion, and
+  /// in play.
+  Widget _bigButton(
+    BuildContext context, {
+    required Key key,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return FilledButton(
+      key: key,
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      ),
+      child: Text(label),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final suggested = suggestion;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        // Sized to content: this renders inside a centered dialog (v0.43's
+        // popup design), which is only as big as necessary.
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (suggested != null) ...[
-            FilledButton(
+            _bigButton(
+              context,
               key: outcomeConfirmKey,
+              label: _rowOutcomes[suggested]!,
               onPressed: () => onChosen(suggested),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 22),
-                textStyle: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              child: Text(_rowOutcomes[suggested]!),
             ),
             const SizedBox(height: 20),
           ],
@@ -75,13 +93,32 @@ class OutcomeStep extends StatelessWidget {
             children: [
               for (final entry in _rowOutcomes.entries)
                 // The suggestion already has the big button; repeating it in
-                // the row would be two controls for one meaning.
-                if (entry.key != suggested)
+                // the row would be two controls for one meaning. `in_play`
+                // has its own, below.
+                if (entry.key != suggested && entry.key != Outcome.IN_PLAY)
                   OutlinedButton(
                     onPressed: () => onChosen(entry.key),
+                    style: OutlinedButton.styleFrom(
+                      textStyle: Theme.of(context).textTheme.titleMedium,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 18,
+                      ),
+                    ),
                     child: Text(entry.value),
                   ),
             ],
+          ),
+          // In play is the other outcome that changes everything — it opens
+          // the whole field surface — so it gets the suggestion's weight and
+          // a row of its own, in the same place every time. Never suggested
+          // (§11.1: contact isn't inferable from location), always here.
+          const SizedBox(height: 20),
+          _bigButton(
+            context,
+            key: outcomeInPlayKey,
+            label: _rowOutcomes[Outcome.IN_PLAY]!,
+            onPressed: () => onChosen(Outcome.IN_PLAY),
           ),
         ],
       ),

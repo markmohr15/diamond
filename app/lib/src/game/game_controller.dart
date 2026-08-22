@@ -16,6 +16,7 @@ const _undoableTypes = {
   'RunnerOut',
   'RunnerAdvance',
   'FielderTouch',
+  'RuleCall',
   'CountCorrection',
 };
 
@@ -101,13 +102,33 @@ class GameController extends AsyncNotifier<GameState> {
 
   /// Appends a committed play's whole sequence (§15.5) — one storage
   /// transaction, one refold. Entries arrive in stream order; envelopes
-  /// (ids, seqs) are built here, as everywhere.
+  /// (ids, seqs) are built here, as everywhere, and intra-batch references
+  /// (`{"$local": key}` payload values, §4.2–4.3's event-id links) resolve
+  /// against the batch's real ids once they exist.
   Future<void> appendAllPending(List<PendingEvent> entries) async {
     final events = [
       for (final entry in entries)
         _buildEvent(type: entry.type, payload: entry.payload),
     ];
-    await _store.appendAll(events);
+    final idsByKey = {
+      for (var i = 0; i < entries.length; i++)
+        if (entries[i].localKey != null) entries[i].localKey!: events[i].id,
+    };
+    final resolved = [
+      for (final event in events)
+        GameEvent(
+          id: event.id,
+          gameId: event.gameId,
+          seq: event.seq,
+          deviceId: event.deviceId,
+          createdBy: event.createdBy,
+          wallClock: event.wallClock,
+          type: event.type,
+          payload: resolveLocalRefs(event.payload, idsByKey),
+          corrects: event.corrects,
+        ),
+    ];
+    await _store.appendAll(resolved);
     state = AsyncData(await _projector.project(_session.gameId));
   }
 

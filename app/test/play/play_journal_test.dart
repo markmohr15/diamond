@@ -26,14 +26,14 @@ void main() {
             landing: FieldCoord(x: -45, y: 120),
             trajectory: Trajectory.LINE,
           )
-          .movingRunner('opp-1', from: 0, to: 1);
+          .addingLeg('opp-1', from: 0, to: 1);
       await store.save('m1-game', draft);
 
       final restored = await store.load('m1-game');
       expect(restored!.pitchEventId, 'p-1');
       expect(restored.landing!.x, -45);
       expect(restored.trajectory, Trajectory.LINE);
-      expect(restored.runnerMoves.single.to, 1);
+      expect((restored.entries.single as LegEntry).to, 1);
     });
 
     test('one row per game: each save replaces the last', () async {

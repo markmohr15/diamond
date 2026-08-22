@@ -138,6 +138,7 @@ void _assertExpectations(
     'runnerBases',
     'earnedRunFlags',
     'pitcherStrikeouts',
+    'pitchGetaways',
     'note',
     'variant',
   });
@@ -201,6 +202,7 @@ void _assertExpectations(
           'scoring': outcome.scoring,
           'hit': outcome.hit,
           'rbi': outcome.rbi,
+          'atBat': outcome.atBat,
         });
       case 'runnerBases':
         for (final MapEntry(key: runnerId, value: base)
@@ -221,6 +223,24 @@ void _assertExpectations(
             flag,
             reason: '$id: earnedRunFlags[$runnerId]',
           );
+        }
+      case 'pitchGetaways':
+        final expected = (value as List<dynamic>).cast<Map<String, dynamic>>();
+        expect(
+          scoring.pitchGetaways.length,
+          expected.length,
+          reason:
+              '$id: pitchGetaways count '
+              '(got ${scoring.pitchGetaways.map((g) => g.kind.wire).toList()})',
+        );
+        for (final (i, want) in expected.indexed) {
+          final got = scoring.pitchGetaways[i];
+          _matchFragment(id, 'pitchGetaways[$i]', want, {
+            'kind': got.kind.wire,
+            'pitcherId': got.pitcherId,
+            'position': got.position,
+            'advances': got.advanceEventIds.length,
+          });
         }
       case 'pitcherStrikeouts':
         for (final MapEntry(key: pitcherId, value: delta)

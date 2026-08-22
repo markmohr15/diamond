@@ -86,11 +86,13 @@ GameState _foldInningHalfStart(GameState state, GameEvent event) {
   if (snapshot != null) {
     next = next.copyWith(
       runsByTeam: Map<String, int>.from(snapshot.runsByTeam),
-      nextBatterIndexByTeam:
-          Map<String, int>.from(snapshot.nextBatterIndexByTeam),
+      nextBatterIndexByTeam: Map<String, int>.from(
+        snapshot.nextBatterIndexByTeam,
+      ),
       pitchCountByPitcher: Map<String, int>.from(snapshot.pitchCountByPitcher),
-      inferredPitchEffects:
-          Map<String, InferredPitchEffect>.from(snapshot.inferredPitchEffects),
+      inferredPitchEffects: Map<String, InferredPitchEffect>.from(
+        snapshot.inferredPitchEffects,
+      ),
     );
   }
 
@@ -135,8 +137,11 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
     );
   }
 
-  final effect =
-      applyPitchCountEffect(working.balls, working.strikes, payload.outcome);
+  final effect = applyPitchCountEffect(
+    working.balls,
+    working.strikes,
+    payload.outcome,
+  );
   working = working.copyWith(
     balls: effect.balls,
     strikes: effect.strikes,

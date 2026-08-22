@@ -36,12 +36,11 @@ class GameStateProjector {
     // fast path still needs them folded — reuse the ordinary fold's own
     // InningHalfStart handling (which adopts the embedded snapshot) by
     // folding lineups, then the boundary event itself, then the tail.
-    final lineupsAndEarlier = visible.sublist(0, boundaryIndex + 1)
+    final lineupsAndEarlier = visible
+        .sublist(0, boundaryIndex + 1)
         .where((e) => e.type == 'LineupSet')
         .toList();
-    final seeded = foldGameState(
-      [...lineupsAndEarlier, boundary],
-    );
+    final seeded = foldGameState([...lineupsAndEarlier, boundary]);
 
     final tail = visible.sublist(boundaryIndex + 1);
     return foldGameState(tail, startingFrom: seeded);

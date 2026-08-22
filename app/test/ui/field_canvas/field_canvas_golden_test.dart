@@ -53,10 +53,26 @@ void main() {
       columns: 2,
       children: [
         GoldenTestScenario(
-          name: 'empty field awaiting the landing tap',
+          name: 'ball in play: runners in motion, a third of the way up',
           constraints: BoxConstraints.tight(_canvasSize),
           child: canvas(
-            tokens: const [RunnerToken(runnerId: 'b1', label: 'B', base: 0)],
+            tokens: const [
+              RunnerToken(
+                runnerId: 'b1',
+                label: 'B',
+                base: 1,
+                origin: 0,
+                inMotion: true,
+              ),
+              RunnerToken(
+                runnerId: 'r1',
+                label: '1',
+                base: 2,
+                origin: 1,
+                inMotion: true,
+              ),
+              RunnerToken(runnerId: 'r3', label: '3', base: 3, origin: 3),
+            ],
           ),
         ),
         GoldenTestScenario(

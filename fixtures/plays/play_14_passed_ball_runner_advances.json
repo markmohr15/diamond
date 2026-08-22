@@ -1,0 +1,21 @@
+{
+  "id": "play-14",
+  "title": "Passed ball with no strikeout: R2 takes third, no error charged",
+  "specRef": "§13.2, §15.6",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 1 }, "runners": { "2": "r2" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.4, "y": -0.5 }, "outcome": "ball" } },
+    { "id": "e2", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e1", "position": 2, "touchType": "missed_catch", "ordinaryEffort": true } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 2, "to": 3, "reason": "passed_ball", "enabledByTouchId": "e2" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "count": { "balls": 2, "strikes": 1 },
+    "officialErrors": [],
+    "misplays": [ { "position": 2, "touchType": "missed_catch" } ],
+    "runnerBases": { "r2": 3 },
+    "pitchGetaways": [ { "kind": "passed_ball", "pitcherId": "p1", "position": 2, "advances": 1 } ],
+    "note": "The passed ball away from a dropped third strike — §15.6's between-pitch entry, where the at-bat simply continues. Charging an error here was the general form of the same bug play-11 pins: the exemption is about the ball being a *pitch*, not about a strikeout being involved. The count still advances on ball one."
+  }
+}
