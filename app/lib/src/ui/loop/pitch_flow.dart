@@ -1,6 +1,7 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
@@ -269,6 +270,17 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           );
         }
       }
+    }
+
+    // In play: open the field surface (§15.1, DIA-008) for the play that is
+    // now unfolding. The draft owns the screen from here — the loop page
+    // switches on its presence — and the flow state below still resets, so
+    // the call surface (and the standing offer) is what commit/discard
+    // returns to.
+    if (outcome == Outcome.IN_PLAY) {
+      await ref
+          .read(playDraftProvider.notifier)
+          .start(pitchEventId: event.id, batterId: batterId);
     }
 
     // Loop closes. An in-play pitch that went unlocated gets the standing

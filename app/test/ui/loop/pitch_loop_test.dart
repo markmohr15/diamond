@@ -6,6 +6,7 @@ import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
@@ -423,10 +424,15 @@ void main() {
   });
 
   group('record last pitch (§11.1 v0.39)', () {
+    // An in-play pitch opens the field surface (§15.1, DIA-008a); the offer
+    // belongs to the loop's *return*, so these tests discard the play to get
+    // back — the offer must survive the whole field-entry detour.
     Future<void> inPlayUnlocated(WidgetTester tester) async {
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
+      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.pumpAndSettle();
     }
 
     testWidgets('no offer when the in-play pitch was located — there is '
@@ -435,6 +441,8 @@ void main() {
       await tapText(tester, 'Skip call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       await tapText(tester, 'In play');
+      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(recordLastPitchKey), findsNothing);
     });

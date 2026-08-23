@@ -613,15 +613,224 @@ class EventsCompanion extends UpdateCompanion<Event> {
   }
 }
 
+class $PlayJournalsTable extends PlayJournals
+    with TableInfo<$PlayJournalsTable, PlayJournal> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PlayJournalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _gameIdMeta = const VerificationMeta('gameId');
+  @override
+  late final GeneratedColumn<String> gameId = GeneratedColumn<String>(
+    'game_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _draftMeta = const VerificationMeta('draft');
+  @override
+  late final GeneratedColumn<String> draft = GeneratedColumn<String>(
+    'draft',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [gameId, draft];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'play_journals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PlayJournal> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('game_id')) {
+      context.handle(
+        _gameIdMeta,
+        gameId.isAcceptableOrUnknown(data['game_id']!, _gameIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_gameIdMeta);
+    }
+    if (data.containsKey('draft')) {
+      context.handle(
+        _draftMeta,
+        draft.isAcceptableOrUnknown(data['draft']!, _draftMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_draftMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {gameId};
+  @override
+  PlayJournal map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PlayJournal(
+      gameId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}game_id'],
+      )!,
+      draft: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}draft'],
+      )!,
+    );
+  }
+
+  @override
+  $PlayJournalsTable createAlias(String alias) {
+    return $PlayJournalsTable(attachedDatabase, alias);
+  }
+}
+
+class PlayJournal extends DataClass implements Insertable<PlayJournal> {
+  final String gameId;
+  final String draft;
+  const PlayJournal({required this.gameId, required this.draft});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['game_id'] = Variable<String>(gameId);
+    map['draft'] = Variable<String>(draft);
+    return map;
+  }
+
+  PlayJournalsCompanion toCompanion(bool nullToAbsent) {
+    return PlayJournalsCompanion(gameId: Value(gameId), draft: Value(draft));
+  }
+
+  factory PlayJournal.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PlayJournal(
+      gameId: serializer.fromJson<String>(json['gameId']),
+      draft: serializer.fromJson<String>(json['draft']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'gameId': serializer.toJson<String>(gameId),
+      'draft': serializer.toJson<String>(draft),
+    };
+  }
+
+  PlayJournal copyWith({String? gameId, String? draft}) =>
+      PlayJournal(gameId: gameId ?? this.gameId, draft: draft ?? this.draft);
+  PlayJournal copyWithCompanion(PlayJournalsCompanion data) {
+    return PlayJournal(
+      gameId: data.gameId.present ? data.gameId.value : this.gameId,
+      draft: data.draft.present ? data.draft.value : this.draft,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayJournal(')
+          ..write('gameId: $gameId, ')
+          ..write('draft: $draft')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(gameId, draft);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PlayJournal &&
+          other.gameId == this.gameId &&
+          other.draft == this.draft);
+}
+
+class PlayJournalsCompanion extends UpdateCompanion<PlayJournal> {
+  final Value<String> gameId;
+  final Value<String> draft;
+  final Value<int> rowid;
+  const PlayJournalsCompanion({
+    this.gameId = const Value.absent(),
+    this.draft = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PlayJournalsCompanion.insert({
+    required String gameId,
+    required String draft,
+    this.rowid = const Value.absent(),
+  }) : gameId = Value(gameId),
+       draft = Value(draft);
+  static Insertable<PlayJournal> custom({
+    Expression<String>? gameId,
+    Expression<String>? draft,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (gameId != null) 'game_id': gameId,
+      if (draft != null) 'draft': draft,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PlayJournalsCompanion copyWith({
+    Value<String>? gameId,
+    Value<String>? draft,
+    Value<int>? rowid,
+  }) {
+    return PlayJournalsCompanion(
+      gameId: gameId ?? this.gameId,
+      draft: draft ?? this.draft,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (gameId.present) {
+      map['game_id'] = Variable<String>(gameId.value);
+    }
+    if (draft.present) {
+      map['draft'] = Variable<String>(draft.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PlayJournalsCompanion(')
+          ..write('gameId: $gameId, ')
+          ..write('draft: $draft, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $EventsTable events = $EventsTable(this);
+  late final $PlayJournalsTable playJournals = $PlayJournalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [events];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [events, playJournals];
 }
 
 typedef $$EventsTableCreateCompanionBuilder =
@@ -915,10 +1124,155 @@ typedef $$EventsTableProcessedTableManager =
       Event,
       PrefetchHooks Function()
     >;
+typedef $$PlayJournalsTableCreateCompanionBuilder =
+    PlayJournalsCompanion Function({
+      required String gameId,
+      required String draft,
+      Value<int> rowid,
+    });
+typedef $$PlayJournalsTableUpdateCompanionBuilder =
+    PlayJournalsCompanion Function({
+      Value<String> gameId,
+      Value<String> draft,
+      Value<int> rowid,
+    });
+
+class $$PlayJournalsTableFilterComposer
+    extends Composer<_$AppDatabase, $PlayJournalsTable> {
+  $$PlayJournalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get gameId => $composableBuilder(
+    column: $table.gameId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get draft => $composableBuilder(
+    column: $table.draft,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PlayJournalsTableOrderingComposer
+    extends Composer<_$AppDatabase, $PlayJournalsTable> {
+  $$PlayJournalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get gameId => $composableBuilder(
+    column: $table.gameId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get draft => $composableBuilder(
+    column: $table.draft,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PlayJournalsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PlayJournalsTable> {
+  $$PlayJournalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get gameId =>
+      $composableBuilder(column: $table.gameId, builder: (column) => column);
+
+  GeneratedColumn<String> get draft =>
+      $composableBuilder(column: $table.draft, builder: (column) => column);
+}
+
+class $$PlayJournalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PlayJournalsTable,
+          PlayJournal,
+          $$PlayJournalsTableFilterComposer,
+          $$PlayJournalsTableOrderingComposer,
+          $$PlayJournalsTableAnnotationComposer,
+          $$PlayJournalsTableCreateCompanionBuilder,
+          $$PlayJournalsTableUpdateCompanionBuilder,
+          (
+            PlayJournal,
+            BaseReferences<_$AppDatabase, $PlayJournalsTable, PlayJournal>,
+          ),
+          PlayJournal,
+          PrefetchHooks Function()
+        > {
+  $$PlayJournalsTableTableManager(_$AppDatabase db, $PlayJournalsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PlayJournalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PlayJournalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PlayJournalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> gameId = const Value.absent(),
+                Value<String> draft = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PlayJournalsCompanion(
+                gameId: gameId,
+                draft: draft,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String gameId,
+                required String draft,
+                Value<int> rowid = const Value.absent(),
+              }) => PlayJournalsCompanion.insert(
+                gameId: gameId,
+                draft: draft,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PlayJournalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PlayJournalsTable,
+      PlayJournal,
+      $$PlayJournalsTableFilterComposer,
+      $$PlayJournalsTableOrderingComposer,
+      $$PlayJournalsTableAnnotationComposer,
+      $$PlayJournalsTableCreateCompanionBuilder,
+      $$PlayJournalsTableUpdateCompanionBuilder,
+      (
+        PlayJournal,
+        BaseReferences<_$AppDatabase, $PlayJournalsTable, PlayJournal>,
+      ),
+      PlayJournal,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
   $$EventsTableTableManager get events =>
       $$EventsTableTableManager(_db, _db.events);
+  $$PlayJournalsTableTableManager get playJournals =>
+      $$PlayJournalsTableTableManager(_db, _db.playJournals);
 }

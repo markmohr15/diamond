@@ -1,4 +1,6 @@
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
@@ -30,6 +32,24 @@ class PitchLoopPage extends ConsumerWidget {
     final flow = ref.watch(pitchFlowProvider);
     final controller = ref.read(pitchFlowProvider.notifier);
     final batterSide = ref.watch(batterSideProvider);
+
+    // An uncommitted play owns the screen (§15.5), however it got here —
+    // the pitch flow on `in_play`, or the crash journal on relaunch. It sits
+    // outside the two-finger detector on purpose: bailout simplifies *pitch*
+    // entry, and the pitch under this play is already committed.
+    final draft = ref.watch(playDraftProvider).valueOrNull;
+    if (draft != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              const CountHud(),
+              Expanded(child: FieldEntrySurface(draft: draft)),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: SafeArea(
