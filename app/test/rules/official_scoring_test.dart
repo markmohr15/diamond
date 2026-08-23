@@ -710,9 +710,9 @@ void main() {
       ];
     }
 
-    test('an ordinary-effort catcher misplay is a passed ball', () {
+    test('an ordinary-effort failure to receive is a passed ball', () {
       final scoring = foldOfficialScoring(
-        getaway(catcherTouch: TouchType.DROPPED),
+        getaway(catcherTouch: TouchType.MISSED_CATCH),
       );
       expect(scoring.passedBalls, 1);
       expect(scoring.wildPitchesByPitcher, isEmpty);
@@ -746,7 +746,7 @@ void main() {
 
     test('nobody moved: a blocked pitch is charged to no one', () {
       final scoring = foldOfficialScoring(
-        getaway(catcherTouch: TouchType.DROPPED, runnerMoves: false),
+        getaway(catcherTouch: TouchType.MISSED_CATCH, runnerMoves: false),
       );
       expect(scoring.pitchGetaways, isEmpty);
       expect(scoring.passedBalls, 0);
@@ -766,7 +766,7 @@ void main() {
           id: 'drop',
           anchorEventId: 'p',
           position: 2,
-          touchType: TouchType.DROPPED,
+          touchType: TouchType.MISSED_CATCH,
         ),
         b.runnerAdvance(
           id: 'a1',

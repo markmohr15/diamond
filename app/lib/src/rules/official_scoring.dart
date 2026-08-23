@@ -22,18 +22,22 @@ const Set<TouchType> misplayTouchTypes = {
   TouchType.TAG_MISSED,
 };
 
-/// The ways a catcher fails to receive a *pitch* (§13.2). When a misplay of
-/// one of these types is anchored to a `PitchThrown` rather than a
-/// `BallInPlay`, it is a passed ball — its own statistic, and never an
-/// official error; a wild pitch is the same moment with no touch recorded
-/// at all. `wild_throw` is deliberately absent: a throw is a thrown ball,
-/// so the catcher who airmails first base on a dropped third strike is
-/// still charged an error (§14 play #5).
-const Set<TouchType> pitchReceivingTouchTypes = {
-  TouchType.DROPPED,
-  TouchType.BOBBLED,
-  TouchType.MISSED_CATCH,
-};
+/// Failing to receive a *pitch* (§13.2) — one touch type, because receiving
+/// a pitch is binary. Whether she got a glove on it or it went straight past
+/// her changes nothing that is scored, and the scorer is never asked to say
+/// which: the question at entry is "passed ball?", yes or no. `missed_catch`
+/// is the spelling precisely because it claims less than `dropped`, which
+/// would assert she had it and lost it.
+///
+/// A misplay of this type anchored to a `PitchThrown` rather than a
+/// `BallInPlay` is a passed ball — its own statistic, and never an official
+/// error; a wild pitch is the same moment with no touch recorded at all.
+/// Two misplays that *can* anchor to a pitch stay chargeable: `wild_throw`,
+/// because a throw is a thrown ball (the catcher who airmails first base on
+/// a dropped third strike is still charged, §14 play #5), and `tag_missed`,
+/// because muffing a tag on the batter-runner is a play on her rather than a
+/// failure to receive.
+const Set<TouchType> pitchReceivingTouchTypes = {TouchType.MISSED_CATCH};
 
 /// Official-scoring category of a charged error, derived from the physical
 /// touch type — never entered by the scorer (spec §13.1).
