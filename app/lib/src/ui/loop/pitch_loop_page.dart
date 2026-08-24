@@ -16,6 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key recordLastPitchKey = Key('recordLastPitch');
 @visibleForTesting
 const Key dismissLastPitchKey = Key('dismissLastPitch');
+@visibleForTesting
+const Key openIdleFieldKey = Key('openIdleField');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
@@ -50,7 +52,11 @@ class PitchLoopPage extends ConsumerWidget {
     // outside the two-finger detector on purpose: bailout simplifies *pitch*
     // entry, and the pitch under this play is already committed.
     final draft = ref.watch(playDraftProvider).valueOrNull;
-    if (draft != null) {
+    // §15.6 v0.42: the same screen with no ball in play. One entity — a
+    // ball in play is a state of the field, not a different field — so the
+    // only difference here is which of the two opened it.
+    final idleField = ref.watch(idleFieldOpenProvider);
+    if (draft != null || idleField) {
       return Scaffold(
         body: SafeArea(
           child: Column(
@@ -104,6 +110,26 @@ class PitchLoopPage extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      // §15.6: the way to the field with nothing in play —
+                      // a steal, a runner taking a base on a passed ball.
+                      // Deliberately a plain affordance rather than a step
+                      // in the flow: it interrupts nothing, and if the field
+                      // ever becomes the loop's home surface this is the
+                      // only line that changes.
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: TextButton.icon(
+                            key: openIdleFieldKey,
+                            onPressed: () => ref
+                                .read(idleFieldOpenProvider.notifier)
+                                .state = true,
+                            icon: const Icon(Icons.sports_baseball),
+                            label: const Text('Field'),
+                          ),
+                        ),
+                      ),
                       Expanded(
                         child: CallScreen(
                           batterSide: batterSide,

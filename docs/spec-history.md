@@ -3,6 +3,22 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.44
+
+**One spelling for failing to receive a pitch (§13.2, §11.3, §15.6).** Receiving a pitch is binary.
+Whether the catcher got a glove on it or it went straight past her changes nothing that is scored,
+and asking the scorer to say which is a judgment with no consequence — the question at entry is
+"passed ball?", yes or no. So the passed-ball touch has exactly one spelling, **`missed_catch`**,
+chosen over `dropped` because it claims less: `dropped` asserts she had it and lost it. §13.2's
+definition, §11.3's D3K Safe-passed-ball fast path, and §15.6's PB chip all now name it.
+
+This does not widen the exemption. Two misplays that anchor to a pitch stay chargeable: `wild_throw`,
+because a throw is a thrown ball (§14 play #5's E2 stands), and `tag_missed`, because muffing a tag on
+the batter-runner is a play on her rather than a failure to receive. `missed_catch` remains legal on
+batted balls; it simply has no producer there, since §15.1's "Missed it" records no touch at all.
+
+**Implemented in DIA-008d**, which is the first writer of the value.
+
 ## v0.43
 
 **§15.1's entry grammar rewritten from DIA-008 field testing (design review with Mark).** Four
