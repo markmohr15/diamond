@@ -188,12 +188,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
+                // Not an ✕: nothing here is discardable — every entry
+                // committed the moment its chip was tapped, so "cancel" is
+                // the wrong promise. Not the play surface's filled ✓
+                // either, which commits something pending; this only
+                // leaves. Hence a checkmark that says which it is.
+                TextButton.icon(
                   key: fieldIdleCloseKey,
                   onPressed: () =>
                       ref.read(idleFieldOpenProvider.notifier).state = false,
-                  icon: const Icon(Icons.close),
-                  tooltip: 'Back to the pitch',
+                  icon: const Icon(Icons.check),
+                  label: const Text('Done'),
                 ),
               ],
             ),
