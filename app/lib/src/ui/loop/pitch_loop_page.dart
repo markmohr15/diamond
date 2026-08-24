@@ -158,7 +158,7 @@ class PitchLoopPage extends ConsumerWidget {
                               OutlinedButton(
                                 key: d3kFieldKey,
                                 onPressed: controller.d3kToField,
-                                child: const Text('Field…'),
+                                child: const Text('Go to field'),
                               ),
                               IconButton(
                                 key: d3kDismissKey,
@@ -192,7 +192,7 @@ class PitchLoopPage extends ConsumerWidget {
                                   .startBetweenPitches(pitchEventId: pitchId);
                             },
                             icon: const Icon(Icons.sports_baseball),
-                            label: const Text('Field'),
+                            label: const Text('Go to field'),
                           ),
                         ),
                       ),
