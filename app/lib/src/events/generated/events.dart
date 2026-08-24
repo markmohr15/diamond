@@ -153,6 +153,12 @@ class BallInPlay {
     ///where a fielder finally gained possession, when meaningfully different from landing
     ///(§15.1). Absent = same as landing.
     final FieldCoord? retrieved;
+    
+    ///scorer judgment (§13, v0.43): this batted ball was a sacrifice. Required for a sac bunt —
+    ///no physical record distinguishes bunting to advance a runner from bunting for a hit — and
+    ///optional for a sac fly, which derives (§13.6) and which this overrides when present.
+    ///Plate appearance, not an at-bat.
+    final bool? sacrifice;
     final Trajectory trajectory;
 
     BallInPlay({
@@ -163,6 +169,7 @@ class BallInPlay {
         this.offWall,
         required this.pitchEventId,
         this.retrieved,
+        this.sacrifice,
         required this.trajectory,
     });
 
@@ -174,6 +181,7 @@ class BallInPlay {
         offWall: json["offWall"],
         pitchEventId: json["pitchEventId"],
         retrieved: json["retrieved"] == null ? null : FieldCoord.fromJson(json["retrieved"]),
+        sacrifice: json["sacrifice"],
         trajectory: trajectoryValues.map[json["trajectory"]]!,
     );
 
@@ -185,6 +193,7 @@ class BallInPlay {
         "offWall": offWall,
         "pitchEventId": pitchEventId,
         "retrieved": retrieved?.toJson(),
+        "sacrifice": sacrifice,
         "trajectory": trajectoryValues.reverse[trajectory],
     };
 }
@@ -555,7 +564,9 @@ class PitchThrown {
     ///possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
     ///effect (strike three at two strikes); excluded from swing/contact analytics. At two
     ///strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
-    ///pitch.
+    ///pitch. catcher_interference (§4.1 v0.43): dead ball, no count effect, plate appearance
+    ///ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern;
+    ///scored E2 by derivation (§13.2).
     final Outcome outcome;
     final String pitcherId;
     
@@ -707,11 +718,14 @@ class BounceCoord {
 ///possibly an uncaught foul; the count advanced and the scorer doesn't know how. Full count
 ///effect (strike three at two strikes); excluded from swing/contact analytics. At two
 ///strikes FOUL vs STRIKE is a read of whether the at-bat ended, not a judgment about the
-///pitch.
+///pitch. catcher_interference (§4.1 v0.43): dead ball, no count effect, plate appearance
+///ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern;
+///scored E2 by derivation (§13.2).
 enum Outcome {
     BALL,
     BALL_INTENTIONAL,
     CALLED_STRIKE,
+    CATCHER_INTERFERENCE,
     FOUL,
     FOUL_BUNT,
     FOUL_TIP,
@@ -729,6 +743,7 @@ final outcomeValues = EnumValues({
     "ball": Outcome.BALL,
     "ball_intentional": Outcome.BALL_INTENTIONAL,
     "called_strike": Outcome.CALLED_STRIKE,
+    "catcher_interference": Outcome.CATCHER_INTERFERENCE,
     "foul": Outcome.FOUL,
     "foul_bunt": Outcome.FOUL_BUNT,
     "foul_tip": Outcome.FOUL_TIP,

@@ -16,6 +16,7 @@
     "pitcherStrikeouts": { "p1": "+1" },
     "officialErrors": [ { "position": 2, "kind": "throwing" } ],
     "runnerBases": { "b1": 2, "r1": 3 },
+    "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 1 } ],
     "note": "K credited, no out recorded. FielderTouch here references the pitch event as its ball reference (no BallInPlay exists on a D3K); engine must accept that."
   }
 }

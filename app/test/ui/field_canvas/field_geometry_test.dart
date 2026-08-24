@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
+import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -50,6 +51,100 @@ void main() {
       final back = geometry.toField(geometry.toPx(foul));
       expect(back.x, closeTo(-60, 1e-9));
       expect(back.y, closeTo(20, 1e-9));
+    });
+  });
+
+  group('the SAFE/OUT pair (§15.1 v0.43)', () {
+    test('stacks vertically at every base — SAFE on top, OUT beneath, never '
+        'side by side', () {
+      for (final base in [1, 2, 3, 4]) {
+        final safe = geometry.safeAffordanceCenter(base);
+        final out = geometry.outAffordanceCenter(base);
+        expect(safe.dx, closeTo(out.dx, 1e-9), reason: 'base $base');
+        expect(safe.dy, lessThan(out.dy), reason: 'base $base');
+        // Close, but never ambiguous: pillAt resolves by nearest, so the
+        // midline between them is the boundary.
+        expect((out.dy - safe.dy).abs(), greaterThanOrEqualTo(56));
+        expect(
+          geometry.pillAt(base, safe),
+          BaseCall.safe,
+          reason: 'base $base',
+        );
+        expect(geometry.pillAt(base, out), BaseCall.out, reason: 'base $base');
+        final midline = Offset(safe.dx, (safe.dy + out.dy) / 2);
+        expect(
+          geometry.pillAt(base, midline + const Offset(0, -1)),
+          BaseCall.safe,
+          reason: 'above the midline is safe at base $base',
+        );
+        expect(
+          geometry.pillAt(base, midline + const Offset(0, 1)),
+          BaseCall.out,
+          reason: 'below the midline is out at base $base',
+        );
+      }
+    });
+
+    test('first and third put the pair in foul ground, clear of the '
+        'basepath', () {
+      for (final base in [1, 3]) {
+        for (final pill in [
+          geometry.safeAffordanceCenter(base),
+          geometry.outAffordanceCenter(base),
+        ]) {
+          expect(
+            FieldGeometry.isFair(geometry.toField(pill)),
+            isFalse,
+            reason: 'base $base',
+          );
+        }
+      }
+      // On the correct side of the diamond, each.
+      expect(
+        geometry.safeAffordanceCenter(1).dx,
+        greaterThan(geometry.baseCenter(1).dx),
+      );
+      expect(
+        geometry.safeAffordanceCenter(3).dx,
+        lessThan(geometry.baseCenter(3).dx),
+      );
+    });
+
+    test('second and home straddle the bag: safe toward the outfield at '
+        'second, out behind the plate at home', () {
+      expect(
+        geometry.safeAffordanceCenter(2).dx,
+        closeTo(geometry.baseCenter(2).dx, 1e-9),
+      );
+      expect(
+        geometry.toField(geometry.safeAffordanceCenter(2)).y,
+        greaterThan(geometry.baseCoord(2).y),
+      );
+      expect(
+        geometry.toField(geometry.outAffordanceCenter(4)).y,
+        lessThan(0),
+        reason: 'behind the plate',
+      );
+      expect(
+        geometry.toField(geometry.safeAffordanceCenter(4)).y,
+        greaterThan(0),
+        reason: 'toward the mound',
+      );
+    });
+
+    test('reaching a pill keeps its base engaged, so the pair cannot vanish '
+        'under the thumb', () {
+      for (final base in [1, 2, 3, 4]) {
+        for (final pill in [
+          geometry.safeAffordanceCenter(base),
+          geometry.outAffordanceCenter(base),
+        ]) {
+          expect(
+            geometry.nearestBaseWithin(pill, FieldPainter.approachRadiusPx),
+            base,
+          );
+        }
+      }
     });
   });
 

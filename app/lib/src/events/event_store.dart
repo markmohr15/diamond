@@ -24,20 +24,22 @@ class EventStore {
   }
 
   Future<void> append(GameEvent event) {
-    return _db.into(_db.events).insert(
-      EventsCompanion.insert(
-        id: event.id,
-        gameId: event.gameId,
-        seq: event.seq,
-        deviceId: event.deviceId,
-        createdBy: event.createdBy,
-        wallClock: event.wallClock,
-        type: event.type,
-        payload: jsonEncode(event.payload),
-        corrects: Value(event.corrects),
-        effectiveAfter: Value(event.effectiveAfter),
-      ),
-    );
+    return _db
+        .into(_db.events)
+        .insert(
+          EventsCompanion.insert(
+            id: event.id,
+            gameId: event.gameId,
+            seq: event.seq,
+            deviceId: event.deviceId,
+            createdBy: event.createdBy,
+            wallClock: event.wallClock,
+            type: event.type,
+            payload: jsonEncode(event.payload),
+            corrects: Value(event.corrects),
+            effectiveAfter: Value(event.effectiveAfter),
+          ),
+        );
   }
 
   /// Reads the visible, logically-ordered stream for [gameId] (§5, §6, §7):
@@ -64,15 +66,15 @@ class EventStore {
   }
 
   GameEvent _toGameEvent(Event row) => GameEvent(
-        id: row.id,
-        gameId: row.gameId,
-        seq: row.seq,
-        deviceId: row.deviceId,
-        createdBy: row.createdBy,
-        wallClock: row.wallClock,
-        type: row.type,
-        payload: jsonDecode(row.payload) as Map<String, dynamic>,
-        corrects: row.corrects,
-        effectiveAfter: row.effectiveAfter,
-      );
+    id: row.id,
+    gameId: row.gameId,
+    seq: row.seq,
+    deviceId: row.deviceId,
+    createdBy: row.createdBy,
+    wallClock: row.wallClock,
+    type: row.type,
+    payload: jsonDecode(row.payload) as Map<String, dynamic>,
+    corrects: row.corrects,
+    effectiveAfter: row.effectiveAfter,
+  );
 }

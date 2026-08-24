@@ -4,22 +4,51 @@ import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
 
 /// The §13.2 misplay vocabulary — the only touch types an official error
-/// can ever be charged against. `deflected` and `tag_missed` are physical
-/// facts but not error candidates.
+/// can ever be charged against, and the single definition the whole app
+/// reads (the draft's amber rendering and leg reasons included).
+///
+/// `tag_missed` is one of them (v0.43): recording a missed tag *is* the
+/// claim that she muffed it, and anything worth putting in the play-by-play
+/// has to be chargeable. A runner who beats the tag on a great slide is not
+/// a missed tag — she is simply safe, and nothing is recorded at all.
+/// `deflected` stays out: the ball that hit her with no play to be made is
+/// a physical fact, never fault.
 const Set<TouchType> misplayTouchTypes = {
   TouchType.DROPPED,
   TouchType.BOBBLED,
   TouchType.BOOTED,
   TouchType.WILD_THROW,
   TouchType.MISSED_CATCH,
+  TouchType.TAG_MISSED,
 };
+
+/// Failing to receive a *pitch* (§13.2) — one touch type, because receiving
+/// a pitch is binary. Whether she got a glove on it or it went straight past
+/// her changes nothing that is scored, and the scorer is never asked to say
+/// which: the question at entry is "passed ball?", yes or no. `missed_catch`
+/// is the spelling precisely because it claims less than `dropped`, which
+/// would assert she had it and lost it.
+///
+/// A misplay of this type anchored to a `PitchThrown` rather than a
+/// `BallInPlay` is a passed ball — its own statistic, and never an official
+/// error; a wild pitch is the same moment with no touch recorded at all.
+/// Two misplays that *can* anchor to a pitch stay chargeable: `wild_throw`,
+/// because a throw is a thrown ball (the catcher who airmails first base on
+/// a dropped third strike is still charged, §14 play #5), and `tag_missed`,
+/// because muffing a tag on the batter-runner is a play on her rather than a
+/// failure to receive.
+const Set<TouchType> pitchReceivingTouchTypes = {TouchType.MISSED_CATCH};
 
 /// Official-scoring category of a charged error, derived from the physical
 /// touch type — never entered by the scorer (spec §13.1).
 enum OfficialErrorKind {
   fielding('fielding'),
   throwing('throwing'),
-  catching('catching');
+  catching('catching'),
+
+  /// Catcher's interference (§4.1 v0.43): an error by rule — E2 with no
+  /// misplay touch behind it.
+  interference('interference');
 
   const OfficialErrorKind(this.wire);
 
@@ -56,6 +85,60 @@ class OfficialError {
   final OfficialErrorBasis basis;
 }
 
+/// Which half of §13.2's WP/PB pair a pitch that got away was.
+enum PitchGetawayKind {
+  /// The pitcher's doing — the ball was so high, wide, or low that no
+  /// catcher controls it with ordinary effort. Physically, an uncaught
+  /// pitch with no catcher misplay touch against it.
+  wildPitch('wild_pitch'),
+
+  /// The catcher's doing — a pitch she should have held. Physically, an
+  /// ordinary-effort catcher misplay touch against the pitch.
+  passedBall('passed_ball');
+
+  const PitchGetawayKind(this.wire);
+
+  /// The string form fixtures and serialized output use.
+  final String wire;
+}
+
+/// One pitch that got away and let somebody move (§13.2, rule 9.13).
+///
+/// Charged exactly once per pitch however many runners advance on it, and
+/// never charged at all when nobody does — a ball in the dirt the catcher
+/// blocks and keeps in front of her is not a wild pitch. This is the same
+/// consequence test official errors use, applied to the battery instead of
+/// the glove, and it is what §13.3's earned-run reconstruction reads when
+/// it replays the inning "as if errors and passed balls hadn't happened."
+class PitchGetaway {
+  const PitchGetaway({
+    required this.pitchEventId,
+    required this.kind,
+    required this.pitcherId,
+    required this.advanceEventIds,
+    this.touchEventId,
+    this.position,
+  });
+
+  final String pitchEventId;
+  final PitchGetawayKind kind;
+
+  /// Charged to the pitcher on a wild pitch; carried on a passed ball too,
+  /// since the run it lets in is still scored against her.
+  final String pitcherId;
+
+  /// Every advance this one pitch enabled — `N` runners, one charge.
+  final List<String> advanceEventIds;
+
+  /// The catcher's misplay touch, on a passed ball. Null on a wild pitch:
+  /// the absence of a touch is precisely what makes it one.
+  final String? touchEventId;
+
+  /// The misplaying fielder on a passed ball (2 in every real game). Null
+  /// on a wild pitch.
+  final int? position;
+}
+
 /// One misplay for the development ledger (§13.1 layer 1) — logged whether
 /// or not an official error was charged.
 class MisplayRecord {
@@ -83,6 +166,7 @@ class BatterOutcome {
     required this.scoring,
     required this.hit,
     required this.rbi,
+    this.atBat = true,
   });
 
   final String batterId;
@@ -92,6 +176,13 @@ class BatterOutcome {
   final String scoring;
   final bool hit;
   final int rbi;
+
+  /// Whether this plate appearance is charged as an at-bat. Walks, HBP,
+  /// catcher's interference and obstruction awards are plate appearances
+  /// but not at-bats (§13, v0.43) — the distinction batting average turns
+  /// on. Sacrifices (§13.6) are the other exclusion: a sac bunt is the
+  /// scorer's judgment on the batted ball, a sac fly derives.
+  final bool atBat;
 }
 
 /// Official scoring derived from a play/half-inning stream (spec §13):
@@ -106,6 +197,7 @@ class OfficialScoring {
     required this.putoutsByPosition,
     required this.assistsByPosition,
     required this.strikeoutsByPitcher,
+    required this.pitchGetaways,
     required this.unearnedConditions,
   });
 
@@ -115,6 +207,27 @@ class OfficialScoring {
   final Map<int, int> putoutsByPosition;
   final Map<int, int> assistsByPosition;
   final Map<String, int> strikeoutsByPitcher;
+
+  /// §13.2's wild pitches and passed balls, in stream order — one entry
+  /// per pitch that got away and let somebody move.
+  final List<PitchGetaway> pitchGetaways;
+
+  /// WP charged to each pitcher, the counterpart to [strikeoutsByPitcher].
+  Map<String, int> get wildPitchesByPitcher {
+    final counts = <String, int>{};
+    for (final g in pitchGetaways) {
+      if (g.kind != PitchGetawayKind.wildPitch) continue;
+      counts.update(g.pitcherId, (v) => v + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  }
+
+  /// PB charged to the catcher. Team-level rather than per-player: a
+  /// passed ball is charged to whoever was catching, and `fielderId` has
+  /// no writer yet (there is no roster for our own defense).
+  int get passedBalls => pitchGetaways
+      .where((g) => g.kind == PitchGetawayKind.passedBall)
+      .length;
 
   /// runnerId -> conditional flag consumed by §13.3 and surfaced in the
   /// UI: 'unearned_if_scores' (reach enabled by a charged error) or
@@ -131,11 +244,21 @@ class OfficialScoring {
 }
 
 class _AdvanceRecord {
-  _AdvanceRecord(this.eventId, this.payload, this.batterAtTime);
+  _AdvanceRecord(
+    this.eventId,
+    this.payload,
+    this.batterAtTime,
+    this.pitchAtTime,
+  );
 
   final String eventId;
   final RunnerAdvance payload;
   final String? batterAtTime;
+
+  /// The pitch this advance happened on, for §13.2's WP/PB derivation: a
+  /// wild pitch has no touch to link back to, so the ball that got away
+  /// can only be identified by which pitch was in the air.
+  final String? pitchAtTime;
 }
 
 class _OutRecord {
@@ -171,19 +294,34 @@ OfficialScoring foldOfficialScoring(
   // GameState.currentBatterId, which nulls the moment a PA ends while the
   // resulting play (throws, outs, advances) is still unfolding.
   final ballInPlayById = <String, BallInPlay>{};
+  // Which anchors are pitches rather than batted balls — the hinge §13.2
+  // charges WP/PB on rather than an error.
+  final pitchEventIds = <String>{};
+  final pitcherOfPitch = <String, String>{};
   final touches = <_TouchRecord>[];
   final advances = <_AdvanceRecord>[];
   final outs = <_OutRecord>[];
+
+  // The most recent catcher's-interference ⚖, anchoring the E2 charge
+  // (§4.1 v0.43): the award follows its call in the stream.
+  String? latestCatcherInterferenceCallId;
+  final callsById = <String, RuleCall>{};
+  final outsAtContact = <String, int>{};
+  final battedBallOf = <String, String>{};
   final batterOrder = <String>[];
   final strikeouts = <String, int>{};
 
   var state = startingFrom;
   var batterOfRecord = startingFrom.currentBatterId;
+  String? pitchOfRecord;
 
   for (final event in visibleLogicalOrder) {
     switch (event.type) {
       case 'PitchThrown':
         final pitch = PitchThrown.fromJson(event.payload);
+        pitchEventIds.add(event.id);
+        pitchOfRecord = event.id;
+        pitcherOfPitch[event.id] = pitch.pitcherId;
         batterOfRecord = pitch.batterId;
         if (batterOrder.isEmpty || batterOrder.last != pitch.batterId) {
           batterOrder.add(pitch.batterId);
@@ -203,6 +341,8 @@ OfficialScoring foldOfficialScoring(
         }
       case 'BallInPlay':
         ballInPlayById[event.id] = BallInPlay.fromJson(event.payload);
+        outsAtContact[event.id] = state.outs;
+        battedBallOf[batterOfRecord ?? ''] = event.id;
       case 'FielderTouch':
         touches.add(
           _TouchRecord(
@@ -217,10 +357,17 @@ OfficialScoring foldOfficialScoring(
             event.id,
             RunnerAdvance.fromJson(event.payload),
             batterOfRecord,
+            pitchOfRecord,
           ),
         );
       case 'RunnerOut':
         outs.add(_OutRecord(event.id, RunnerOut.fromJson(event.payload)));
+      case 'RuleCall':
+        final call = RuleCall.fromJson(event.payload);
+        if (call.callType == CallType.INTERFERENCE_CATCHER) {
+          latestCatcherInterferenceCallId = event.id;
+        }
+        callsById[event.id] = call;
     }
     state = foldGameState([event], startingFrom: state);
   }
@@ -234,7 +381,8 @@ OfficialScoring foldOfficialScoring(
     final t = touch.payload;
     if (!misplayTouchTypes.contains(t.touchType)) continue;
 
-    final resolvedEffort = t.ordinaryEffort ?? _defaultOrdinaryEffort(t);
+    final resolvedEffort =
+        t.ordinaryEffort ?? defaultOrdinaryEffort(t.touchType);
     misplays.add(
       MisplayRecord(
         touchEventId: touch.eventId,
@@ -244,6 +392,16 @@ OfficialScoring foldOfficialScoring(
       ),
     );
     if (resolvedEffort != true) continue;
+
+    // §13.2: a passed ball is not an error — they are two separate
+    // statistics. A pitch that gets away from the catcher is charged to
+    // the battery as a WP/PB; only a play on a *batted or thrown* ball can
+    // become an E. The misplay above still stands: the physical record is
+    // layer 1 and does not depend on what official scoring makes of it.
+    if (pitchReceivingTouchTypes.contains(t.touchType) &&
+        pitchEventIds.contains(t.ballInPlayEventId)) {
+      continue;
+    }
 
     final basis = _consequenceBasis(touch, advances, ballInPlayById);
     if (basis == null) continue; // misplay without consequence: no error
@@ -258,13 +416,72 @@ OfficialScoring foldOfficialScoring(
     );
   }
 
+  final pitchGetaways = _pitchGetaways(
+    touches: touches,
+    advances: advances,
+    pitchEventIds: pitchEventIds,
+    pitcherOfPitch: pitcherOfPitch,
+  );
+
+  // Catcher's interference is an error by rule (§4.1 v0.43): E2, charged
+  // with no misplay touch behind it — anchored to the ⚖ when one was
+  // recorded, else to the award itself.
+  for (final advance in advances) {
+    final a = advance.payload;
+    if (a.reason == RunnerAdvanceReason.CATCHER_INTERFERENCE && a.from == 0) {
+      errors.add(
+        OfficialError(
+          touchEventId: latestCatcherInterferenceCallId ?? advance.eventId,
+          position: 2,
+          kind: OfficialErrorKind.interference,
+          basis: OfficialErrorBasis.reached,
+        ),
+      );
+    }
+  }
+
+  // Obstruction on the batter-runner (§13.2 v0.43): she was awarded a base
+  // she never earned, so the fielder who obstructed her is charged a
+  // fielding error — the second error with no misplay touch behind it,
+  // anchored to the ⚖ that named her.
+  for (final advance in advances) {
+    final a = advance.payload;
+    if (a.reason != RunnerAdvanceReason.OBSTRUCTION || a.from != 0) continue;
+    final callId = a.enabledByCallId;
+    final against = callId == null ? null : callsById[callId]?.againstPosition;
+    if (against == null) continue; // no fielder named: nothing to charge
+    errors.add(
+      OfficialError(
+        touchEventId: callId!,
+        position: against,
+        kind: OfficialErrorKind.fielding,
+        basis: OfficialErrorBasis.reached,
+      ),
+    );
+  }
+
   final chargedTouchIds = {for (final e in errors) e.touchEventId};
 
   // Pass C: batter outcomes, RBIs, putouts/assists, unearned conditions —
   // everything that needs to know which errors were actually charged.
   final batterOutcomes = <BatterOutcome>[
     for (final batterId in batterOrder)
-      _batterOutcome(batterId, advances, outs, chargedTouchIds),
+      _batterOutcome(
+        batterId,
+        advances,
+        outs,
+        chargedTouchIds,
+        sacrifice: _sacrificeFor(
+          batterId,
+          battedBall: battedBallOf[batterId] == null
+              ? null
+              : ballInPlayById[battedBallOf[batterId]],
+          outsAtContact: outsAtContact[battedBallOf[batterId]],
+          advances: advances,
+          outs: outs,
+          anyChargedError: errors.isNotEmpty,
+        ),
+      ),
   ];
 
   final putouts = <int, int>{};
@@ -311,18 +528,105 @@ OfficialScoring foldOfficialScoring(
     putoutsByPosition: putouts,
     assistsByPosition: assists,
     strikeoutsByPitcher: strikeouts,
+    pitchGetaways: pitchGetaways,
     unearnedConditions: unearned,
   );
+}
+
+/// Advances that mean the pitch itself got away (§4.3). The dropped third
+/// strike is one of them: the batter reaching on an uncaught strike three
+/// is charged as a wild pitch or a passed ball like any other advance.
+const _getawayReasons = {
+  RunnerAdvanceReason.WILD_PITCH,
+  RunnerAdvanceReason.PASSED_BALL,
+  RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
+};
+
+/// §13.2's WP/PB derivation, charged per rule 9.13's consequence test: a
+/// pitch that gets away counts only when it lets somebody move, and counts
+/// once however many runners move on it.
+///
+/// Which of the two it is comes from physics, never from the advance's
+/// label — an ordinary-effort catcher misplay against the pitch makes it a
+/// passed ball, and the absence of one makes it the pitcher's wild pitch.
+/// A `passed_ball`-labeled advance with no such touch is therefore scored
+/// a wild pitch; §15.6's entry path always emits the touch alongside the
+/// chip, so the two only diverge in hand-authored streams.
+List<PitchGetaway> _pitchGetaways({
+  required List<_TouchRecord> touches,
+  required List<_AdvanceRecord> advances,
+  required Set<String> pitchEventIds,
+  required Map<String, String> pitcherOfPitch,
+}) {
+  final touchById = {for (final t in touches) t.eventId: t};
+
+  // The catcher misplay against each pitch, if any.
+  final misplayOnPitch = <String, _TouchRecord>{};
+  for (final touch in touches) {
+    final t = touch.payload;
+    if (!pitchReceivingTouchTypes.contains(t.touchType)) continue;
+    if (!pitchEventIds.contains(t.ballInPlayEventId)) continue;
+    final effort = t.ordinaryEffort ?? defaultOrdinaryEffort(t.touchType);
+    if (effort != true) continue;
+    misplayOnPitch.putIfAbsent(t.ballInPlayEventId, () => touch);
+  }
+
+  // Group the advances by the pitch that got away. A linked touch names
+  // its own pitch; a wild pitch has none, so it falls back to whichever
+  // pitch was in the air.
+  final movedOn = <String, List<String>>{};
+  for (final advance in advances) {
+    if (!_getawayReasons.contains(advance.payload.reason)) continue;
+    final linked = touchById[advance.payload.enabledByTouchId];
+    final pitchId =
+        (linked != null &&
+            pitchEventIds.contains(linked.payload.ballInPlayEventId))
+        ? linked.payload.ballInPlayEventId
+        : advance.pitchAtTime;
+    if (pitchId == null) continue;
+    movedOn.putIfAbsent(pitchId, () => []).add(advance.eventId);
+  }
+
+  return [
+    for (final MapEntry(key: pitchId, value: advanceIds) in movedOn.entries)
+      if (pitcherOfPitch[pitchId] case final pitcherId?)
+        if (misplayOnPitch[pitchId] case final touch?)
+          PitchGetaway(
+            pitchEventId: pitchId,
+            kind: PitchGetawayKind.passedBall,
+            pitcherId: pitcherId,
+            advanceEventIds: advanceIds,
+            touchEventId: touch.eventId,
+            position: touch.payload.position,
+          )
+        else
+          PitchGetaway(
+            pitchEventId: pitchId,
+            kind: PitchGetawayKind.wildPitch,
+            pitcherId: pitcherId,
+            advanceEventIds: advanceIds,
+          ),
+  ];
 }
 
 /// §13.2 defaults: `booted`, `missed_catch`, `dropped` resolve true when
 /// the scorer recorded no judgment. Everything else stays null —
 /// "prompt the scorer" — and is never charged until resolved.
-bool? _defaultOrdinaryEffort(FielderTouch touch) {
-  switch (touch.touchType) {
+/// §13.2's `ordinaryEffort` inference — the single definition, read both
+/// here (when a touch carries no explicit judgment) and by the play draft
+/// at commit, so the two can never drift.
+///
+/// v0.43 adds `tag_missed`: recording a missed tag is itself the claim that
+/// she should have made it. `wild_throw` deliberately stays a judgment call
+/// — a throw can sail and cost nothing, the runner ending up exactly where
+/// a good throw would have left her. Null means "prompt" — unresolved, and
+/// never charged while it stays that way.
+bool? defaultOrdinaryEffort(TouchType type) {
+  switch (type) {
     case TouchType.BOOTED:
     case TouchType.MISSED_CATCH:
     case TouchType.DROPPED:
+    case TouchType.TAG_MISSED:
       return true;
     // ignore: no_default_cases - the misplay set is filtered before this.
     default:
@@ -334,6 +638,9 @@ OfficialErrorKind _kindOf(TouchType type) {
   switch (type) {
     case TouchType.BOOTED:
     case TouchType.BOBBLED:
+    // A muffed tag is a fielding error: she had the ball and failed to
+    // apply it (§13.2 v0.43).
+    case TouchType.TAG_MISSED:
       return OfficialErrorKind.fielding;
     case TouchType.WILD_THROW:
       return OfficialErrorKind.throwing;
@@ -373,20 +680,88 @@ OfficialErrorBasis? _consequenceBasis(
 
 const _hitByBase = {1: 'single', 2: 'double', 3: 'triple', 4: 'home_run'};
 
+/// Reasons whose runs credit the batter an RBI (§13): the hit itself, and
+/// the ground-rule award that is a hit by another name.
+const _rbiReasons = {
+  RunnerAdvanceReason.BATTED_BALL,
+  RunnerAdvanceReason.GROUND_RULE,
+};
+
 const _nonBattedReachReasons = {
   RunnerAdvanceReason.WALK,
   RunnerAdvanceReason.HBP,
   RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
   RunnerAdvanceReason.FIELDERS_CHOICE,
   RunnerAdvanceReason.CATCHER_INTERFERENCE,
+  // v0.43: a batter-runner awarded first on obstruction did not hit her
+  // way there. Rare — obstruction usually happens at the other bases,
+  // which never reaches this derivation — but it is not a single.
+  RunnerAdvanceReason.OBSTRUCTION,
 };
+
+/// Reaches that are plate appearances but not at-bats (§13 v0.43).
+const _nonAtBatReachReasons = {
+  RunnerAdvanceReason.WALK,
+  RunnerAdvanceReason.HBP,
+  RunnerAdvanceReason.CATCHER_INTERFERENCE,
+  RunnerAdvanceReason.OBSTRUCTION,
+};
+
+/// §13.6 (v0.43): was this plate appearance a sacrifice? The bunt is the
+/// scorer's judgment, stored on the batted ball because nothing physical
+/// distinguishes it. The fly *derives*: any ball caught in the air (fly,
+/// pop-up, or line drive), fewer than two outs, the batter retired, a
+/// runner scoring from third on the ball —
+/// and no error anywhere on the play, since a run that needed a misplay was
+/// not the sacrifice's doing. An explicit flag overrides the derivation
+/// either way.
+String? _sacrificeFor(
+  String batterId, {
+  required BallInPlay? battedBall,
+  required int? outsAtContact,
+  required List<_AdvanceRecord> advances,
+  required List<_OutRecord> outs,
+  required bool anyChargedError,
+}) {
+  if (battedBall == null) return null;
+  final bunt = battedBall.trajectory == Trajectory.BUNT;
+  final wasOut = outs.any((o) => o.payload.runnerId == batterId);
+
+  final judged = battedBall.sacrifice;
+  if (judged ?? false) return bunt ? 'sacrifice_bunt' : 'sacrifice_fly';
+  // Judged *not* a sacrifice, or a bunt nobody judged: no derivation
+  // exists for a bunt, so it stands as an ordinary at-bat.
+  if (judged != null || bunt) return null;
+
+  // Any ball caught in the air qualifies — a line drive included, which is
+  // the rulebook's wording and the same set the entry surface treats as
+  // airborne.
+  final airborne =
+      battedBall.trajectory == Trajectory.FLY ||
+      battedBall.trajectory == Trajectory.POPUP ||
+      battedBall.trajectory == Trajectory.LINE;
+  if (!airborne || !battedBall.landingIsCaught) return null;
+  if (!wasOut || anyChargedError) return null;
+  if ((outsAtContact ?? 0) >= 2) return null;
+
+  final scoredFromThird = advances.any(
+    (a) =>
+        a.batterAtTime == batterId &&
+        a.payload.runnerId != batterId &&
+        a.payload.from == 3 &&
+        a.payload.to == 4 &&
+        a.payload.reason == RunnerAdvanceReason.BATTED_BALL,
+  );
+  return scoredFromThird ? 'sacrifice_fly' : null;
+}
 
 BatterOutcome _batterOutcome(
   String batterId,
   List<_AdvanceRecord> advances,
   List<_OutRecord> outs,
-  Set<String> chargedTouchIds,
-) {
+  Set<String> chargedTouchIds, {
+  String? sacrifice,
+}) {
   final own = [
     for (final a in advances)
       if (a.payload.runnerId == batterId) a,
@@ -395,21 +770,25 @@ BatterOutcome _batterOutcome(
 
   // RBIs: runs scoring on this batter's play that weren't gifted by a
   // charged error (batted-ball runs, including the batter's own homer).
+  // `ground_rule` counts too (v0.43): a ground-rule double that scores a
+  // runner drove her in as surely as any other two-base hit.
   var rbi = 0;
   for (final a in advances) {
     if (a.batterAtTime != batterId) continue;
     if (a.payload.to != 4) continue;
     if (chargedTouchIds.contains(a.payload.enabledByTouchId)) continue;
-    if (a.payload.reason == RunnerAdvanceReason.BATTED_BALL) rbi++;
+    if (_rbiReasons.contains(a.payload.reason)) rbi++;
   }
 
   if (reach == null) {
     final wasOut = outs.any((o) => o.payload.runnerId == batterId);
     return BatterOutcome(
       batterId: batterId,
-      scoring: wasOut ? 'out' : 'batting',
+      scoring: sacrifice ?? (wasOut ? 'out' : 'batting'),
       hit: false,
       rbi: rbi,
+      // A sacrifice is a plate appearance, never an at-bat (§13.6).
+      atBat: sacrifice == null && wasOut,
     );
   }
 
@@ -420,13 +799,19 @@ BatterOutcome _batterOutcome(
       scoring: runnerAdvanceReasonValues.reverse[reason]!,
       hit: false,
       rbi: rbi,
+      atBat: !_nonAtBatReachReasons.contains(reason),
     );
   }
 
   // Hit vs. error (§13.2): the judgment lives on the first touch. If the
   // reach was enabled by a *charged* error the batter reached on it; an
   // uncharged misplay (ordinaryEffort false) means the reach was a hit.
-  if (chargedTouchIds.contains(reach.payload.enabledByTouchId)) {
+  // Reached on an error: either the enabling touch was charged, or the
+  // scorer said `error` with nothing to link — an advance that claims an
+  // error is not a hit just because its cause went unrecorded.
+  if (chargedTouchIds.contains(reach.payload.enabledByTouchId) ||
+      (reason == RunnerAdvanceReason.ERROR &&
+          reach.payload.enabledByTouchId == null)) {
     return BatterOutcome(
       batterId: batterId,
       scoring: 'reached_on_error',
@@ -435,11 +820,16 @@ BatterOutcome _batterOutcome(
     );
   }
 
-  // Hit base: the farthest the batter got without a charged error's help.
+  // Hit base: the farthest the batter got *on the hit itself* (v0.43). A
+  // leg with any enabler — a throw, a misplay, a ⚖ — or a non-batted
+  // reason is movement after or apart from the hit and never raises the
+  // rank: "took second on the throw" is a single plus an advance, not a
+  // double.
   var base = reach.payload.to;
   for (final a in own) {
     if (a.payload.from == 0) continue;
-    if (chargedTouchIds.contains(a.payload.enabledByTouchId)) continue;
+    if (a.payload.enabledByTouchId != null) continue;
+    if (a.payload.reason != RunnerAdvanceReason.BATTED_BALL) continue;
     if (a.payload.to > base) base = a.payload.to;
   }
   return BatterOutcome(

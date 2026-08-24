@@ -1,0 +1,21 @@
+{
+  "id": "play-08",
+  "title": "Sacrifice fly: caught in center, R3 tags and scores, batter charged no at-bat",
+  "specRef": "§13.6 (v0.43)",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 1 }, "runners": { "3": "r3" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.7 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "fly", "landing": { "x": 15, "y": 240 }, "landingIsCaught": true } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 8, "touchType": "caught" } },
+    { "id": "e4", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "fly_out", "putoutTouchId": "e3" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r3", "from": 3, "to": 4, "reason": "batted_ball" } }
+  ],
+  "expect": {
+    "outs": 2,
+    "runs": 1,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "sacrifice_fly", "hit": false, "rbi": 1, "atBat": false },
+    "note": "Derived, not entered (§13.6): caught fly, fewer than two outs, batter retired, a runner scoring from third on the ball, and no error anywhere. A plate appearance but not an at-bat — the sac bunt is the one that needs the scorer, since nothing physical separates giving herself up from bunting for a hit."
+  }
+}

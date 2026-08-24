@@ -1,0 +1,22 @@
+{
+  "id": "play-07",
+  "title": "Catcher's interference: batter awarded first, E2 by rule, forced runner moves up",
+  "specRef": "§4.1 (v0.43), §13.2",
+  "setup": { "outs": 1, "count": { "balls": 0, "strikes": 1 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "outcome": "catcher_interference" } },
+    { "id": "e2", "type": "RuleCall", "payload": { "callType": "interference_catcher", "againstPosition": 2 } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 2, "reason": "catcher_interference" } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "catcher_interference" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "count": { "balls": 0, "strikes": 0 },
+    "officialErrors": [ { "position": 2, "kind": "interference" } ],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "catcher_interference", "hit": false, "atBat": false },
+    "runnerBases": { "b1": 1, "r1": 2 },
+    "note": "Dead ball, no count effect, PA over (§4.1 v0.43). E2 charged by rule with no misplay touch — the ⚖ anchors the charge. The count resets because the plate appearance ended."
+  }
+}

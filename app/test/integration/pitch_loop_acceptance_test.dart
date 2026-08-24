@@ -126,9 +126,14 @@ void main() {
     // P3 — the scorer looked up and the count changed (§12.5).
     await quickPitch(tester, 'Unknown');
     final amberHud = tester.widget<Container>(find.byKey(countHudKey));
-    expect(amberHud.color, isNot(Theme.of(
-      tester.element(find.byKey(countHudKey)),
-    ).colorScheme.surfaceContainerHigh));
+    expect(
+      amberHud.color,
+      isNot(
+        Theme.of(
+          tester.element(find.byKey(countHudKey)),
+        ).colorScheme.surfaceContainerHigh,
+      ),
+    );
     expect(find.text('1-1'), findsOneWidget); // unchanged — never guessed
 
     // The checkpoint: scoreboard says 2-1, make it so.
@@ -168,6 +173,9 @@ void main() {
     // subject is the pitch loop, and DIA-009's scripted half-inning is where
     // plays get scored for real.
     await quickPitch(tester, 'In play');
+    // Wave off the trajectory modal (§15.1 v0.43), then discard.
+    await tester.tapAt(const Offset(20, 20));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(fieldDiscardKey));
     await tester.pumpAndSettle();
 

@@ -265,153 +265,136 @@ void main() {
     expect(state.bases.first, 'r1');
   });
 
-  test(
-    "AB-boundary refusal: a prior batter's dangling unknown pitch is never "
-    "touched by a later batter's CountCorrection, regardless of whether "
-    'the arithmetic would happen to line up',
-    () {
-      final b = EventBuilder();
-      final events = [
-        b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['A', 'B']),
-        b.inningHalfStart(
-          id: 'half1',
-          inning: 1,
-          half: Half.BOTTOM,
-          battingTeamId: 'home',
-        ),
-        // Batter A: one unknown pitch, then the AB ends — this unknown is
-        // never resolved by any CountCorrection and stays unknown forever.
-        b.pitch(
-          id: 'a-unknown',
-          batterId: 'A',
-          pitcherId: 'p',
-          outcome: Outcome.UNKNOWN,
-        ),
-        b.pitch(
-          id: 'a-end',
-          batterId: 'A',
-          pitcherId: 'p',
-          outcome: Outcome.IN_PLAY,
-        ),
-        // Batter B: one unknown pitch, then a checkpoint that uniquely
-        // resolves B's own pitch alone.
-        b.pitch(
-          id: 'b-unknown',
-          batterId: 'B',
-          pitcherId: 'p',
-          outcome: Outcome.UNKNOWN,
-        ),
-        b.countCorrection(id: 'cc', balls: 1, strikes: 0),
-      ];
+  test("AB-boundary refusal: a prior batter's dangling unknown pitch is never "
+      "touched by a later batter's CountCorrection, regardless of whether "
+      'the arithmetic would happen to line up', () {
+    final b = EventBuilder();
+    final events = [
+      b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['A', 'B']),
+      b.inningHalfStart(
+        id: 'half1',
+        inning: 1,
+        half: Half.BOTTOM,
+        battingTeamId: 'home',
+      ),
+      // Batter A: one unknown pitch, then the AB ends — this unknown is
+      // never resolved by any CountCorrection and stays unknown forever.
+      b.pitch(
+        id: 'a-unknown',
+        batterId: 'A',
+        pitcherId: 'p',
+        outcome: Outcome.UNKNOWN,
+      ),
+      b.pitch(
+        id: 'a-end',
+        batterId: 'A',
+        pitcherId: 'p',
+        outcome: Outcome.IN_PLAY,
+      ),
+      // Batter B: one unknown pitch, then a checkpoint that uniquely
+      // resolves B's own pitch alone.
+      b.pitch(
+        id: 'b-unknown',
+        batterId: 'B',
+        pitcherId: 'p',
+        outcome: Outcome.UNKNOWN,
+      ),
+      b.countCorrection(id: 'cc', balls: 1, strikes: 0),
+    ];
 
-      final state = foldGameState(events);
+    final state = foldGameState(events);
 
-      expect(
-        state.inferredPitchEffects['a-unknown'],
-        isNull,
-        reason: "batter A's pitch belongs to a different, already-closed AB",
-      );
-      expect(
-        state.inferredPitchEffects['b-unknown'],
-        InferredPitchEffect.BALL,
-      );
-    },
-  );
+    expect(
+      state.inferredPitchEffects['a-unknown'],
+      isNull,
+      reason: "batter A's pitch belongs to a different, already-closed AB",
+    );
+    expect(state.inferredPitchEffects['b-unknown'], InferredPitchEffect.BALL);
+  });
 
-  test(
-    'back-inference replays known span pitches from the span-start count, '
-    'not the current count',
-    () {
-      // 0-0: unknown pitch, then a KNOWN called strike (count now 0-1,
-      // both pitches in the span). Checkpoint 1-1 — from the span start of
-      // 0-0, only u1=ball explains it: ball -> 1-0, strike -> 1-1.
-      // Regression: replaying from the current count (0-1) applies the
-      // known strike twice and wrongly refuses to infer.
-      final b = EventBuilder();
-      final events = [
-        b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
-        b.inningHalfStart(
-          id: 'half1',
-          inning: 1,
-          half: Half.BOTTOM,
-          battingTeamId: 'home',
-        ),
-        b.pitch(
-          id: 'u1',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.UNKNOWN,
-        ),
-        b.pitch(
-          id: 'k1',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.CALLED_STRIKE,
-        ),
-        b.countCorrection(id: 'cc', balls: 1, strikes: 1),
-      ];
+  test('back-inference replays known span pitches from the span-start count, '
+      'not the current count', () {
+    // 0-0: unknown pitch, then a KNOWN called strike (count now 0-1,
+    // both pitches in the span). Checkpoint 1-1 — from the span start of
+    // 0-0, only u1=ball explains it: ball -> 1-0, strike -> 1-1.
+    // Regression: replaying from the current count (0-1) applies the
+    // known strike twice and wrongly refuses to infer.
+    final b = EventBuilder();
+    final events = [
+      b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
+      b.inningHalfStart(
+        id: 'half1',
+        inning: 1,
+        half: Half.BOTTOM,
+        battingTeamId: 'home',
+      ),
+      b.pitch(
+        id: 'u1',
+        batterId: 'h1',
+        pitcherId: 'p',
+        outcome: Outcome.UNKNOWN,
+      ),
+      b.pitch(
+        id: 'k1',
+        batterId: 'h1',
+        pitcherId: 'p',
+        outcome: Outcome.CALLED_STRIKE,
+      ),
+      b.countCorrection(id: 'cc', balls: 1, strikes: 1),
+    ];
 
-      final state = foldGameState(events);
+    final state = foldGameState(events);
 
-      expect(state.inferredPitchEffects['u1'], InferredPitchEffect.BALL);
-      expect(state.balls, 1);
-      expect(state.strikes, 1);
-      expect(state.uncertainCount, isFalse);
-    },
-  );
+    expect(state.inferredPitchEffects['u1'], InferredPitchEffect.BALL);
+    expect(state.balls, 1);
+    expect(state.strikes, 1);
+    expect(state.uncertainCount, isFalse);
+  });
 
-  test(
-    'known-foul path-dependence through the full fold: two histories '
-    'reach the checkpoint, so nothing is inferred',
-    () {
-      // Known called strike (0-1), unknown, known foul, unknown,
-      // checkpoint 1-2. From the span start of 0-0 two histories fit:
-      // u1=foul -> 0-2, foul no-ops, u2=ball -> 1-2; or u1=ball -> 1-1,
-      // foul counts -> 1-2, u2=no-op foul -> 1-2. Must refuse both.
-      final b = EventBuilder();
-      final events = [
-        b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
-        b.inningHalfStart(
-          id: 'half1',
-          inning: 1,
-          half: Half.BOTTOM,
-          battingTeamId: 'home',
-        ),
-        b.pitch(
-          id: 'k0',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.CALLED_STRIKE,
-        ),
-        b.pitch(
-          id: 'u1',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.UNKNOWN,
-        ),
-        b.pitch(
-          id: 'kf',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.FOUL,
-        ),
-        b.pitch(
-          id: 'u2',
-          batterId: 'h1',
-          pitcherId: 'p',
-          outcome: Outcome.UNKNOWN,
-        ),
-        b.countCorrection(id: 'cc', balls: 1, strikes: 2),
-      ];
+  test('known-foul path-dependence through the full fold: two histories '
+      'reach the checkpoint, so nothing is inferred', () {
+    // Known called strike (0-1), unknown, known foul, unknown,
+    // checkpoint 1-2. From the span start of 0-0 two histories fit:
+    // u1=foul -> 0-2, foul no-ops, u2=ball -> 1-2; or u1=ball -> 1-1,
+    // foul counts -> 1-2, u2=no-op foul -> 1-2. Must refuse both.
+    final b = EventBuilder();
+    final events = [
+      b.lineupSet(id: 'lineup', teamId: 'home', battingOrder: ['h1']),
+      b.inningHalfStart(
+        id: 'half1',
+        inning: 1,
+        half: Half.BOTTOM,
+        battingTeamId: 'home',
+      ),
+      b.pitch(
+        id: 'k0',
+        batterId: 'h1',
+        pitcherId: 'p',
+        outcome: Outcome.CALLED_STRIKE,
+      ),
+      b.pitch(
+        id: 'u1',
+        batterId: 'h1',
+        pitcherId: 'p',
+        outcome: Outcome.UNKNOWN,
+      ),
+      b.pitch(id: 'kf', batterId: 'h1', pitcherId: 'p', outcome: Outcome.FOUL),
+      b.pitch(
+        id: 'u2',
+        batterId: 'h1',
+        pitcherId: 'p',
+        outcome: Outcome.UNKNOWN,
+      ),
+      b.countCorrection(id: 'cc', balls: 1, strikes: 2),
+    ];
 
-      final state = foldGameState(events);
+    final state = foldGameState(events);
 
-      expect(state.inferredPitchEffects, isEmpty);
-      expect(state.balls, 1);
-      expect(state.strikes, 2);
-      expect(state.uncertainCount, isFalse, reason: 'checkpoint clears it');
-    },
-  );
+    expect(state.inferredPitchEffects, isEmpty);
+    expect(state.balls, 1);
+    expect(state.strikes, 2);
+    expect(state.uncertainCount, isFalse, reason: 'checkpoint clears it');
+  });
 
   test('InningHalfStart with a snapshot adopts cumulative state', () {
     final b = EventBuilder();

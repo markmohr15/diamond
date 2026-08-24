@@ -82,9 +82,7 @@ List<GameEvent> _gameEvents(EventBuilder b) {
         runsByTeam: const {'away': 0},
         nextBatterIndexByTeam: const {'away': 3},
         pitchCountByPitcher: const {'p1': 9},
-        inferredPitchEffects: const {
-          'a1-u': InferredPitchEffect.STRIKE_EFFECT,
-        },
+        inferredPitchEffects: const {'a1-u': InferredPitchEffect.STRIKE_EFFECT},
       ),
     ),
 
@@ -165,56 +163,50 @@ void main() {
     store = EventStore(AppDatabase(NativeDatabase.memory()));
   });
 
-  test(
-    'property test: projecting via the snapshot fast path equals folding '
-    'the whole stream from genesis',
-    () async {
-      final b = EventBuilder();
-      for (final event in _gameEvents(b)) {
-        await store.append(event);
-      }
+  test('property test: projecting via the snapshot fast path equals folding '
+      'the whole stream from genesis', () async {
+    final b = EventBuilder();
+    for (final event in _gameEvents(b)) {
+      await store.append(event);
+    }
 
-      final viaSnapshot = await GameStateProjector(store).project('game-1');
-      final fromGenesis = foldGameState(await store.readStream('game-1'));
+    final viaSnapshot = await GameStateProjector(store).project('game-1');
+    final fromGenesis = foldGameState(await store.readStream('game-1'));
 
-      expectSameState(viaSnapshot, fromGenesis);
-      // Sanity-check the scenario actually reached the state we designed:
-      // home scored 1, is 1 out into their half, away is retired.
-      expect(fromGenesis.runsByTeam['home'], 1);
-      expect(fromGenesis.outs, 1);
-      expect(fromGenesis.battingTeamId, 'home');
-    },
-  );
+    expectSameState(viaSnapshot, fromGenesis);
+    // Sanity-check the scenario actually reached the state we designed:
+    // home scored 1, is 1 out into their half, away is retired.
+    expect(fromGenesis.runsByTeam['home'], 1);
+    expect(fromGenesis.outs, 1);
+    expect(fromGenesis.battingTeamId, 'home');
+  });
 
-  test(
-    'a correction landing at-or-before the snapshot boundary invalidates '
-    'it, and the projected result still matches a full replay',
-    () async {
-      final b = EventBuilder();
-      for (final event in _gameEvents(b)) {
-        await store.append(event);
-      }
+  test('a correction landing at-or-before the snapshot boundary invalidates '
+      'it, and the projected result still matches a full replay', () async {
+    final b = EventBuilder();
+    for (final event in _gameEvents(b)) {
+      await store.append(event);
+    }
 
-      // Long after the snapshot was cached, someone corrects a1's second
-      // strike to a foul instead — a1's strikeout never actually
-      // happened, so away's whole half reshapes: only 2 outs, not 3, and
-      // the half never actually ended.
-      await store.append(
-        b.pitch(
-          id: 'a1-s2-corrected',
-          batterId: 'a1',
-          pitcherId: 'p1',
-          outcome: Outcome.FOUL,
-          corrects: 'a1-s2',
-        ),
-      );
+    // Long after the snapshot was cached, someone corrects a1's second
+    // strike to a foul instead — a1's strikeout never actually
+    // happened, so away's whole half reshapes: only 2 outs, not 3, and
+    // the half never actually ended.
+    await store.append(
+      b.pitch(
+        id: 'a1-s2-corrected',
+        batterId: 'a1',
+        pitcherId: 'p1',
+        outcome: Outcome.FOUL,
+        corrects: 'a1-s2',
+      ),
+    );
 
-      final viaSnapshot = await GameStateProjector(store).project('game-1');
-      final fromGenesis = foldGameState(await store.readStream('game-1'));
+    final viaSnapshot = await GameStateProjector(store).project('game-1');
+    final fromGenesis = foldGameState(await store.readStream('game-1'));
 
-      expectSameState(viaSnapshot, fromGenesis);
-    },
-  );
+    expectSameState(viaSnapshot, fromGenesis);
+  });
 
   test(
     'a void landing at-or-before the snapshot boundary invalidates it too',
@@ -239,32 +231,29 @@ void main() {
     },
   );
 
-  test(
-    'a backdated insert anchored at-or-before the snapshot boundary '
-    'invalidates it too',
-    () async {
-      final b = EventBuilder();
-      for (final event in _gameEvents(b)) {
-        await store.append(event);
-      }
+  test('a backdated insert anchored at-or-before the snapshot boundary '
+      'invalidates it too', () async {
+    final b = EventBuilder();
+    for (final event in _gameEvents(b)) {
+      await store.append(event);
+    }
 
-      // Long after the fact: a2 actually stole second between two of
-      // their own pitches, in the half the snapshot already accounts for.
-      await store.append(
-        b.runnerAdvance(
-          id: 'late-steal',
-          runnerId: 'a2',
-          from: 1,
-          to: 2,
-          reason: RunnerAdvanceReason.STOLEN_BASE,
-          effectiveAfter: 'a2-s1',
-        ),
-      );
+    // Long after the fact: a2 actually stole second between two of
+    // their own pitches, in the half the snapshot already accounts for.
+    await store.append(
+      b.runnerAdvance(
+        id: 'late-steal',
+        runnerId: 'a2',
+        from: 1,
+        to: 2,
+        reason: RunnerAdvanceReason.STOLEN_BASE,
+        effectiveAfter: 'a2-s1',
+      ),
+    );
 
-      final viaSnapshot = await GameStateProjector(store).project('game-1');
-      final fromGenesis = foldGameState(await store.readStream('game-1'));
+    final viaSnapshot = await GameStateProjector(store).project('game-1');
+    final fromGenesis = foldGameState(await store.readStream('game-1'));
 
-      expectSameState(viaSnapshot, fromGenesis);
-    },
-  );
+    expectSameState(viaSnapshot, fromGenesis);
+  });
 }

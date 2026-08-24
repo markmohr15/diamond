@@ -1,55 +1,335 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const base = PlayDraft(pitchEventId: 'pitch-1', batterId: 'opp-1');
+  final landed = base.copyWith(
+    landing: FieldCoord(x: -45, y: 120),
+    trajectory: Trajectory.LINE,
+  );
 
   group('PlayDraft JSON (the §15.5 journal format)', () {
-    test('round-trips a full draft', () {
-      final draft = base
-          .copyWith(
-            landing: FieldCoord(x: -45, y: 120),
-            retrieved: FieldCoord(x: -80, y: 180),
-            trajectory: Trajectory.LINE,
-            offWall: true,
-          )
-          .movingRunner('opp-1', from: 0, to: 2)
-          .movingRunner('opp-9', from: 2, to: 4);
+    test('round-trips a full chain', () {
+      final draft = landed
+          .copyWith(retrieved: FieldCoord(x: -80, y: 180), offWall: true)
+          .addingTouch(6, TouchType.BOOTED)
+          .addingLeg('opp-1', from: 0, to: 1)
+          .addingRuleCall(CallType.OBSTRUCTION)
+          .addingOut('opp-9', atBase: 3, how: How.TAG, putoutKey: 0);
 
       final back = PlayDraft.fromJson(draft.toJson());
       expect(back.pitchEventId, 'pitch-1');
-      expect(back.batterId, 'opp-1');
       expect(back.landing!.x, -45);
       expect(back.retrieved!.y, 180);
-      expect(back.trajectory, Trajectory.LINE);
       expect(back.offWall, isTrue);
-      expect(back.landingIsCaught, isFalse);
-      expect(back.runnerMoves, hasLength(2));
-      expect(back.runnerMoves.first.runnerId, 'opp-1');
-      expect(back.runnerMoves.last.to, 4);
+      expect(back.nextKey, 4);
+      expect(back.entries, hasLength(4));
+      final touch = back.entries[0] as TouchEntry;
+      expect(touch.touchType, TouchType.BOOTED);
+      final leg = back.entries[1] as LegEntry;
+      expect(leg.enabledByKey, 0);
+      expect((back.entries[2] as RuleCallEntry).callType, CallType.OBSTRUCTION);
+      final out = back.entries[3] as OutEntry;
+      expect(out.how, How.TAG);
+      expect(out.putoutKey, 0);
     });
 
     test('round-trips the empty draft the surface opens with', () {
       final back = PlayDraft.fromJson(base.toJson());
       expect(back.landing, isNull);
-      expect(back.retrieved, isNull);
-      expect(back.trajectory, isNull);
-      expect(back.runnerMoves, isEmpty);
+      expect(back.entries, isEmpty);
+      expect(back.nextKey, 0);
     });
   });
 
-  group('runner moves: one per runner, net advance', () {
-    test('a re-drag replaces the target, keeping origin and entry order', () {
+  group('chain mechanics', () {
+    test('legs auto-attribute to the latest misplay or ⚖, never to clean '
+        'touches (§13.4, §15.3)', () {
+      var draft = landed
+          .addingTouch(9, TouchType.FIELDED)
+          .addingLeg('opp-1', from: 0, to: 1);
+      expect((draft.entries[1] as LegEntry).enabledByKey, isNull);
+
+      draft = draft
+          .addingTouch(6, TouchType.WILD_THROW)
+          .addingLeg('opp-1', from: 1, to: 2);
+      expect((draft.entries[3] as LegEntry).enabledByKey, 2);
+
+      draft = draft
+          .addingRuleCall(CallType.OBSTRUCTION)
+          .addingLeg('opp-1', from: 2, to: 3);
+      expect((draft.entries[5] as LegEntry).enabledByKey, 4);
+    });
+
+    test('cascade pushes stay unattributed', () {
+      final draft = landed
+          .addingTouch(6, TouchType.BOOTED)
+          .addingLeg('opp-1', from: 0, to: 1)
+          .addingLeg('opp-9', from: 1, to: 2, attribute: false);
+      expect((draft.entries[1] as LegEntry).enabledByKey, 0);
+      expect((draft.entries[2] as LegEntry).enabledByKey, isNull);
+    });
+
+    test('displayBase follows legs; isOut follows outs', () {
+      final draft = landed
+          .addingLeg('opp-1', from: 0, to: 1)
+          .addingLeg('opp-1', from: 1, to: 3)
+          .addingOut('opp-9', atBase: 3, how: How.TAG);
+      expect(draft.displayBase('opp-1', 0), 3);
+      expect(draft.displayBase('opp-2', 1), 1);
+      expect(draft.isOut('opp-9'), isTrue);
+      expect(draft.isOut('opp-1'), isFalse);
+    });
+
+    test('securedTouch: held after a clean touch, loose after a misplay or '
+        'a throw away', () {
+      final held = landed.addingTouch(6, TouchType.FIELDED);
+      expect(held.securedTouch!.key, 0);
+
+      // The ball got away: nobody holds it until someone plays it again.
+      expect(held.addingTouch(6, TouchType.WILD_THROW).securedTouch, isNull);
+      expect(landed.addingTouch(6, TouchType.BOOTED).securedTouch, isNull);
+      expect(landed.addingTouch(8, TouchType.DROPPED).securedTouch, isNull);
+    });
+
+    test('removing an entry orphans links to it, never retargets', () {
+      final draft = landed
+          .addingTouch(6, TouchType.BOOTED)
+          .addingLeg('opp-1', from: 0, to: 1)
+          .addingOut('opp-9', atBase: 2, how: How.FORCE, putoutKey: 0)
+          .removingEntry(0);
+      expect(draft.entries, hasLength(2));
+      expect((draft.entries[0] as LegEntry).enabledByKey, isNull);
+      expect((draft.entries[1] as OutEntry).putoutKey, isNull);
+    });
+
+    test('landingIsCaught is the first touch, chips flip it (§4.2)', () {
+      expect(landed.landingIsCaught, isFalse);
+      final caught = landed.addingTouch(8, TouchType.CAUGHT);
+      expect(caught.landingIsCaught, isTrue);
+      final dropped = caught.updatingEntry(
+        0,
+        (e) => (e as TouchEntry).copyWith(touchType: TouchType.DROPPED),
+      );
+      expect(dropped.landingIsCaught, isFalse);
+    });
+  });
+
+  group('recordingFielderPlay (§15.1 v0.43: the fielder drag)', () {
+    final spot = FieldCoord(x: 30, y: 160);
+
+    test('assumes the landing at her spot only when no path was drawn', () {
+      final assumed = base
+          .copyWith(trajectory: Trajectory.FLY)
+          .recordingFielderPlay(8, spot: spot, touchType: TouchType.CAUGHT);
+      expect(assumed.landing!.x, 30);
+      expect(assumed.movedFielders[8]!.y, 160);
+      final touch = assumed.entries.whereType<TouchEntry>().single;
+      expect(touch.touchType, TouchType.CAUGHT);
+      expect(touch.location!.x, 30);
+
+      final drawn = landed.recordingFielderPlay(
+        6,
+        spot: spot,
+        touchType: TouchType.FIELDED,
+      );
+      expect(drawn.landing!.x, -45, reason: 'the drawn path wins');
+    });
+
+    test('"missed it" moves her and places the ball, but records no touch', () {
+      final missed = base
+          .copyWith(trajectory: Trajectory.GROUND)
+          .recordingFielderPlay(4, spot: spot);
+      expect(missed.entries, isEmpty);
+      expect(missed.landing!.x, 30);
+      expect(missed.movedFielders[4], isNotNull);
+    });
+
+    test('round-trips movedFielders and touch locations through JSON', () {
       final draft = base
-          .movingRunner('opp-1', from: 0, to: 1)
-          .movingRunner('opp-9', from: 1, to: 2)
-          .movingRunner('opp-1', from: 0, to: 3);
-      expect(draft.runnerMoves, hasLength(2));
-      expect(draft.runnerMoves.first.runnerId, 'opp-1');
-      expect(draft.runnerMoves.first.from, 0);
-      expect(draft.runnerMoves.first.to, 3);
-      expect(draft.runnerMoves.last.runnerId, 'opp-9');
+          .copyWith(trajectory: Trajectory.FLY)
+          .recordingFielderPlay(8, spot: spot, touchType: TouchType.DROPPED);
+      final back = PlayDraft.fromJson(draft.toJson());
+      expect(back.movedFielders[8]!.x, 30);
+      expect((back.entries.single as TouchEntry).location!.y, 160);
+    });
+  });
+
+  group('the batter runs on contact (§15.1 v0.43)', () {
+    final walkedUp = landed.addingLeg(
+      'opp-1',
+      from: 0,
+      to: 1,
+      attribute: false,
+    );
+
+    test('an out at the reached base absorbs the leg — no phantom advance', () {
+      final draft = walkedUp.addingOut('opp-1', atBase: 1, how: How.FORCE);
+      expect(draft.entries.whereType<LegEntry>(), isEmpty);
+      expect((draft.entries.single as OutEntry).atBase, 1);
+    });
+
+    test('an out at a farther base keeps the legs — play 03 stretching', () {
+      final draft = walkedUp.addingOut('opp-1', atBase: 2, how: How.TAG);
+      expect(draft.entries.whereType<LegEntry>(), hasLength(1));
+    });
+
+    test('a caught first touch voids the walk-up and records the fly out', () {
+      final draft = walkedUp
+          .addingLeg('r1', from: 1, to: 2, attribute: false) // the push
+          .copyWith(trajectory: Trajectory.FLY)
+          .recordingFielderPlay(
+            8,
+            spot: FieldCoord(x: 0, y: 150),
+            touchType: TouchType.CAUGHT,
+          );
+      expect(draft.entries.whereType<LegEntry>(), isEmpty);
+      final out = draft.entries.whereType<OutEntry>().single;
+      expect(out.how, How.FLY_OUT);
+      expect(out.putoutKey, draft.entries.whereType<TouchEntry>().single.key);
+      expect(draft.landingIsCaught, isTrue);
+    });
+
+    test('a misplay first touch claims the reach and the chain reorders to '
+        'narrative order (§13.2)', () {
+      final draft = walkedUp.recordingFielderPlay(
+        6,
+        spot: FieldCoord(x: -50, y: 95),
+        touchType: TouchType.BOOTED,
+      );
+      expect(draft.entries, hasLength(2));
+      final touch = draft.entries[0] as TouchEntry;
+      expect(touch.touchType, TouchType.BOOTED);
+      final reach = draft.entries[1] as LegEntry;
+      expect(reach.enabledByKey, touch.key);
+
+      final events = draft.toEvents();
+      expect(events.map((e) => e.type), [
+        'BallInPlay',
+        'FielderTouch',
+        'RunnerAdvance',
+      ]);
+      expect(events[2].payload['reason'], 'error');
+    });
+
+    test('a clean first touch leaves the reach alone — the hit stands', () {
+      final draft = walkedUp.recordingFielderPlay(
+        9,
+        spot: FieldCoord(x: 110, y: 180),
+        touchType: TouchType.FIELDED,
+      );
+      final reach = draft.entries.whereType<LegEntry>().single;
+      expect(reach.enabledByKey, isNull);
+    });
+  });
+
+  group('affirmingSafe (§15.1 v0.43)', () {
+    test('an answered SAFE re-authors the walk-up: same base, no longer a '
+        'presumption', () {
+      final walkedUp = landed
+          .addingLeg('opp-1', from: 0, to: 1, attribute: false)
+          .copyWith(openingLegCount: 1);
+      expect(walkedUp.isProvisional('opp-1'), isTrue);
+
+      final settled = walkedUp.affirmingSafe('opp-1');
+      expect(settled.isProvisional('opp-1'), isFalse);
+      final leg = settled.entries.whereType<LegEntry>().single;
+      expect(leg.from, 0);
+      expect(leg.to, 1);
+      expect(settled.displayBase('opp-1', 0), 1);
+    });
+
+    test('a runner the scorer already resolved is left alone', () {
+      final resolved = landed.addingLeg('opp-1', from: 0, to: 2);
+      expect(resolved.affirmingSafe('opp-1').entries, hasLength(1));
+    });
+  });
+
+  group('beyond the fence (§16.3)', () {
+    const origins = <RunnerSlot>[
+      (runnerId: 'opp-1', base: 0),
+      (runnerId: 'r1', base: 1),
+      (runnerId: 'r3', base: 3),
+    ];
+
+    test('a home run scores everyone aboard, replacing the walk-up', () {
+      final draft = landed
+          .addingLeg('opp-1', from: 0, to: 1, attribute: false)
+          .addingLeg('r1', from: 1, to: 2, attribute: false)
+          .copyWith(offWall: true)
+          .resolvingHomeRun(origins);
+
+      final legs = draft.entries.whereType<LegEntry>().toList();
+      expect(legs, hasLength(3));
+      expect(legs.every((leg) => leg.to == 4), isTrue);
+      // Lead runner first, per §11.3's forced-chain ordering.
+      expect(legs.map((leg) => leg.from), [3, 1, 0]);
+      expect(
+        draft.offWall,
+        isFalse,
+        reason: 'a ball that went over never hit the wall',
+      );
+
+      final events = draft.toEvents();
+      final advances = events.where((e) => e.type == 'RunnerAdvance');
+      expect(advances, hasLength(3));
+      expect(
+        advances.every((e) => e.payload['reason'] == 'batted_ball'),
+        isTrue,
+        reason:
+            'the hit itself: the batter derives home_run and every run '
+            'aboard is an RBI',
+      );
+    });
+
+    test('the ground-rule sibling awards two bases apiece, capped at home', () {
+      final draft = landed.resolvingGroundRuleDouble(origins);
+      final legs = draft.entries.whereType<LegEntry>().toList();
+      expect(
+        legs.map((leg) => (leg.runnerId, leg.from, leg.to)),
+        containsAll([('opp-1', 0, 2), ('r1', 1, 3), ('r3', 3, 4)]),
+      );
+      expect(draft.toEvents().last.payload['reason'], 'ground_rule');
+    });
+
+    test('touches survive the award — she can play it at the wall and still '
+        'watch it go', () {
+      final draft = landed
+          .addingTouch(8, TouchType.FIELDED)
+          .resolvingHomeRun(origins);
+      expect(draft.entries.whereType<TouchEntry>(), hasLength(1));
+    });
+  });
+
+  group('attachingRuleCall (§15.3 v0.43: ⚖ on the consequence)', () {
+    test('inserts before a leg and re-attributes it — reason derives', () {
+      final draft = landed
+          .addingLeg('opp-1', from: 0, to: 2)
+          .attachingRuleCall(0, CallType.OBSTRUCTION);
+      expect(draft.entries, hasLength(2));
+      final call = draft.entries[0] as RuleCallEntry;
+      expect(call.callType, CallType.OBSTRUCTION);
+      final leg = draft.entries[1] as LegEntry;
+      expect(leg.enabledByKey, call.key);
+
+      final events = draft.toEvents();
+      expect(events.map((e) => e.type), [
+        'BallInPlay',
+        'RuleCall',
+        'RunnerAdvance',
+      ]);
+      expect(events[2].payload['reason'], 'obstruction');
+    });
+
+    test('inserts before an out and its how becomes interference', () {
+      final draft = landed
+          .addingOut('opp-1', atBase: 2, how: How.TAG)
+          .attachingRuleCall(0, CallType.INTERFERENCE_RUNNER);
+      final out = draft.entries[1] as OutEntry;
+      expect(out.how, How.INTERFERENCE);
+      expect(draft.entries[0], isA<RuleCallEntry>());
     });
   });
 
@@ -57,153 +337,171 @@ void main() {
     test('bases-loaded single: the whole chain walks up, run included', () {
       final moves = cascadeRunnerMove(
         [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r1', origin: 1, base: 1),
-          (runnerId: 'r2', origin: 2, base: 2),
-          (runnerId: 'r3', origin: 3, base: 3),
+          (runnerId: 'b', base: 0),
+          (runnerId: 'r1', base: 1),
+          (runnerId: 'r2', base: 2),
+          (runnerId: 'r3', base: 3),
         ],
         movedId: 'b',
         to: 1,
       );
-      expect(moves.map((m) => (m.runnerId, m.from, m.to)), [
-        ('b', 0, 1),
-        ('r1', 1, 2),
-        ('r2', 2, 3),
-        ('r3', 3, 4),
+      expect(moves, [
+        (runnerId: 'b', from: 0, to: 1),
+        (runnerId: 'r1', from: 1, to: 2),
+        (runnerId: 'r2', from: 2, to: 3),
+        (runnerId: 'r3', from: 3, to: 4),
       ]);
     });
 
     test('double with R1: the batter passing first pushes R1 to third', () {
       final moves = cascadeRunnerMove(
-        [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r1', origin: 1, base: 1),
-        ],
+        [(runnerId: 'b', base: 0), (runnerId: 'r1', base: 1)],
         movedId: 'b',
         to: 2,
       );
-      expect(moves.map((m) => (m.runnerId, m.from, m.to)), [
-        ('b', 0, 2),
-        ('r1', 1, 3),
+      expect(moves, [
+        (runnerId: 'b', from: 0, to: 2),
+        (runnerId: 'r1', from: 1, to: 3),
       ]);
     });
 
     test('no force, no push: R2 holds on a single behind her', () {
       final moves = cascadeRunnerMove(
-        [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r2', origin: 2, base: 2),
-        ],
+        [(runnerId: 'b', base: 0), (runnerId: 'r2', base: 2)],
         movedId: 'b',
         to: 1,
       );
-      expect(moves.map((m) => (m.runnerId, m.to)), [('b', 1)]);
+      expect(moves, [(runnerId: 'b', from: 0, to: 1)]);
     });
 
-    test('a leader already moved ahead in the draft absorbs the chain', () {
-      // R1 was dragged to third earlier this play; the batter reaching
-      // first displaces nobody.
-      final moves = cascadeRunnerMove(
-        [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r1', origin: 1, base: 3),
-        ],
-        movedId: 'b',
-        to: 1,
+    test('a scored leader is out of the way; a mid-draft leader ahead '
+        'absorbs the chain', () {
+      expect(
+        cascadeRunnerMove(
+          [(runnerId: 'b', base: 0), (runnerId: 'r1', base: 4)],
+          movedId: 'b',
+          to: 1,
+        ),
+        hasLength(1),
       );
-      expect(moves, hasLength(1));
-    });
-
-    test('a scored leader is out of the way, never re-pushed', () {
-      final moves = cascadeRunnerMove(
-        [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r1', origin: 1, base: 4),
-        ],
-        movedId: 'b',
-        to: 1,
+      expect(
+        cascadeRunnerMove(
+          [(runnerId: 'b', base: 0), (runnerId: 'r1', base: 3)],
+          movedId: 'b',
+          to: 1,
+        ),
+        hasLength(1),
       );
-      expect(moves, hasLength(1));
     });
 
     test('trailing runners never move automatically', () {
-      // R1 dragged to third: the batter stays put behind her.
       final moves = cascadeRunnerMove(
-        [
-          (runnerId: 'b', origin: 0, base: 0),
-          (runnerId: 'r1', origin: 1, base: 1),
-        ],
+        [(runnerId: 'b', base: 0), (runnerId: 'r1', base: 1)],
         movedId: 'r1',
         to: 3,
       );
-      expect(moves.map((m) => (m.runnerId, m.to)), [('r1', 3)]);
+      expect(moves, [(runnerId: 'r1', from: 1, to: 3)]);
     });
   });
 
-  group('copyWith', () {
-    test('an explicit null retrieved clears it — a re-tap after a drag', () {
-      final rolled = base.copyWith(
-        landing: FieldCoord(x: 10, y: 100),
-        retrieved: FieldCoord(x: 10, y: 150),
-      );
-      final retapped = rolled.copyWith(
-        landing: FieldCoord(x: 20, y: 110),
-        retrieved: null,
-      );
-      expect(retapped.retrieved, isNull);
-      expect(rolled.copyWith(trajectory: Trajectory.FLY).retrieved, isNotNull);
-    });
-  });
-
-  group('toEvents (§15.5 atomic commit)', () {
+  group('toEvents (§15.5 atomic commit, §13 derivations)', () {
     test('refuses an incomplete draft — the ✓ should never have fired', () {
       expect(base.toEvents, throwsStateError);
-      expect(
-        base.copyWith(landing: FieldCoord(x: 0, y: 100)).toEvents,
-        throwsStateError,
-      );
       expect(base.committable, isFalse);
+      expect(landed.committable, isTrue);
     });
 
-    test('a clean single: BallInPlay, then the advance, in order', () {
-      final draft = base
-          .copyWith(
-            landing: FieldCoord(x: 110, y: 180),
-            trajectory: Trajectory.LINE,
+    test('play 01 shape: dropped liner, out anyway — order, links, and the '
+        '§13.2 OE default', () {
+      final draft = landed
+          .addingTouch(6, TouchType.FIELDED)
+          .updatingEntry(
+            0,
+            (e) => (e as TouchEntry).copyWith(touchType: TouchType.DROPPED),
           )
-          .movingRunner('opp-1', from: 0, to: 1);
-      expect(draft.committable, isTrue);
+          .addingTouch(6, TouchType.FIELDED)
+          .addingTouch(3, TouchType.RECEIVED_THROW)
+          .addingOut('opp-1', atBase: 1, how: How.FORCE, putoutKey: 2);
 
       final events = draft.toEvents();
-      expect(events.map((e) => e.type), ['BallInPlay', 'RunnerAdvance']);
-
-      final ball = BallInPlay.fromJson(events.first.payload);
-      expect(ball.pitchEventId, 'pitch-1');
-      expect(ball.fair, isTrue);
-      expect(ball.trajectory, Trajectory.LINE);
-      expect(ball.landing.x, 110);
-      expect(ball.landingIsCaught, isFalse);
-      expect(ball.retrieved, isNull);
-      // Not suggested, not asserted: absent, never `false` noise.
-      expect(events.first.payload['offWall'], isNull);
-
-      final advance = RunnerAdvance.fromJson(events.last.payload);
-      expect(advance.runnerId, 'opp-1');
-      expect(advance.from, 0);
-      expect(advance.to, 1);
-      expect(advance.reason, RunnerAdvanceReason.BATTED_BALL);
+      expect(events.map((e) => e.type), [
+        'BallInPlay',
+        'FielderTouch',
+        'FielderTouch',
+        'FielderTouch',
+        'RunnerOut',
+      ]);
+      expect(events[0].payload['landingIsCaught'], isFalse);
+      expect(events[1].payload['touchType'], 'dropped');
+      expect(events[1].payload['ordinaryEffort'], isTrue); // §13.2 default
+      expect(events[1].payload['ballInPlayEventId'], localRef('bip'));
+      expect(events[2].payload['ordinaryEffort'], isNull); // clean touch
+      expect(events[4].payload['how'], 'force');
+      expect(events[4].payload['putoutTouchId'], localRef('e2'));
     });
 
-    test('carries the roll and the wall when present', () {
-      final draft = base.copyWith(
-        landing: FieldCoord(x: 0, y: 208),
-        retrieved: FieldCoord(x: 30, y: 180),
-        trajectory: Trajectory.FLY,
-        offWall: true,
+    test('play 02 shape: boot then wild throw — leg reasons derive from '
+        'their enablers, mechanically', () {
+      final draft = base
+          .copyWith(
+            landing: FieldCoord(x: -50, y: 95),
+            trajectory: Trajectory.GROUND,
+          )
+          .addingTouch(6, TouchType.BOOTED)
+          .addingLeg('opp-1', from: 0, to: 1)
+          .addingTouch(6, TouchType.WILD_THROW)
+          .addingLeg('opp-1', from: 1, to: 3);
+
+      final events = draft.toEvents();
+      expect(events.map((e) => e.type), [
+        'BallInPlay',
+        'FielderTouch',
+        'RunnerAdvance',
+        'FielderTouch',
+        'RunnerAdvance',
+      ]);
+      expect(events[2].payload['reason'], 'error');
+      expect(events[2].payload['enabledByTouchId'], localRef('e0'));
+      expect(
+        events[3].payload['ordinaryEffort'],
+        isNull,
+        reason:
+            'wild_throw stays a judgment call (§13.2): a throw can sail '
+            'and cost nothing',
       );
-      final ball = BallInPlay.fromJson(draft.toEvents().single.payload);
-      expect(ball.retrieved!.x, 30);
-      expect(ball.offWall, isTrue);
+      expect(events[4].payload['reason'], 'wild_throw');
+      expect(events[4].payload['enabledByTouchId'], localRef('e2'));
+    });
+
+    test('an explicit OE judgment beats the default; obstruction legs carry '
+        'their reason without a touch link', () {
+      final draft = landed
+          .addingTouch(6, TouchType.BOOTED)
+          .updatingEntry(
+            0,
+            (e) => (e as TouchEntry).copyWith(ordinaryEffort: false),
+          )
+          .addingRuleCall(CallType.OBSTRUCTION)
+          .addingLeg('opp-1', from: 0, to: 2);
+
+      final events = draft.toEvents();
+      expect(events[1].payload['ordinaryEffort'], isFalse);
+      expect(events[2].payload['callType'], 'obstruction');
+      expect(events[3].payload['reason'], 'obstruction');
+      expect(events[3].payload['enabledByTouchId'], isNull);
+    });
+
+    test('caught first touch: landingIsCaught true on the wire', () {
+      final draft = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 150),
+            trajectory: Trajectory.FLY,
+          )
+          .addingTouch(8, TouchType.CAUGHT)
+          .addingOut('opp-1', atBase: 1, how: How.FLY_OUT, putoutKey: 0);
+      final events = draft.toEvents();
+      expect(events[0].payload['landingIsCaught'], isTrue);
+      expect(events[2].payload['how'], 'fly_out');
     });
   });
 }

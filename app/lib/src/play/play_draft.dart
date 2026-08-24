@@ -2,90 +2,304 @@
 /// since the in-play pitch, held *outside* the event stream until the ✓.
 ///
 /// Deliberately not an event and never one: commit translates the draft into
-/// the atomic sequence (`BallInPlay`, then consequences) in one append, so a
-/// half-entered play can't corrupt game state — and the same JSON round-trip
-/// that keeps the draft immutable is what the crash journal persists.
+/// the atomic sequence (`BallInPlay`, then the chain in entry order) in one
+/// append, so a half-entered play can't corrupt game state — and the same
+/// JSON round-trip that keeps the draft immutable is what the crash journal
+/// persists.
 ///
-/// DIA-008a scope: landing (+retrieved), trajectory, offWall, and runner
-/// advances. Fielder touches, outs, rule calls, and per-leg advance
-/// attribution are DIA-008b, which will grow this model rather than replace
-/// it.
+/// DIA-008b: the chain is an ordered list of [PlayEntry] — fielder touches,
+/// runner legs, outs, rule calls — each with a stable [PlayEntry.key] so
+/// links (`enabledBy`, `putout`) survive removals. Official-scoring language
+/// never appears here (§13): the draft records physics; the chips record
+/// physics; `error`-the-reason is derived mechanically from the enabling
+/// touch's type at commit.
 library;
 
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
+import 'package:diamond/src/rules/official_scoring.dart'
+    show defaultOrdinaryEffort, misplayTouchTypes;
 import 'package:flutter/foundation.dart';
 
-/// Where one runner ends up, relative to where the play found them.
-///
-/// One move per runner, holding the *net* advance (`from` = the base the
-/// play started them on, `to` = the latest drag target). DIA-008b splits
-/// this into per-leg advances when legs need distinct reasons and touch
-/// attribution (§13.4); a clean single needs only the net.
+/// One node of the play chain. [key] is stable for the draft's lifetime —
+/// links point at keys, never at list positions, so removing an entry can
+/// orphan a link (nulled) but never silently retarget it.
 @immutable
-class RunnerMove {
-  const RunnerMove({
-    required this.runnerId,
-    required this.from,
-    required this.to,
+sealed class PlayEntry {
+  const PlayEntry({required this.key});
+
+  final int key;
+
+  Map<String, dynamic> toJson();
+
+  static PlayEntry fromJson(Map<String, dynamic> json) {
+    return switch (json['kind']) {
+      'touch' => TouchEntry(
+        key: json['key'] as int,
+        position: json['position'] as int,
+        touchType: touchTypeValues.map[json['touchType']]!,
+        ordinaryEffort: json['ordinaryEffort'] as bool?,
+        receivedQuality: receivedQualityValues.map[json['receivedQuality']],
+        location: json['location'] == null
+            ? null
+            : FieldCoord.fromJson(json['location'] as Map<String, dynamic>),
+      ),
+      'leg' => LegEntry(
+        key: json['key'] as int,
+        runnerId: json['runnerId'] as String,
+        from: json['from'] as int,
+        to: json['to'] as int,
+        enabledByKey: json['enabledByKey'] as int?,
+        reasonOverride: runnerAdvanceReasonValues.map[json['reasonOverride']],
+      ),
+      'out' => OutEntry(
+        key: json['key'] as int,
+        runnerId: json['runnerId'] as String,
+        atBase: json['atBase'] as int,
+        how: howValues.map[json['how']]!,
+        putoutKey: json['putoutKey'] as int?,
+        enabledByCallKey: json['enabledByCallKey'] as int?,
+      ),
+      'ruleCall' => RuleCallEntry(
+        key: json['key'] as int,
+        callType: callTypeValues.map[json['callType']]!,
+        againstPosition: json['againstPosition'] as int?,
+      ),
+      _ => throw StateError('unknown play entry kind: ${json['kind']}'),
+    };
+  }
+}
+
+/// A fielder touched the ball (§4.2). Type starts as the surface's
+/// inference; the chip converts it (dropped/booted/… §15.3) in place — one
+/// node, retyped, never a second node.
+class TouchEntry extends PlayEntry {
+  const TouchEntry({
+    required super.key,
+    required this.position,
+    required this.touchType,
+    this.ordinaryEffort,
+    this.receivedQuality,
+    this.location,
   });
 
-  factory RunnerMove.fromJson(Map<String, dynamic> json) => RunnerMove(
-    runnerId: json['runnerId'] as String,
-    from: json['from'] as int,
-    to: json['to'] as int,
-  );
+  final int position;
+  final TouchType touchType;
 
-  final String runnerId;
+  /// Null = not judged; §13.2's default applies at commit.
+  final bool? ordinaryEffort;
 
-  /// 0 = batter's box, 1–3 bases (§4.3).
-  final int from;
+  /// Arrival quality on receiving touches (§4.2) — developmental only.
+  final ReceivedQuality? receivedQuality;
 
-  /// 1–3 bases, 4 = scored (§4.3).
-  final int to;
+  /// Where the touch happened (§4.2) — set by the fielder drag: where she
+  /// was dropped is where she played it.
+  final FieldCoord? location;
 
+  bool get isMisplay => misplayTouchTypes.contains(touchType);
+
+  TouchEntry copyWith({
+    TouchType? touchType,
+    Object? ordinaryEffort = _unset,
+    Object? receivedQuality = _unset,
+  }) {
+    return TouchEntry(
+      key: key,
+      position: position,
+      touchType: touchType ?? this.touchType,
+      ordinaryEffort: ordinaryEffort == _unset
+          ? this.ordinaryEffort
+          : ordinaryEffort as bool?,
+      receivedQuality: receivedQuality == _unset
+          ? this.receivedQuality
+          : receivedQuality as ReceivedQuality?,
+      location: location,
+    );
+  }
+
+  @override
   Map<String, dynamic> toJson() => {
-    'runnerId': runnerId,
-    'from': from,
-    'to': to,
+    'kind': 'touch',
+    'key': key,
+    'position': position,
+    'touchType': touchTypeValues.reverse[touchType],
+    'ordinaryEffort': ordinaryEffort,
+    'receivedQuality': receivedQualityValues.reverse[receivedQuality],
+    'location': location?.toJson(),
   };
 }
 
-/// One occupied spot as the forced cascade sees it: who, the base the play
-/// found them on (`origin`; 0 = batter's box), and where they currently
-/// stand in the draft (`base`).
-typedef RunnerSlot = ({String runnerId, int origin, int base});
+/// One runner's movement between two bases (§4.3). A runner's journey is a
+/// sequence of legs, each attributable to its own enabler (§13.4).
+class LegEntry extends PlayEntry {
+  const LegEntry({
+    required super.key,
+    required this.runnerId,
+    required this.from,
+    required this.to,
+    this.enabledByKey,
+    this.reasonOverride,
+  });
+
+  final String runnerId;
+  final int from;
+  final int to;
+
+  /// The [TouchEntry] or [RuleCallEntry] that enabled this leg; null =
+  /// plain batted-ball movement (including cascade pushes).
+  final int? enabledByKey;
+
+  /// An explicit §4.3 reason from the SAFE classification (v0.43) — e.g.
+  /// `fielders_choice`, or `error` when no misplay touch exists yet to
+  /// link. Null = derive from the enabler at commit.
+  final RunnerAdvanceReason? reasonOverride;
+
+  LegEntry copyWith({Object? enabledByKey = _unset}) => LegEntry(
+    key: key,
+    runnerId: runnerId,
+    from: from,
+    to: to,
+    enabledByKey: enabledByKey == _unset
+        ? this.enabledByKey
+        : enabledByKey as int?,
+    reasonOverride: reasonOverride,
+  );
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'kind': 'leg',
+    'key': key,
+    'runnerId': runnerId,
+    'from': from,
+    'to': to,
+    'enabledByKey': enabledByKey,
+    'reasonOverride': runnerAdvanceReasonValues.reverse[reasonOverride],
+  };
+}
+
+/// A runner retired (§4.3). [how] is stored as inferred by the surface
+/// (force/tag/fly_out from context, §15.1) and overridable from the node.
+class OutEntry extends PlayEntry {
+  const OutEntry({
+    required super.key,
+    required this.runnerId,
+    required this.atBase,
+    required this.how,
+    this.putoutKey,
+    this.enabledByCallKey,
+  });
+
+  final String runnerId;
+  final int atBase;
+  final How how;
+
+  /// The [TouchEntry] credited with the putout.
+  final int? putoutKey;
+
+  /// The [RuleCallEntry] that produced this out — an interference call
+  /// (§4.3's `enabledByCallId`), so the committed stream keeps the link
+  /// rather than only the resulting `how`.
+  final int? enabledByCallKey;
+
+  OutEntry copyWith({
+    How? how,
+    Object? putoutKey = _unset,
+    Object? enabledByCallKey = _unset,
+  }) => OutEntry(
+    key: key,
+    runnerId: runnerId,
+    atBase: atBase,
+    how: how ?? this.how,
+    putoutKey: putoutKey == _unset ? this.putoutKey : putoutKey as int?,
+    enabledByCallKey: enabledByCallKey == _unset
+        ? this.enabledByCallKey
+        : enabledByCallKey as int?,
+  );
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'kind': 'out',
+    'key': key,
+    'runnerId': runnerId,
+    'atBase': atBase,
+    'how': howValues.reverse[how],
+    'putoutKey': putoutKey,
+    'enabledByCallKey': enabledByCallKey,
+  };
+}
+
+/// An umpire ruling in the chain (§4.5, §15.3's ⚖ node). M1 subset:
+/// obstruction and runner interference.
+class RuleCallEntry extends PlayEntry {
+  const RuleCallEntry({
+    required super.key,
+    required this.callType,
+    this.againstPosition,
+  });
+
+  final CallType callType;
+
+  /// The fielder the call is against (§4.5) — obstruction is charged to
+  /// her (§13.2 v0.43), so the surface asks who before recording it.
+  final int? againstPosition;
+
+  @override
+  Map<String, dynamic> toJson() => {
+    'kind': 'ruleCall',
+    'key': key,
+    'callType': callTypeValues.reverse[callType],
+    'againstPosition': againstPosition,
+  };
+}
+
+/// The SAFE popup's classification vocabulary (§15.1 v0.43): what got the
+/// runner there. Encodes to §4.3 reasons and touch links — physics and
+/// linkage, never rulings.
+enum SafeResolution {
+  onTheHit,
+  onTheThrow,
+  onError,
+  fieldersChoice,
+  obstruction,
+}
+
+/// One occupied spot as the forced cascade sees it: who and where they
+/// currently stand in the draft.
+typedef RunnerSlot = ({String runnerId, int base});
+
+/// The dragged move as `(runnerId, from, to)` triples: the drag itself plus
+/// its forced pushes. See [cascadeRunnerMove].
+typedef CascadedMove = ({String runnerId, int from, int to});
 
 /// A runner drag with the rulebook's geometry applied: **runners never pass
-/// one another**, so releasing a trailing runner on or past a leading
-/// runner's base pushes that leader forward, cascading — the bases-loaded
-/// single walks everyone up, run included, in the same spirit as §11.3's
-/// auto-applied walk chain. Trailing runners never move automatically, a
-/// scored leader (base 4) is out of the way, and every pushed token stays
-/// draggable, so an over-push costs one corrective drag.
+/// one another**, so releasing a runner on or past a leader's base pushes
+/// that leader forward, cascading — the bases-loaded single walks everyone
+/// up, run included, in the same spirit as §11.3's forced walk chain.
+/// Trailing runners never move automatically, a scored leader (base 4) is
+/// out of the way, and every pushed token stays draggable, so an over-push
+/// costs one corrective drag.
 ///
-/// Returns the dragged move plus every push, trailing-to-leading.
-List<RunnerMove> cascadeRunnerMove(
+/// Returns the dragged move plus every push, trailing-to-leading; each
+/// `from` is the runner's *current* draft base — these become [LegEntry]s.
+List<CascadedMove> cascadeRunnerMove(
   List<RunnerSlot> slots, {
   required String movedId,
   required int to,
 }) {
   final moved = slots.firstWhere((s) => s.runnerId == movedId);
-  final moves = [RunnerMove(runnerId: movedId, from: moved.origin, to: to)];
+  final moves = <CascadedMove>[(runnerId: movedId, from: moved.base, to: to)];
   var floor = to;
-  final ahead = [...slots.where((s) => s.origin > moved.origin)]
-    ..sort((a, b) => a.origin.compareTo(b.origin));
+  final ahead = [...slots.where((s) => s.base > moved.base)]
+    ..sort((a, b) => a.base.compareTo(b.base));
   for (final slot in ahead) {
-    if (slot.base >= 4) continue; // scored — nobody left to displace
+    if (slot.runnerId == movedId || slot.base >= 4) continue;
     if (slot.base > floor) {
       // Strictly ahead already; the chain (if any) restarts behind them.
       floor = slot.base;
       continue;
     }
     final pushed = floor + 1 > 4 ? 4 : floor + 1;
-    moves.add(
-      RunnerMove(runnerId: slot.runnerId, from: slot.origin, to: pushed),
-    );
+    moves.add((runnerId: slot.runnerId, from: slot.base, to: pushed));
     floor = pushed;
   }
   return moves;
@@ -99,9 +313,12 @@ class PlayDraft {
     this.landing,
     this.retrieved,
     this.trajectory,
-    this.landingIsCaught = false,
     this.offWall = false,
-    this.runnerMoves = const [],
+    this.sacrifice = false,
+    this.entries = const [],
+    this.movedFielders = const {},
+    this.openingLegCount = 0,
+    this.nextKey = 0,
   });
 
   factory PlayDraft.fromJson(Map<String, dynamic> json) => PlayDraft(
@@ -114,19 +331,28 @@ class PlayDraft {
         ? null
         : FieldCoord.fromJson(json['retrieved'] as Map<String, dynamic>),
     trajectory: trajectoryValues.map[json['trajectory']],
-    landingIsCaught: json['landingIsCaught'] as bool? ?? false,
     offWall: json['offWall'] as bool? ?? false,
-    runnerMoves: [
-      for (final move in (json['runnerMoves'] as List<dynamic>? ?? []))
-        RunnerMove.fromJson(move as Map<String, dynamic>),
+    sacrifice: json['sacrifice'] as bool? ?? false,
+    entries: [
+      for (final entry in (json['entries'] as List<dynamic>? ?? []))
+        PlayEntry.fromJson(entry as Map<String, dynamic>),
     ],
+    movedFielders: {
+      for (final entry
+          in (json['movedFielders'] as Map<String, dynamic>? ?? {}).entries)
+        int.parse(entry.key): FieldCoord.fromJson(
+          entry.value as Map<String, dynamic>,
+        ),
+    },
+    openingLegCount: json['openingLegCount'] as int? ?? 0,
+    nextKey: json['nextKey'] as int? ?? 0,
   );
 
   /// The committed `PitchThrown` this play hangs off (§4.2's link).
   final String pitchEventId;
 
   /// The batter-runner: rendered at the plate, dragged like any runner but
-  /// starting `from: 0`.
+  /// starting from the batter's box.
   final String batterId;
 
   final FieldCoord? landing;
@@ -136,29 +362,163 @@ class PlayDraft {
 
   final Trajectory? trajectory;
 
-  /// Caught in the air at the landing coordinate (§4.2). Always false in
-  /// DIA-008a — marking the catch arrives with fielder touches (008b) —
-  /// carried so the journal format doesn't change under 008b.
-  final bool landingIsCaught;
-
   /// §15.1: auto-suggested when the landing sits on the fence spline; the
   /// scorer confirms via a chip.
   final bool offWall;
 
-  /// Ordered by first entry; at most one move per runner (see [RunnerMove]).
-  final List<RunnerMove> runnerMoves;
+  /// §13's second judgment flag (v0.43): she was giving herself up. Only
+  /// the scorer knows — no physical record separates a bunt to move the
+  /// runner from a bunt for a hit — so the surface asks on any bunt that
+  /// moved somebody. A sac fly needs no flag; it derives.
+  final bool sacrifice;
+
+  /// The chain, in entry order — which is stream order at commit.
+  final List<PlayEntry> entries;
+
+  /// Where the fielder drag left each dragged fielder this play — render
+  /// state for this canvas only. Deliberately never an event: per-play
+  /// repositioning is where she made *this* play, not §16.4 alignment data,
+  /// and the touch's own `location` carries the analytic value.
+  final Map<int, FieldCoord> movedFielders;
+
+  /// Next [PlayEntry.key]; monotonic for the draft's lifetime.
+  /// How many entries the draft opened with (the batter-runs-on-contact
+  /// walk-up): everything past this count is scorer-authored, which is what
+  /// locks the drawn path (see [pathLocked]).
+  final int openingLegCount;
+
+  final int nextKey;
+
+  /// Caught in the air *at the landing coordinate* (§4.2's wire field):
+  /// true iff the chain's first touch is `caught`. A ball deflected and
+  /// then caught was not caught where it landed, so this stays false — see
+  /// [caughtInFlight] for the question the rules actually ask.
+  bool get landingIsCaught {
+    final first = entries.whereType<TouchEntry>().firstOrNull;
+    return first?.touchType == TouchType.CAUGHT;
+  }
+
+  /// Whether anybody has actually thrown the ball — evidence being a
+  /// reception or a throw that got away. "She went on the throw" is only
+  /// an answer when a throw happened.
+  bool get hasThrow => entries.whereType<TouchEntry>().any(
+    (touch) =>
+        touch.touchType == TouchType.RECEIVED_THROW ||
+        touch.touchType == TouchType.WILD_THROW,
+  );
+
+  /// Whether anyone caught this ball in the air. This is what the rules
+  /// turn on — a catch retires the batter and removes every force, whether
+  /// or not it happened where the ball first came down.
+  bool get caughtInFlight => entries.whereType<TouchEntry>().any(
+    (touch) => touch.touchType == TouchType.CAUGHT,
+  );
+
+  /// Whether this play needs §13's sacrifice judgment: a bunt that moved a
+  /// runner up. Only the scorer can say whether she was giving herself up,
+  /// so the surface offers the answer exactly here.
+  bool get invitesSacrifice {
+    if (trajectory != Trajectory.BUNT) return false;
+    return entries.any(
+      (entry) =>
+          entry is LegEntry &&
+          entry.runnerId != batterId &&
+          entry.to > entry.from,
+    );
+  }
 
   /// A committable draft has the two facts §11.1 always collects: where and
   /// how it came off the bat.
   bool get committable => landing != null && trajectory != null;
 
+  /// Whether the drawn path is frozen (§15.1 v0.43): once anything beyond
+  /// the opening walk-up has been entered, the ball's path stops being
+  /// editable — changing it after plays hang off it would silently rewrite
+  /// what those plays meant. The way out is the full play reset.
+  bool get pathLocked => entries.length > openingLegCount;
+
+  /// The last touch this fielder made in this play, if any — a re-drag of
+  /// a fielder who already played the ball adjusts, never duplicates.
+  TouchEntry? latestTouchBy(int position) {
+    for (final entry in entries.reversed) {
+      if (entry is TouchEntry && entry.position == position) return entry;
+    }
+    return null;
+  }
+
+  /// A re-drag of a fielder who already played the ball (§15.1 v0.43):
+  /// she repositions and her play's location follows — one play, adjusted,
+  /// never a second touch. When the landing was assumed from that touch,
+  /// it moves with her.
+  PlayDraft adjustingFielderPlay(int position, {required FieldCoord spot}) {
+    final touch = latestTouchBy(position);
+    if (touch == null) return this;
+    final landingWasAssumed =
+        landing != null &&
+        touch.location != null &&
+        landing!.x == touch.location!.x &&
+        landing!.y == touch.location!.y;
+    final moved = TouchEntry(
+      key: touch.key,
+      position: touch.position,
+      touchType: touch.touchType,
+      ordinaryEffort: touch.ordinaryEffort,
+      receivedQuality: touch.receivedQuality,
+      location: spot,
+    );
+    return copyWith(
+      landing: landingWasAssumed ? spot : null,
+      movedFielders: {...movedFielders, position: spot},
+      entries: [
+        for (final entry in entries)
+          if (entry.key == touch.key) moved else entry,
+      ],
+    );
+  }
+
+  PlayEntry? entryByKey(int key) {
+    for (final entry in entries) {
+      if (entry.key == key) return entry;
+    }
+    return null;
+  }
+
+  /// Where [runnerId] currently stands: their last leg's target, or
+  /// [origin] untouched.
+  int displayBase(String runnerId, int origin) {
+    var base = origin;
+    for (final entry in entries) {
+      if (entry is LegEntry && entry.runnerId == runnerId) base = entry.to;
+    }
+    return base;
+  }
+
+  /// Whether this runner's position is still the opening presumption (the
+  /// walk-up on contact) rather than something the scorer resolved. The
+  /// canvas renders these in motion — she is running, not arrived.
+  bool isProvisional(String runnerId) {
+    for (final entry in entries.reversed) {
+      if (entry is LegEntry && entry.runnerId == runnerId) {
+        return entry.key < openingLegCount;
+      }
+    }
+    return false;
+  }
+
+  /// Whether [runnerId] has been retired in this draft.
+  bool isOut(String runnerId) =>
+      entries.any((e) => e is OutEntry && e.runnerId == runnerId);
+
   PlayDraft copyWith({
     FieldCoord? landing,
     Object? retrieved = _unset,
     Trajectory? trajectory,
-    bool? landingIsCaught,
     bool? offWall,
-    List<RunnerMove>? runnerMoves,
+    bool? sacrifice,
+    List<PlayEntry>? entries,
+    Map<int, FieldCoord>? movedFielders,
+    int? openingLegCount,
+    int? nextKey,
   }) {
     return PlayDraft(
       pitchEventId: pitchEventId,
@@ -168,32 +528,428 @@ class PlayDraft {
           ? this.retrieved
           : retrieved as FieldCoord?,
       trajectory: trajectory ?? this.trajectory,
-      landingIsCaught: landingIsCaught ?? this.landingIsCaught,
       offWall: offWall ?? this.offWall,
-      runnerMoves: runnerMoves ?? this.runnerMoves,
+      sacrifice: sacrifice ?? this.sacrifice,
+      entries: entries ?? this.entries,
+      movedFielders: movedFielders ?? this.movedFielders,
+      openingLegCount: openingLegCount ?? this.openingLegCount,
+      nextKey: nextKey ?? this.nextKey,
     );
   }
 
-  /// Sets or replaces this runner's move; a re-drag updates `to`, keeping
-  /// the original `from` and entry order.
-  PlayDraft movingRunner(
+  PlayDraft _appending(PlayEntry Function(int key) build) =>
+      copyWith(entries: [...entries, build(nextKey)], nextKey: nextKey + 1);
+
+  /// The default attribution target for the next runner leg: the most
+  /// recent misplay touch (§13.4) or ⚖ rule call (§15.3: drags after an
+  /// insertion link to it). Clean touches never auto-claim an advance — a
+  /// single past a diving shortstop isn't "enabled by" her touch.
+  int? get latestEnablerKey {
+    for (final entry in entries.reversed) {
+      if (entry is RuleCallEntry) return entry.key;
+      if (entry is TouchEntry && entry.isMisplay) return entry.key;
+    }
+    return null;
+  }
+
+  /// The touch types that leave the ball *in hand* — a tap on another
+  /// fielder while one of these is the latest touch is a throw. After a
+  /// drop, a boot, a missed catch, or a throw away, the ball is loose and
+  /// the next fielder interaction is a play on the ball, not a reception.
+  static const _securingTypes = {
+    TouchType.FIELDED,
+    TouchType.CAUGHT,
+    TouchType.RECEIVED_THROW,
+    TouchType.TAG_APPLIED,
+    TouchType.BOBBLED, // momentary misplay, ball stays with the fielder
+  };
+
+  /// Who holds the ball right now: the chain's last touch when it secured
+  /// the ball, null when the ball is loose (or untouched). The accent ring
+  /// and the tap-to-throw grammar key on this.
+  TouchEntry? get securedTouch {
+    for (final entry in entries.reversed) {
+      if (entry is TouchEntry) {
+        return _securingTypes.contains(entry.touchType) ? entry : null;
+      }
+    }
+    return null;
+  }
+
+  PlayDraft addingTouch(
+    int position,
+    TouchType touchType, {
+    FieldCoord? location,
+  }) => _appending(
+    (key) => TouchEntry(
+      key: key,
+      position: position,
+      touchType: touchType,
+      location: location,
+    ),
+  );
+
+  /// The fielder drag's full effect in one value (§15.1 v0.43): she stands
+  /// where she was dropped, the ball is assumed there when no path was
+  /// drawn, and — unless the popup said she never touched it — the touch
+  /// goes on the chain with its location.
+  ///
+  /// A *first* touch carries two more consequences:
+  /// - **Caught** voids the running presumption: every unattributed leg
+  ///   (the walk-up [PlayDraft] opened with) comes off, and the batter is
+  ///   out in the air, putout to this touch.
+  /// - **A misplay** claims the batter's provisional reach (§13.2:
+  ///   hit-vs-error lives on the first touch): her unattributed leg to
+  ///   first re-attributes to it, and the chain reorders to narrative
+  ///   order — the touch, then the reach it explains.
+  PlayDraft recordingFielderPlay(
+    int position, {
+    required FieldCoord spot,
+    TouchType? touchType,
+  }) {
+    var next = copyWith(
+      landing: landing ?? spot,
+      movedFielders: {...movedFielders, position: spot},
+    );
+    if (touchType == null) return next;
+
+    final before = next.entries.whereType<TouchEntry>().toList();
+    final isFirstTouch = before.isEmpty;
+    // A deflection is the one touch that leaves the ball airborne, so a
+    // liner off the pitcher's glove can still be caught by the shortstop —
+    // and that catch retires the batter exactly like any other.
+    final wasInFlight =
+        isFirstTouch || before.last.touchType == TouchType.DEFLECTED;
+    next = next.addingTouch(position, touchType, location: spot);
+    final touchKey = next.entries.last.key;
+
+    if (touchType == TouchType.CAUGHT && wasInFlight) {
+      next = next.copyWith(
+        entries: [
+          for (final entry in next.entries)
+            if (entry is! LegEntry || entry.enabledByKey != null) entry,
+        ],
+      );
+      return next.addingOut(
+        batterId,
+        atBase: 1,
+        how: How.FLY_OUT,
+        putoutKey: touchKey,
+      );
+    }
+
+    if (isFirstTouch && misplayTouchTypes.contains(touchType)) {
+      LegEntry? reach;
+      for (final entry in next.entries) {
+        if (entry is LegEntry && entry.runnerId == batterId) {
+          if (entry.to == 1 && entry.enabledByKey == null) reach = entry;
+          break; // only her first leg can be the provisional reach
+        }
+      }
+      if (reach != null) {
+        final claimed = reach.copyWith(enabledByKey: touchKey);
+        next = next.copyWith(
+          entries: [
+            for (final entry in next.entries)
+              if (entry.key != reach.key) entry,
+            claimed,
+          ],
+        );
+      }
+    }
+    return next;
+  }
+
+  /// §15.3 v0.43: a ⚖ attached to a runner consequence — inserted into the
+  /// chain just before it, and linked: a leg re-attributes to the call
+  /// (obstruction's reason derives from it); an out's `how` becomes
+  /// `interference`.
+  PlayDraft attachingRuleCall(
+    int consequenceKey,
+    CallType callType, {
+    int? againstPosition,
+  }) {
+    final callKey = nextKey;
+    final entries = <PlayEntry>[];
+    for (final entry in this.entries) {
+      if (entry.key == consequenceKey) {
+        entries
+          ..add(
+            RuleCallEntry(
+              key: callKey,
+              callType: callType,
+              againstPosition: againstPosition,
+            ),
+          )
+          ..add(switch (entry) {
+            LegEntry() => entry.copyWith(enabledByKey: callKey),
+            OutEntry() => entry.copyWith(
+              how: How.INTERFERENCE,
+              enabledByCallKey: callKey,
+            ),
+            _ => entry,
+          });
+      } else {
+        entries.add(entry);
+      }
+    }
+    return copyWith(entries: entries, nextKey: callKey + 1);
+  }
+
+  /// Appends one leg. [attribute] = the default: link to [latestEnablerKey]
+  /// (cascade pushes pass false — geometry moved them, not the ball). An
+  /// explicit [enabledByKey] or [reason] wins over both — the SAFE
+  /// classification's vocabulary (v0.43).
+  PlayDraft addingLeg(
     String runnerId, {
     required int from,
     required int to,
-  }) {
-    final moves = [...runnerMoves];
-    final existing = moves.indexWhere((m) => m.runnerId == runnerId);
-    if (existing >= 0) {
-      moves[existing] = RunnerMove(
-        runnerId: runnerId,
-        from: moves[existing].from,
-        to: to,
-      );
-    } else {
-      moves.add(RunnerMove(runnerId: runnerId, from: from, to: to));
+    bool attribute = true,
+    int? enabledByKey,
+    RunnerAdvanceReason? reason,
+  }) => _appending(
+    (key) => LegEntry(
+      key: key,
+      runnerId: runnerId,
+      from: from,
+      to: to,
+      enabledByKey: enabledByKey ?? (attribute ? latestEnablerKey : null),
+      reasonOverride: reason,
+    ),
+  );
+
+  /// The most recent touch of any kind — "on the throw" links here.
+  int? get latestTouchKey {
+    for (final entry in entries.reversed) {
+      if (entry is TouchEntry) return entry.key;
     }
-    return copyWith(runnerMoves: moves);
+    return null;
   }
+
+  /// The most recent misplay *touch* (never a ⚖) — "on an error" links
+  /// here.
+  int? get latestMisplayTouchKey {
+    for (final entry in entries.reversed) {
+      if (entry is TouchEntry && entry.isMisplay) return entry.key;
+    }
+    return null;
+  }
+
+  /// §16.3's beyond-the-fence award: the ball left the yard, so bases are
+  /// granted rather than run. Every leg already on the chain is replaced —
+  /// a home run is not a reach plus pushes, it is four bases for everyone
+  /// aboard — and `offWall` comes off, since a ball that went over never
+  /// hit the wall. Touches and ⚖ calls stay: a fielder can have played it
+  /// at the fence and still watched it go.
+  PlayDraft _awardingBases(
+    List<RunnerSlot> origins, {
+    required int bases,
+    RunnerAdvanceReason? reason,
+  }) {
+    var next = copyWith(
+      entries: [
+        for (final entry in entries)
+          if (entry is! LegEntry) entry,
+      ],
+      offWall: false,
+      // The opening walk-up is superseded: every leg below is authored, so
+      // nothing here is provisional and no force play can be pending.
+      openingLegCount: 0,
+    );
+    // Lead runner first, matching §11.3's forced-chain ordering.
+    final ordered = [...origins]..sort((a, b) => b.base.compareTo(a.base));
+    for (final slot in ordered) {
+      final to = slot.base + bases > 4 ? 4 : slot.base + bases;
+      next = next.addingLeg(
+        slot.runnerId,
+        from: slot.base,
+        to: to,
+        attribute: false,
+        reason: reason,
+      );
+    }
+    return next;
+  }
+
+  /// Home run (§16.3): four bases for everyone — the batter's own leg to
+  /// 4 derives `home_run` and every run aboard is an RBI (§13).
+  PlayDraft resolvingHomeRun(List<RunnerSlot> origins) =>
+      _awardingBases(origins, bases: 4);
+
+  /// The beyond-the-fence sibling (§16.3): two bases for everyone, the
+  /// batter's reach deriving `double` (a ground-rule double is a hit).
+  PlayDraft resolvingGroundRuleDouble(List<RunnerSlot> origins) =>
+      _awardingBases(
+        origins,
+        bases: 2,
+        reason: RunnerAdvanceReason.GROUND_RULE,
+      );
+
+  /// The scorer answered SAFE on a force play (§15.1 v0.43): her
+  /// provisional leg becomes an authored one at the same base. Nothing
+  /// about the play changes except that it is no longer a presumption —
+  /// she stops rendering in motion and stands on the bag.
+  PlayDraft affirmingSafe(String runnerId) {
+    LegEntry? provisional;
+    for (final entry in entries.reversed) {
+      if (entry is LegEntry && entry.runnerId == runnerId) {
+        if (entry.key < openingLegCount) provisional = entry;
+        break;
+      }
+    }
+    final leg = provisional;
+    if (leg == null) return this;
+    return copyWith(
+      entries: [
+        for (final entry in entries)
+          if (entry.key != leg.key) entry,
+      ],
+    ).addingLeg(runnerId, from: leg.from, to: leg.to, attribute: false);
+  }
+
+  /// The SAFE popup's answer applied (§15.1 v0.43): the dragged leg carries
+  /// the classification — the hit itself (no enabler; raises hit rank), on
+  /// the throw (linked to the latest touch; officially an advance, not more
+  /// hit), on an error (linked to the latest misplay, or explicit `error`
+  /// when none is entered yet), a fielder's choice, or obstruction (⚖
+  /// inserted and linked). Cascade pushes stay plain forced movement.
+  PlayDraft resolvingSafe(
+    List<CascadedMove> moves,
+    SafeResolution how, {
+    int? againstPosition,
+  }) {
+    var next = this;
+    for (var i = 0; i < moves.length; i++) {
+      final move = moves[i];
+      if (i > 0) {
+        next = next.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+        );
+        continue;
+      }
+      next = switch (how) {
+        SafeResolution.onTheHit => next.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+        ),
+        SafeResolution.onTheThrow => next.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+          enabledByKey: next.latestTouchKey,
+        ),
+        SafeResolution.onError =>
+          next.latestMisplayTouchKey != null
+              ? next.addingLeg(
+                  move.runnerId,
+                  from: move.from,
+                  to: move.to,
+                  attribute: false,
+                  enabledByKey: next.latestMisplayTouchKey,
+                )
+              : next.addingLeg(
+                  move.runnerId,
+                  from: move.from,
+                  to: move.to,
+                  attribute: false,
+                  reason: RunnerAdvanceReason.ERROR,
+                ),
+        SafeResolution.fieldersChoice => next.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+          reason: RunnerAdvanceReason.FIELDERS_CHOICE,
+        ),
+        SafeResolution.obstruction => () {
+          final withLeg = next.addingLeg(
+            move.runnerId,
+            from: move.from,
+            to: move.to,
+            attribute: false,
+          );
+          return withLeg.attachingRuleCall(
+            withLeg.entries.last.key,
+            CallType.OBSTRUCTION,
+            againstPosition: againstPosition,
+          );
+        }(),
+      };
+    }
+    return next;
+  }
+
+  /// Appends an out. If the runner's last leg reached exactly [atBase],
+  /// that leg comes off first — she never made it; the provisional advance
+  /// *resolves into* the out rather than committing alongside it as a
+  /// phantom `RunnerAdvance`.
+  PlayDraft addingOut(
+    String runnerId, {
+    required int atBase,
+    required How how,
+    int? putoutKey,
+  }) {
+    LegEntry? last;
+    for (final entry in entries) {
+      if (entry is LegEntry && entry.runnerId == runnerId) last = entry;
+    }
+    final resolved = last;
+    final next = resolved != null && resolved.to == atBase
+        ? copyWith(
+            entries: [
+              for (final entry in entries)
+                if (entry.key != resolved.key) entry,
+            ],
+          )
+        : this;
+    return next._appending(
+      (key) => OutEntry(
+        key: key,
+        runnerId: runnerId,
+        atBase: atBase,
+        how: how,
+        putoutKey: putoutKey,
+      ),
+    );
+  }
+
+  /// Appends a bare ⚖ at the chain's end. Used only by the test suite —
+  /// production ⚖ entry goes through [attachingRuleCall], which inserts
+  /// before the consequence it explains.
+  PlayDraft addingRuleCall(CallType callType) =>
+      _appending((key) => RuleCallEntry(key: key, callType: callType));
+
+  PlayDraft updatingEntry(int key, PlayEntry Function(PlayEntry) change) =>
+      copyWith(
+        entries: [
+          for (final entry in entries)
+            if (entry.key == key) change(entry) else entry,
+        ],
+      );
+
+  /// Removes an entry. Links pointing at it are orphaned to null — never
+  /// silently retargeted.
+  PlayDraft removingEntry(int key) => copyWith(
+    entries: [
+      for (final entry in entries)
+        if (entry.key != key)
+          switch (entry) {
+            LegEntry(enabledByKey: final e) when e == key => entry.copyWith(
+              enabledByKey: null,
+            ),
+            OutEntry(putoutKey: final p) when p == key => entry.copyWith(
+              putoutKey: null,
+            ),
+            _ => entry,
+          },
+    ],
+  );
 
   Map<String, dynamic> toJson() => {
     'pitchEventId': pitchEventId,
@@ -201,29 +957,43 @@ class PlayDraft {
     'landing': landing?.toJson(),
     'retrieved': retrieved?.toJson(),
     'trajectory': trajectoryValues.reverse[trajectory],
-    'landingIsCaught': landingIsCaught,
     'offWall': offWall,
-    'runnerMoves': [for (final move in runnerMoves) move.toJson()],
+    'sacrifice': sacrifice,
+    'entries': [for (final entry in entries) entry.toJson()],
+    'movedFielders': {
+      for (final entry in movedFielders.entries)
+        '${entry.key}': entry.value.toJson(),
+    },
+    'openingLegCount': openingLegCount,
+    'nextKey': nextKey,
   };
 
-  /// The atomic commit sequence (§15.5): `BallInPlay` first, then runner
-  /// consequences in entry order. Throws [StateError] when not [committable]
-  /// — the ✓ is disabled until then, so reaching this any other way is a
-  /// bug, not an input.
+  /// The atomic commit sequence (§15.5): `BallInPlay` first, then the chain
+  /// in entry order, with §4.2–4.3's id links expressed as intra-batch
+  /// local refs. Throws [StateError] when not [committable] — the ✓ is
+  /// disabled until then, so reaching this any other way is a bug.
   ///
-  /// DIA-008a: every advance is `batted_ball` — misplay reasons and
-  /// `enabledByTouchId` links need touches, which don't exist yet. `fair` is
-  /// always true: the outcome that opens this surface is `in_play`, and foul
-  /// field taps are out of DIA-008's scope.
+  /// Commit-time derivations, all mechanical (§13):
+  /// - `ordinaryEffort` defaults per §13.2 where the scorer didn't judge;
+  /// - leg `reason` from the enabling entry — misplay touch → `error`
+  ///   (`wild_throw` keeps its own reason), obstruction call →
+  ///   `obstruction`, otherwise `batted_ball`;
+  /// - `landingIsCaught` from the chain's first touch;
+  /// - `fair` is always true — the outcome that opens this surface is
+  ///   `in_play`, and foul field taps are out of DIA-008's scope.
   List<PendingEvent> toEvents() {
     final landing = this.landing;
     final trajectory = this.trajectory;
     if (landing == null || trajectory == null) {
       throw StateError('draft is not committable: landing/trajectory missing');
     }
+    const bipKey = 'bip';
+    String entryKey(int key) => 'e$key';
+
     return [
       PendingEvent(
         type: 'BallInPlay',
+        localKey: bipKey,
         payload: BallInPlay(
           pitchEventId: pitchEventId,
           fair: true,
@@ -232,19 +1002,89 @@ class PlayDraft {
           retrieved: retrieved,
           landingIsCaught: landingIsCaught,
           offWall: offWall ? true : null,
+          sacrifice: sacrifice ? true : null,
         ).toJson(),
       ),
-      for (final move in runnerMoves)
-        PendingEvent(
-          type: 'RunnerAdvance',
-          payload: RunnerAdvance(
-            runnerId: move.runnerId,
-            from: move.from,
-            to: move.to,
-            reason: RunnerAdvanceReason.BATTED_BALL,
-          ).toJson(),
-        ),
+      for (final entry in entries)
+        switch (entry) {
+          TouchEntry() => PendingEvent(
+            type: 'FielderTouch',
+            localKey: entryKey(entry.key),
+            payload: FielderTouch(
+              ballInPlayEventId: '',
+              position: entry.position,
+              touchType: entry.touchType,
+              ordinaryEffort:
+                  entry.ordinaryEffort ??
+                  defaultOrdinaryEffort(entry.touchType),
+              receivedQuality: entry.receivedQuality,
+              location: entry.location,
+            ).toJson()..['ballInPlayEventId'] = localRef(bipKey),
+          ),
+          LegEntry() => PendingEvent(
+            type: 'RunnerAdvance',
+            localKey: entryKey(entry.key),
+            payload: () {
+              final enabler = entry.enabledByKey == null
+                  ? null
+                  : entryByKey(entry.enabledByKey!);
+              final payload = RunnerAdvance(
+                runnerId: entry.runnerId,
+                from: entry.from,
+                to: entry.to,
+                reason: entry.reasonOverride ?? _legReason(enabler),
+              ).toJson();
+              if (enabler is TouchEntry) {
+                payload['enabledByTouchId'] = localRef(entryKey(enabler.key));
+              } else if (enabler is RuleCallEntry) {
+                // §4.3's `enabledByCallId`: the call that caused the
+                // movement, not merely the reason it implies.
+                payload['enabledByCallId'] = localRef(entryKey(enabler.key));
+              }
+              return payload;
+            }(),
+          ),
+          OutEntry() => PendingEvent(
+            type: 'RunnerOut',
+            localKey: entryKey(entry.key),
+            payload:
+                RunnerOut(
+                  runnerId: entry.runnerId,
+                  atBase: entry.atBase,
+                  how: entry.how,
+                ).toJson()..addAll({
+                  if (entry.putoutKey != null)
+                    'putoutTouchId': localRef(entryKey(entry.putoutKey!)),
+                  if (entry.enabledByCallKey != null)
+                    'enabledByCallId': localRef(
+                      entryKey(entry.enabledByCallKey!),
+                    ),
+                }),
+          ),
+          RuleCallEntry() => PendingEvent(
+            type: 'RuleCall',
+            localKey: entryKey(entry.key),
+            payload: RuleCall(
+              callType: entry.callType,
+              againstPosition: entry.againstPosition,
+            ).toJson(),
+          ),
+        },
     ];
+  }
+
+  /// Leg reason from its enabler (§13's derivation, mechanical): the reason
+  /// is physics-adjacent vocabulary, and hit-vs-error is *never* decided
+  /// here — official scoring reads the charged touch, not this field.
+  RunnerAdvanceReason _legReason(PlayEntry? enabler) {
+    return switch (enabler) {
+      TouchEntry(touchType: TouchType.WILD_THROW) =>
+        RunnerAdvanceReason.WILD_THROW,
+      TouchEntry(isMisplay: true) => RunnerAdvanceReason.ERROR,
+      RuleCallEntry(callType: CallType.OBSTRUCTION) =>
+        RunnerAdvanceReason.OBSTRUCTION,
+      _ => RunnerAdvanceReason.BATTED_BALL,
+    };
   }
 }
 

@@ -1,0 +1,24 @@
+{
+  "id": "play-09",
+  "title": "Sacrifice bunt: R1 to second, batter thrown out 5-3, no at-bat charged",
+  "specRef": "§13.6 (v0.43)",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 1 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "L", "actualLocation": { "x": -0.2, "y": 0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "bunt", "contactQuality": "weak", "landing": { "x": -18, "y": 24 }, "landingIsCaught": false, "sacrifice": true } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 5, "touchType": "fielded", "location": { "x": -20, "y": 28 } } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 3, "touchType": "received_throw", "receivedQuality": "clean" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 2, "reason": "batted_ball" } },
+    { "id": "e6", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "force", "putoutTouchId": "e4" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "sacrifice_bunt", "hit": false, "rbi": 0, "atBat": false },
+    "runnerBases": { "r1": 2 },
+    "note": "The bunt is the one sacrifice that cannot derive (§13.6): nothing physical separates giving herself up from bunting for a hit, so `sacrifice: true` on the batted ball is scorer judgment. Everything else here is an ordinary 5-3 — the flag's only effect is that this plate appearance is not an at-bat.",
+    "variant": "Drop `sacrifice` (or set it false) and the identical stream is an ordinary groundout: scoring `out`, at-bat charged."
+  }
+}

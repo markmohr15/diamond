@@ -158,9 +158,7 @@ void main() {
 
       await tapText(tester, 'Fastball');
       await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5));
-      final code = tester
-          .widget<Text>(find.byKey(callScreenCodeKey))
-          .data;
+      final code = tester.widget<Text>(find.byKey(callScreenCodeKey)).data;
       await tester.tap(find.byKey(callScreenPitchThrownKey));
       await tester.pumpAndSettle();
 
@@ -172,8 +170,13 @@ void main() {
         code,
         reason: 'the pending call persists until the pitch result is entered',
       );
-      expect(await stream(), hasLength(2), reason: 'bootstrap only — '
-          'nothing committed');
+      expect(
+        await stream(),
+        hasLength(2),
+        reason:
+            'bootstrap only — '
+            'nothing committed',
+      );
     });
   });
 
@@ -332,8 +335,8 @@ void main() {
 
   group('bailout (§11.2 v0.41)', () {
     Future<void> twoFingerSwipeDown(WidgetTester tester) async {
-      final center = tester.getCenter(find.byKey(countHudKey)) +
-          const Offset(0, 200);
+      final center =
+          tester.getCenter(find.byKey(countHudKey)) + const Offset(0, 200);
       final one = await tester.startGesture(
         center - const Offset(60, 0),
         pointer: 7,
@@ -369,8 +372,13 @@ void main() {
 
       expect((await lastPitch()).outcome, Outcome.STRIKE_UNSPECIFIED);
       expect(find.text('0-1'), findsOneWidget);
-      expect(find.byType(CallScreen), findsOneWidget, reason: 'bailout is '
-          'per-pitch: the next pitch starts back at the top of the ladder');
+      expect(
+        find.byType(CallScreen),
+        findsOneWidget,
+        reason:
+            'bailout is '
+            'per-pitch: the next pitch starts back at the top of the ladder',
+      );
     });
 
     testWidgets('at two strikes, STRIKE is strike three — the field showed '
@@ -423,6 +431,135 @@ void main() {
     });
   });
 
+  group("catcher's interference (§4.1 v0.43)", () {
+    testWidgets('one tap on the outcome dialog: dead ball, PA over, batter '
+        'awarded first, ⚖ emitted — and never the field surface', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, "Catcher's interference");
+
+      // Straight back to the call screen: no play canvas for a dead ball.
+      expect(find.byType(CallScreen), findsOneWidget);
+      expect(find.text('0-0'), findsOneWidget);
+
+      final events = await stream();
+      expect(events.map((e) => e.type).toList().sublist(events.length - 3), [
+        'PitchThrown',
+        'RuleCall',
+        'RunnerAdvance',
+      ]);
+      expect(events.last.payload['reason'], 'catcher_interference');
+      expect(events.last.payload['to'], 1);
+
+      final gs = container.read(gameControllerProvider).requireValue;
+      expect(gs.bases.first, 'opp-1');
+      expect(gs.batterDue('opp'), 'opp-2');
+
+      // One undo reverses the whole award: pitch, ⚖, and advance.
+      await container.read(gameControllerProvider.notifier).undoLast();
+      final after = container.read(gameControllerProvider).requireValue;
+      expect(after.bases.first, isNull);
+      expect(after.batterDue('opp'), 'opp-1');
+    });
+  });
+
+  group('the outcome sheet', () {
+    testWidgets('the suggestion leads and In play always closes it — same '
+        'weight, its own row, every time', (tester) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+
+      // In the zone: the suggestion is the strike.
+      await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.5));
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(outcomeConfirmKey),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        'Called strike',
+      );
+      // In play carries the suggestion's weight and sits below everything.
+      final inPlay = find.byKey(outcomeInPlayKey);
+      expect(inPlay, findsOneWidget);
+      expect(find.text('In play'), findsOneWidget);
+      expect(
+        tester.getCenter(inPlay).dy,
+        greaterThan(tester.getCenter(find.byKey(outcomeConfirmKey)).dy),
+      );
+      expect(
+        tester.getSize(inPlay).height,
+        tester.getSize(find.byKey(outcomeConfirmKey)).height,
+      );
+
+      // Out of the zone: the suggestion flips to the ball, In play stays.
+      await tester.tapAt(const Offset(20, 20)); // dismiss
+      await tester.pumpAndSettle();
+      await placeActualAt(tester, ZoneCoord(x: 1.7, y: 0.5));
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(outcomeConfirmKey),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        'Ball',
+      );
+      expect(find.byKey(outcomeInPlayKey), findsOneWidget);
+
+      await tester.tap(find.byKey(outcomeInPlayKey));
+      await tester.pumpAndSettle();
+      expect((await lastPitch()).outcome, Outcome.IN_PLAY);
+    });
+
+    testWidgets('with no location there is no suggestion, and In play is '
+        'still the last row', (tester) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+
+      expect(find.byKey(outcomeConfirmKey), findsNothing);
+      expect(find.byKey(outcomeInPlayKey), findsOneWidget);
+      expect(
+        tester.getCenter(find.byKey(outcomeInPlayKey)).dy,
+        greaterThan(tester.getCenter(find.text('Ball')).dy),
+      );
+    });
+
+    testWidgets('dismissing it returns to the location step with nothing '
+        'committed — the choice still takes a tap', (tester) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
+      expect(find.byKey(outcomeConfirmKey), findsOneWidget);
+
+      // Tap the scrim above the sheet.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(outcomeConfirmKey), findsNothing);
+      expect(find.text('Skip location'), findsOneWidget);
+      expect(
+        await stream(),
+        hasLength(2),
+        reason: 'bootstrap only — nothing committed',
+      );
+
+      // Re-confirming from the canvas reopens the sheet and commits.
+      await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
+      await tapText(tester, 'Ball');
+      expect(find.text('1-0'), findsOneWidget);
+    });
+  });
+
   group('record last pitch (§11.1 v0.39)', () {
     // An in-play pitch opens the field surface (§15.1, DIA-008a); the offer
     // belongs to the loop's *return*, so these tests discard the play to get
@@ -431,6 +568,10 @@ void main() {
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
+      // Wave off the trajectory modal that opens with the surface
+      // (§15.1 v0.43), then discard.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(fieldDiscardKey));
       await tester.pumpAndSettle();
     }
@@ -441,6 +582,10 @@ void main() {
       await tapText(tester, 'Skip call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       await tapText(tester, 'In play');
+      // Wave off the trajectory modal that opens with the surface
+      // (§15.1 v0.43), then discard.
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(fieldDiscardKey));
       await tester.pumpAndSettle();
 
@@ -469,6 +614,16 @@ void main() {
       expect(find.byKey(recordLastPitchKey), findsOneWidget);
 
       await tapText(tester, 'Skip call'); // next pitch is underway
+      expect(find.byKey(recordLastPitchKey), findsNothing);
+    });
+
+    testWidgets('starting the next call also removes it — the first type '
+        'tap is already the choice to move on', (tester) async {
+      await pumpLoop(tester);
+      await inPlayUnlocated(tester);
+      expect(find.byKey(recordLastPitchKey), findsOneWidget);
+
+      await tapText(tester, 'Fastball');
       expect(find.byKey(recordLastPitchKey), findsNothing);
     });
 

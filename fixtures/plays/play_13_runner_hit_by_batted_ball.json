@@ -1,0 +1,22 @@
+{
+  "id": "play-13",
+  "title": "Ground ball strikes R1; runner out, batter credited a single",
+  "specRef": "§4.3, §4.5",
+  "setup": { "outs": 0, "count": { "balls": 3, "strikes": 1 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "L", "actualLocation": { "x": 0.4, "y": -0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "contactQuality": "hard", "landing": { "x": 34, "y": 74 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "RuleCall", "payload": { "callType": "interference_runner", "runnerId": "r1", "location": { "x": 38, "y": 80 } } },
+    { "id": "e4", "type": "RunnerOut", "payload": { "runnerId": "r1", "atBase": 1, "how": "batted_ball_contact", "enabledByCallId": "e3" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
+    "runnerBases": { "b1": 1 },
+    "note": "The dead-ball case with no fielder touch at all: nobody fielded the ball, so the out has no `putoutTouchId` — it is the umpire's call that retires her, anchored by `enabledByCallId`. The batter is credited a single by rule even though the ball never reached a fielder, which is why hit credit cannot be conditioned on anyone having touched it."
+  }
+}

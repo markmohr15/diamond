@@ -14,9 +14,19 @@ class RunnerToken {
     required this.runnerId,
     required this.label,
     required this.base,
+    this.origin,
+    this.inMotion = false,
   });
 
   final String runnerId;
+
+  /// The base the play found her on — the anchor an in-motion token
+  /// renders back toward.
+  final int? origin;
+
+  /// True while her position is the play's presumption rather than the
+  /// scorer's answer: she draws partway up the line (§15.1 v0.43).
+  final bool inMotion;
 
   /// Short print label ("B" for the batter-runner, "1"/"2"/"3" for the base
   /// a runner started on) — tokens are position markers, never player names.
@@ -42,6 +52,12 @@ class FieldPainter extends CustomPainter {
     this.tokens = const [],
     this.dragPosition,
     this.dragTokenId,
+    this.dragFielderPosition,
+    this.holderPosition,
+    this.movedFielders = const {},
+    this.route = const [],
+    this.forcePlayBase,
+    this.canRecordOut = true,
   });
 
   final FieldGeometry geometry;
@@ -66,7 +82,38 @@ class FieldPainter extends CustomPainter {
   final Offset? dragPosition;
   final String? dragTokenId;
 
+  /// The fielder currently in hand: she rides the finger (§15.1 v0.43 —
+  /// wherever she is dropped is where the ball went).
+  final int? dragFielderPosition;
+
+  /// The position currently holding the ball, ringed in accent — where a
+  /// throw drag starts (§15.1).
+  final int? holderPosition;
+
+  /// Where the fielder drag left fielders this play — overrides the
+  /// standard spot for the positions it names.
+  final Map<int, FieldCoord> movedFielders;
+
+  /// A force play awaiting its answer: the SAFE/OUT pair renders at this
+  /// base until the scorer taps one (§15.1 v0.43 — the throw arrived, the
+  /// question is asked where it happened).
+  final int? forcePlayBase;
+
+  /// False once the half is over (§4.4's three outs): the pills lose their
+  /// OUT half, because there is no fourth out to record.
+  final bool canRecordOut;
+
+  /// The ball's journey through the play, in order: where it ended up off
+  /// the bat, then every touch location — throws included. Drawn as dashed
+  /// accent segments so each tap visibly moves the ball from one spot to
+  /// the next (§15.1 v0.43).
+  final List<FieldCoord> route;
+
   static const double _tokenRadiusPx = 20;
+
+  /// How close (px) a dragged runner must be to a base before its Safe/Out
+  /// pair fades in (§15.1 v0.43).
+  static const double approachRadiusPx = 110;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -84,7 +131,107 @@ class FieldPainter extends CustomPainter {
     _paintInfield(canvas, structural, faint);
     _paintFielders(canvas, faint);
     _paintPlay(canvas);
+    _paintRoute(canvas);
+    _paintBaseTargets(canvas);
     _paintTokens(canvas);
+  }
+
+  /// The ball's journey (§15.1 v0.43): dashed accent segments between
+  /// consecutive touch points, so a throw reads as the ball moving.
+  void _paintRoute(Canvas canvas) {
+    if (route.length < 2) return;
+    final paint = Paint()
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..color = accent.withValues(alpha: 0.45);
+    for (var i = 0; i < route.length - 1; i++) {
+      _paintDashedLine(
+        canvas,
+        geometry.toPx(route[i]),
+        geometry.toPx(route[i + 1]),
+        paint,
+      );
+    }
+  }
+
+  void _paintDashedLine(Canvas canvas, Offset from, Offset to, Paint paint) {
+    const dash = 8.0;
+    const gap = 6.0;
+    final total = (to - from).distance;
+    if (total < 1) return;
+    final direction = (to - from) / total;
+    var covered = 0.0;
+    while (covered < total) {
+      final end = (covered + dash).clamp(0.0, total);
+      canvas.drawLine(
+        from + direction * covered,
+        from + direction * end,
+        paint,
+      );
+      covered = end + gap;
+    }
+  }
+
+  /// §15.1 v0.43's paired drop targets: as a dragged runner approaches a
+  /// base, **Safe** and **Out** pills appear at that base — and only there,
+  /// only then. GameChanger got this part right.
+  void _paintBaseTargets(Canvas canvas) {
+    final drag = dragPosition;
+    final base =
+        forcePlayBase ??
+        (dragTokenId != null && drag != null
+            ? geometry.nearestBaseWithin(drag, approachRadiusPx)
+            : null);
+    if (base == null) return;
+    // Whichever pill the runner is over lights up — the same one the
+    // release resolves to, so the canvas never shows one answer and
+    // commits another.
+    final hot = dragTokenId != null && drag != null
+        ? geometry.pillAt(base, drag)
+        : null;
+    _paintPill(
+      canvas,
+      'SAFE',
+      geometry.safeAffordanceCenter(base),
+      lit: hot == BaseCall.safe,
+    );
+    if (canRecordOut) {
+      _paintPill(
+        canvas,
+        'OUT',
+        geometry.outAffordanceCenter(base),
+        lit: hot == BaseCall.out,
+      );
+    }
+  }
+
+  void _paintPill(
+    Canvas canvas,
+    String text,
+    Offset center, {
+    bool lit = false,
+  }) {
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: 82, height: 40),
+      const Radius.circular(20),
+    );
+    canvas
+      ..drawRRect(rect, Paint()..color = lit ? accent : surface)
+      ..drawRRect(
+        rect,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = lit ? 3 : 2
+          ..color = lit ? accent : ink.withValues(alpha: 0.75),
+      );
+    _paintLabel(
+      canvas,
+      text,
+      center,
+      lit ? surface : ink,
+      fontSize: 15,
+      bold: true,
+    );
   }
 
   void _paintFence(Canvas canvas, Paint paint) {
@@ -155,14 +302,28 @@ class FieldPainter extends CustomPainter {
   void _paintFielders(Canvas canvas, Paint faint) {
     final spots = standardFielderSpots(geometry.profile);
     for (final entry in spots.entries) {
-      final px = geometry.toPx(entry.value);
+      final inHand = entry.key == dragFielderPosition && dragPosition != null;
+      final px = inHand
+          ? dragPosition!
+          : geometry.toPx(movedFielders[entry.key] ?? entry.value);
       canvas.drawCircle(px, 15, faint);
+      // The ball's current holder: accent ring — the throw drag's grip.
+      if (entry.key == holderPosition) {
+        canvas.drawCircle(
+          px,
+          19,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2
+            ..color = accent,
+        );
+      }
       _paintLabel(
         canvas,
-        '${entry.key}',
+        positionAbbreviations[entry.key] ?? '${entry.key}',
         px,
         ink.withValues(alpha: 0.55),
-        fontSize: 13,
+        fontSize: 11,
       );
     }
   }
@@ -170,10 +331,11 @@ class FieldPainter extends CustomPainter {
   void _paintPlay(Canvas canvas) {
     final landing = this.landing;
     if (landing == null) {
-      // Landing drag in progress with nothing committed yet: ghost at the
-      // pointer.
+      // Path press in progress with nothing committed yet: ghost at the
+      // pointer. Never during a runner or fielder drag — those render
+      // themselves.
       final drag = dragPosition;
-      if (drag != null && dragTokenId == null) {
+      if (drag != null && dragTokenId == null && dragFielderPosition == null) {
         canvas.drawCircle(
           drag,
           8,
@@ -185,17 +347,17 @@ class FieldPainter extends CustomPainter {
 
     final landingPx = geometry.toPx(landing);
 
-    // The roll: landing → retrieved (or → live drag position).
-    final rollEnd = retrieved != null
-        ? geometry.toPx(retrieved!)
-        : (dragTokenId == null ? dragPosition : null);
+    // The streak (§15.1 v0.43): first bounce → where it ended up, drawn in
+    // accent so the ball's path reads at a glance.
+    final rollEnd = retrieved == null ? null : geometry.toPx(retrieved!);
     if (rollEnd != null) {
       canvas
         ..drawLine(
           landingPx,
           rollEnd,
           Paint()
-            ..strokeWidth = 2
+            ..strokeWidth = 3.5
+            ..strokeCap = StrokeCap.round
             ..color = accent.withValues(alpha: 0.6),
         )
         ..drawCircle(rollEnd, 5, Paint()..color = accent);
@@ -219,7 +381,11 @@ class FieldPainter extends CustomPainter {
       final dragging = token.runnerId == dragTokenId;
       final center = dragging && dragPosition != null
           ? dragPosition!
-          : geometry.tokenCenter(token.base);
+          : geometry.runnerTokenCenter(
+              base: token.base,
+              origin: token.origin,
+              inMotion: token.inMotion,
+            );
       final scored = token.base == 4;
       final fill = Paint()
         ..color = dragging
@@ -275,6 +441,12 @@ class FieldPainter extends CustomPainter {
         oldDelegate.tokens != tokens ||
         oldDelegate.dragPosition != dragPosition ||
         oldDelegate.dragTokenId != dragTokenId ||
+        oldDelegate.dragFielderPosition != dragFielderPosition ||
+        oldDelegate.holderPosition != holderPosition ||
+        oldDelegate.movedFielders != movedFielders ||
+        oldDelegate.route != route ||
+        oldDelegate.forcePlayBase != forcePlayBase ||
+        oldDelegate.canRecordOut != canRecordOut ||
         oldDelegate.ink != ink ||
         oldDelegate.accent != accent ||
         oldDelegate.geometry.size != geometry.size;

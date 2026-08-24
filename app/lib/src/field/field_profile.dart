@@ -89,6 +89,23 @@ class FieldProfile {
 /// schema type.
 enum Sport { baseball, softball }
 
+/// Position abbreviations, the label vocabulary everywhere a position shows
+/// on screen. Scoring numbers (1–9) stay in the event stream (§4.2), but
+/// most people don't know the pitcher is 1 and the center fielder is 8 —
+/// the UI speaks P/C/1B/…/RF.
+const positionAbbreviations = <int, String>{
+  1: 'P',
+  2: 'C',
+  3: '1B',
+  4: '2B',
+  5: '3B',
+  6: 'SS',
+  7: 'LF',
+  8: 'CF',
+  9: 'RF',
+  10: 'OF4',
+};
+
 /// Profile-scaled standard defensive spots (§16.4's render defaults), keyed
 /// by position number. Draft placements: bearings and depths are eyeballed
 /// literals scaled by the profile's dimensions, good enough to render a

@@ -3,6 +3,169 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.43
+
+**§15.1's entry grammar rewritten from DIA-008 field testing (design review with Mark).** Four
+changes, one principle: the surface should mirror how a scorer actually watches a play.
+
+**Trajectory first.** The batted-ball type (`ground`/`line`/`fly`/`popup`/`bunt`) is the first
+required tap and gates the canvas, because it drives every later option — the what-happened
+popup's contents, caught-vs-fielded readings, the fly-out inference. The old order (landing tap,
+then trajectory) had the scorer commit a coordinate before the surface knew what kind of ball it
+was describing.
+
+**The ball's path, drawn or implied.** Drawn: two taps — first bounce, then where it ended up —
+rendered as an accent streak with live distances; the second tap is simply omitted for routine
+balls. Implied: **drag the fielder to where she made the play** — wherever she is dropped is where
+the ball went. Her release point becomes the assumed `landing` and the touch's own `location`
+(§4.2's field, carried since v0.1, finally earning its keep), and a trajectory-driven popup
+disambiguates: air — caught / dropped / missed it / picked it up; ground — fielded / booted /
+missed it. "Missed it" deliberately records **no touch**: a ball she never touched is officially
+nothing (§13), but the play still knows where the ball went and that she got there. Her moved
+position is render-only — per-play repositioning is where she made *this* play, not §16.4
+alignment data.
+
+**Safe/Out at the approached base.** Runner drags resolve on a Safe/Out pair that appears at the
+base the runner nears — the GameChanger interaction, kept because it was right — replacing the
+always-offset out affordance. The pair stacks vertically (SAFE on top, OUT beneath) rather than
+sitting side by side under one thumb, out in foul ground beside first and third and straddling
+the bag at second and home; the pills' own positions count toward "engaged with this base," so
+reaching for one can never take the runner out of range of the base it belongs to. The pill
+under the runner lights up as she is dragged onto it, and resolution is nearest-wins — the
+midline between the two is the boundary — so what glows is what commits. The base itself reads as safe; `how` inference (force/tag/fly-out)
+is unchanged and confirmable on the chain node.
+
+**⚖ moves to the baserunning surface.** Obstruction and runner interference are baserunning
+facts, so they leave the standing strip button and live on the runner-consequence chips' menus:
+selecting one inserts the ⚖ into the chain just before that consequence and links it (an advance
+re-attributes to the call; an out's `how` becomes `interference`).
+
+**SAFE and OUT get classified popups with disjoint vocabularies.** Releasing a runner on a
+SAFE/OUT target opens a centered popup naming what happened, and the two lists never overlap
+by rule — a runner can only be safe on obstruction and only out on interference. SAFE: the hit
+itself (Single/Double/Triple/Home run for the batter, "On the hit" for runners — the only answer
+that raises hit rank) / on the throw (linked to the latest touch) / on an error (linked to the
+latest misplay) / fielder's choice / obstruction (⚖ inserted and linked). OUT: force/tag/fly-out
+offering only the outs physically possible there, likeliest first: a force needs the very next
+base *and* the chain of occupied bases behind her, a catch removes every force, fly out is the
+batter's alone and the appeal a runner's alone — plus interference (⚖ + `how: interference`). Automatic
+movement — the walk-up, cascade pushes — never asks. This forced a derivation fix the popup's
+distinction exposed: hit rank now counts only unenabled batted-ball legs, so "took second on the
+throw" is a single plus an advance, never a double.
+
+**Catcher's interference becomes an outcome variant — E2 by rule (§4.1 schema change).** It
+belongs on the outcome surface with Ball/Strike/HBP/In play, and it is structurally identical to
+`hit_by_pitch`: dead ball, no count effect, PA over, batter awarded first with the forced chain.
+The loop emits `RuleCall{interference_catcher, againstPosition: 2}` ahead of the award, and
+official scoring charges **E2** (kind `interference`) — the one error with no misplay touch
+behind it. §4.1's "follow-up events, not more outcome variants" note is narrowed accordingly;
+fixture play-07 covers the play. (`RuleCall` also joins the undo-unit walk — previously a ⚖
+inside a committed play broke action-scoped undo.)
+
+**The batter runs on contact.** The surface opens with the batter-runner already walked up to
+first, forced cascade applied — a ball in play means she's running, so the common case (she's
+safe) costs zero gestures. The presumption resolves mechanically, never lingers: a caught first
+touch voids the unattributed walk-up and records the fly out (putout to the catch); an out marked
+at the base a runner's last leg reached absorbs that leg into the out, so no phantom
+`RunnerAdvance` ever commits alongside a force-out; and a misplay first touch claims the batter's
+provisional reach — §13.2's hit-vs-error flag lives on the first touch, so `reached_on_error`
+derives with zero extra taps. Presumed movement renders **in motion**, a third of the way up
+the line rather than parked on the next base, so "she's going there" never reads as "she got
+there"; a caught ball returns everyone to their bases, and the OUT dialog then offers
+**Didn't tag up** (§4.3's `appeal`) for the runner doubled off. Outs are capped where they are
+authored: at three the surface drops the OUT pill entirely (§4.4's `halfEnded`, which the fold
+has always computed and nothing consumed), so no fourth out can be entered — and the appeal
+disappears with two away for free, because the catch was already the third out. The *inning
+flip* itself — emitting `InningHalfEnd`, starting the next half — remains DIA-009's. Fielders drag live (she rides the finger), and every popup on the
+surface — the trajectory question included — is a centered modal sized to its content.
+Throws are one tap: while the ball is held, tapping another fielder sends it to her —
+held-vs-loose is derived from the last touch type, so a dropped or booted ball can't be
+"thrown," only played — and the ball's route draws as dashed segments, touch to touch. A
+throw arriving at a base with a runner provisionally heading there pops the SAFE/OUT pair at
+that bag — the 6-3 is five gestures with no runner dragging at all — while runner taps alone
+never raise the pair; resolution targets need a real drag or a throw that puts the question.
+
+**§13.2's misplay set and `ordinaryEffort` defaults, settled on one principle.** *If it is worth
+putting in the play-by-play, it has to be an error; otherwise it is not worth mentioning.* So
+`tag_missed` joins the misplay set as a charged **fielding** error and the printed default list
+at `true`: recording a missed tag is itself the claim that she should have made the play.
+`wild_throw` deliberately stays a judgment call — a throw can sail and cost nothing, leaving the
+runner exactly where a good throw would have. A runner who beats the tag on a great slide is not a missed tag —
+she is safe, and nothing is recorded at all. `deflected` stays out of the set entirely (the ball
+that hit her with no play to be made is a physical fact, never fault), and `bobbled` stays
+unresolved-by-default, since that one really is a judgment call. Both the misplay set and the
+effort defaults now have exactly one definition, in the rules layer, which the play draft reads
+at commit — they had drifted into two disagreeing copies.
+
+**§11.1's outcome surface gets two anchors instead of one.** The suggestion keeps the lead
+button; **`in_play` now carries the same weight in a row of its own at the bottom, always** —
+never suggested, since contact isn't inferable from a location, but it is the other outcome that
+changes everything, and a surface where the highest-consequence choice moves around is a surface
+that gets mistapped.
+
+**§15.4.2's first-base prompt is withdrawn.** "The throw arrived and she is safe" reads as a
+contradiction only if you know the throw beat her — and Diamond has no timing model, so it cannot
+tell a dropped throw from a bang-bang infield single. Worse, the prompt was firing against the
+batter-runner's *presumed* walk-up (§15.1's runs-on-contact), asking about an answer the scorer
+had never given. The prompt mechanism stays for cases where the record is genuinely incomplete
+(the spec's "chain ends at a fielder with no out and no attribution → bobble?"); the drop itself
+remains one tap on the node that took the throw. Relatedly, answering **SAFE** on a force play
+now re-authors the walk-up leg as a real answer, so the runner stops rendering in motion and
+stands on the bag — nothing is presumed once the scorer has spoken, and releasing her on the
+base she already occupies settles her rather than minting a `from == to` leg (§4.3 reserves
+that shape for surviving a rundown). The what-happened popup likewise follows the ball rather
+than the trajectory: catching is offered only while the ball is still in the air, which it is
+until somebody touches it — except for a deflection, the one touch that leaves it up, so a
+liner off the pitcher's glove can still be caught by the shortstop. Deflection is a line-drive
+and grounder option only. A catch retires the batter wherever it happened, while
+`landingIsCaught` keeps answering the narrower question §4.2 asks it.
+
+**The SAFE menu offers only what could have moved her.** Field testing a runner tagging home on
+a caught fly turned up a menu of impossibilities: "on the hit" when nothing was hit anywhere she
+could run on, "fielder's choice" when the batter was already out in the air, "on the throw" when
+nobody had thrown, and obstruction — a call rare enough that offering it on every play is noise.
+The set is now context-gated: **"Tagged up"** replaces "on the hit" once the ball has been caught,
+fielder's choice disappears with it, "on the throw" requires evidence that a throw happened (a
+reception or a throw that got away, not merely a touch), and **when exactly one answer remains the
+surface does not ask at all**. Both ⚖ calls left the first-pass SAFE and OUT menus for the chain
+nodes, where they are found when looked for.
+
+**§13.6: sacrifices, one derived and one judged.** A sacrifice fly is fully visible in the stream
+— any ball caught in the air, fewer than two outs, batter retired, a runner in from third on the
+ball, no charged error — so it derives and the scorer enters nothing. A sacrifice bunt is not: nothing
+physical separates bunting to move the runner from bunting for a hit, so it becomes §13's second
+judgment flag after `ordinaryEffort`, stored as `BallInPlay.sacrifice` (schema change) and offered
+by the field surface exactly when the question is live — a bunt that moved a runner up. An
+explicit flag overrides the derivation either way. Both are plate appearances, neither is an
+at-bat, which is what `BatterOutcome.atBat` was added for.
+
+**A stream audit closes three derivation holes (§13.2).** Reviewing everything that touches the
+event stream turned up three ways a play could be scored wrong. **Obstruction on the batter-runner**
+derived as a *single*, because `obstruction` was missing from the non-batted reach reasons; it is
+now not a hit, not an at-bat, and charges a fielding error to the fielder who obstructed —
+which required the ⚖ to name her, so the surface asks. **A reach claiming an error with nothing
+to link** also derived as a single: the SAFE popup would offer "On an error" with no misplay on
+the chain, producing an advance whose cause was unrecordable. The popup now offers that answer
+only when there is a misplay to point at, and derivation treats an unlinked `error` reach as
+`reached_on_error` regardless. **The ⚖ link was dropped at commit** — `enabledByCallId` existed in
+the schema on both `RunnerAdvance` and `RunnerOut` and had zero writers, so every obstruction and
+interference call committed a consequence whose cause could not be recovered from the stream. Both
+are now written. `BatterOutcome` gains **`atBat`**, since "not an at-bat" needed somewhere to live.
+
+The audit also confirmed what is healthy: every payload in a real recorded game validates against
+its JSON schema, putout and assist credit follows the touch chain correctly, and the action-scoped
+undo unit walks correctly across all four shapes now in play.
+
+**§16.3's beyond-the-fence prompt ships, as two plain Yes/No questions.** Where the ball ends
+up decides which one gets asked: a fair landing past the fence asks **"Home run?"**, while a
+ball that landed in the park and *ended up* past the fence asks **"Ground rule double?"** —
+the bounced-over ball, the only shape that award actually has. Yes awards four bases apiece
+(every run an RBI) or two apiece respectively, replacing the draft's runner movement wholesale,
+superseding the opening walk-up so nothing stays provisional, and clearing `offWall`. **No
+proceeds as an ordinary play.** The RBI rule gains `ground_rule` alongside `batted_ball` — a
+ground-rule double that scores a runner drove her in — and the canvas's render margin past the
+fence widens so that band is a real tap target.
+
 ## v0.42
 
 **§15.6: the idle field — between-pitch runner events (DIA-008d).** Field testing of the DIA-008
