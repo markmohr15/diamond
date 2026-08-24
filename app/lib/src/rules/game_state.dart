@@ -109,6 +109,20 @@ class GameState {
   final String? battingTeamId;
   final BaseState bases;
 
+  /// Whether the batter may run on an uncaught third strike (§11.3): first
+  /// base open, or two already out. Occupied-with-fewer-than-two is the
+  /// case the rule exists to prevent — the defense could otherwise decline
+  /// the catch and take an easy double play — and the batter is simply out.
+  ///
+  /// Read this from the state *before* the strikeout is appended: with two
+  /// away the strikeout is the third out, so folding it first would make
+  /// the count read 3 and the answer flip.
+  ///
+  /// Whether an uncaught third strike is live *at all* is a future
+  /// `RuleSet` concern — some youth leagues remove it — so this is the
+  /// narrow placeholder that config eventually replaces (§1, §4.4).
+  bool get uncaughtThirdStrikeLive => bases.first == null || outs >= 2;
+
   /// True once outs reach 3 or an explicit InningHalfEnd is folded, per
   /// §4.4. Folding never stops or rejects further events once this is set
   /// — it's a signal for the UI to have moved on, not a guard the
