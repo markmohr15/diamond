@@ -238,17 +238,19 @@ class PitchLoopPage extends ConsumerWidget {
           spacing: 12,
           alignment: WrapAlignment.center,
           children: [
-            FilledButton(
-              key: d3kCalledKey,
-              onPressed: () =>
-                  Navigator.pop(dialogContext, Outcome.CALLED_STRIKE),
-              child: const Text('Called'),
-            ),
+            // Swinging first: a third strike that gets away is usually one
+            // she chased, so the likelier answer takes the likelier thumb.
             FilledButton(
               key: d3kSwingingKey,
               onPressed: () =>
                   Navigator.pop(dialogContext, Outcome.SWINGING_STRIKE),
               child: const Text('Swinging'),
+            ),
+            FilledButton(
+              key: d3kCalledKey,
+              onPressed: () =>
+                  Navigator.pop(dialogContext, Outcome.CALLED_STRIKE),
+              child: const Text('Called'),
             ),
           ],
         ),
