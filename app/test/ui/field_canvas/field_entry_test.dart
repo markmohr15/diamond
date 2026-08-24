@@ -1695,6 +1695,51 @@ void main() {
       expect(scoring.errors, isEmpty, reason: 'a PB is never an error');
     });
 
+    testWidgets('the catcher never had it: 1B off the backstop, throw home '
+        'records 3-2 with no phantom assist', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      Offset px(FieldCoord c) => canvasTopLeft(tester) + geometry.toPx(c);
+      final spots = standardFielderSpots(geometry.profile);
+
+      // The line says who has it, and how to say she doesn't.
+      expect(
+        tester.widget<Text>(find.byKey(fieldIdleLabelKey)).data,
+        contains('Catcher has the ball'),
+      );
+      // Tap the catcher: she never had it, the ball got past her.
+      await tester.tapAt(px(spots[2]!));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(fieldIdleLabelKey)).data,
+        contains('loose'),
+      );
+
+      // The first baseman runs it down behind the plate, then throws home.
+      final backstop = FieldCoord(x: 20, y: -14);
+      await drag(tester, px(spots[3]!), px(backstop));
+      await tester.tapAt(px(spots[2]!));
+      await tester.pumpAndSettle();
+
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, betweenPitchChipKey('caught_stealing'));
+
+      final events = await stream();
+      final touches = events
+          .where((e) => e.type == 'FielderTouch')
+          .map((e) => FielderTouch.fromJson(e.payload))
+          .toList();
+      // 3-2, not 2-3-2: the catcher is credited only for what she did.
+      expect(touches.map((t) => t.position), [3, 2]);
+      expect(touches.first.touchType, TouchType.FIELDED);
+      expect(touches.last.touchType, TouchType.RECEIVED_THROW);
+      expect(touches.first.location!.y, lessThan(0), reason: 'behind home');
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {2: 1});
+      expect(scoring.assistsByPosition, {3: 1});
+    });
+
     testWidgets('a wild pitch is the advance alone — no touch is minted', (
       tester,
     ) async {

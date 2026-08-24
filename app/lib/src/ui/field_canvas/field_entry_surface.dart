@@ -129,9 +129,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// ✓, so there is nothing half-entered to restore).
   final List<_LiveTouch> _liveTouches = [];
 
-  /// Who holds the ball between pitches. Seeded to the catcher, which is
-  /// true after every pitch in both sports, and moved by each throw.
-  int _livePossession = 2;
+  /// Who holds the ball between pitches, or null when it is **loose**.
+  /// Seeded to the catcher, which is true after every pitch in both sports
+  /// and costs nothing in the overwhelmingly common case. Tapping the
+  /// holder says she does *not* have it — the wild pitch that got past her
+  /// — and the next fielder tapped picks it up rather than receiving a
+  /// throw, the same rule §15.1 already uses for a loose ball in a play.
+  int? _livePossession = 2;
 
   /// Where fielders went to make *this* play — the shortstop covering
   /// second on a steal, the catcher chasing a passed ball to the backstop.
@@ -175,10 +179,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
-                Text(
-                  'Between pitches',
-                  key: fieldIdleLabelKey,
-                  style: Theme.of(context).textTheme.titleMedium,
+                Flexible(
+                  child: Text(
+                    _possessionLabel,
+                    key: fieldIdleLabelKey,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 const Spacer(),
                 IconButton(
@@ -341,6 +348,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final pending =
         widget.draft?.entries.whereType<OutEntry>().length ?? 0;
     return folded + pending < 3;
+  }
+
+  /// Who has the ball, said out loud. The assumption that the catcher holds
+  /// it is correct almost every time and costs nothing — but it was silently
+  /// wrong on a wild pitch, minting a touch for a catcher who never had the
+  /// ball, so it says itself and names the way out. Once anything has
+  /// happened the hint drops and the line is just the fact.
+  String get _possessionLabel {
+    final holder = _livePossession;
+    if (holder == null) return 'Ball is loose — tap the fielder who gets it';
+    if (holder == 2 && _liveTouches.isEmpty) {
+      return "Catcher has the ball — tap her if she doesn't";
+    }
+    return '${positionAbbreviations[holder] ?? holder} has the ball';
   }
 
   /// The play in progress. Only valid on paths that a ball in play reaches —
@@ -662,11 +683,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       final spot = moved
           ? geometry.toField(drag.current)
           : _currentFielderSpot(position, geometry);
+      // Tapping the holder is the scorer saying she never had it: the
+      // pitch got past her. Reversible — tap again and she has it back.
+      if (position == _livePossession && !moved) {
+        setState(() => _livePossession = null);
+        return;
+      }
       // Dragging the holder is her carrying it — the catcher chasing a
       // passed ball to the backstop before she throws. She keeps the ball
       // and her spot follows her.
       if (position == _livePossession) {
-        if (!moved) return;
         setState(() {
           _liveFielderSpots[position] = spot;
           if (_liveTouches.isNotEmpty) {
@@ -682,14 +708,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         return;
       }
       setState(() {
+        final holder = _livePossession;
         // The thrower needs a touch of her own or she gets no assist; it is
         // recorded lazily, here, so a surface nobody threw on stays silent.
-        if (_liveTouches.isEmpty) {
+        // A loose ball has no thrower, so nobody is minted — which is the
+        // whole point of being able to say the catcher never had it.
+        if (holder != null && _liveTouches.isEmpty) {
           _liveTouches.add((
             localKey: 't0',
-            position: _livePossession,
+            position: holder,
             type: TouchType.FIELDED,
-            location: _liveFielderSpots[_livePossession],
+            location: _liveFielderSpots[holder],
           ));
         }
         // A drag says where she took it — the shortstop at the bag, not at
@@ -698,7 +727,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         _liveTouches.add((
           localKey: 't${_liveTouches.length}',
           position: position,
-          type: TouchType.RECEIVED_THROW,
+          // Off a loose ball she is making a play on it, not receiving a
+          // throw (§15.1's rule, carried over).
+          type: holder == null
+              ? TouchType.FIELDED
+              : TouchType.RECEIVED_THROW,
           location: spot,
         ));
         _livePossession = position;
