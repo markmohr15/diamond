@@ -10,6 +10,7 @@ import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
+import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
@@ -1854,10 +1855,18 @@ void main() {
       }
       expect(container.read(gameControllerProvider).value!.outs, 2);
 
-      // Strike three she is entitled to run on: two are out.
-      for (var i = 0; i < 3; i++) {
+      // Strike three she is entitled to run on: two are out. It is declared
+      // on the outcome sheet, beside In play — the automatic strikeout is
+      // never written, so there is nothing to void.
+      for (var i = 0; i < 2; i++) {
         await pitch('Called strike');
       }
+      await tester.tap(find.text('Skip call'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Skip location'));
+      await tester.pumpAndSettle();
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kSwingingKey);
       await tapKey(tester, d3kFieldKey);
 
       // The field opens with her already running to first, catcher holding.

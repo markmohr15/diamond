@@ -18,10 +18,13 @@ judging but of what the catcher did, and the app already holds it twice: `bounce
 ball was in the dirt, §13.2's derivation says whether anything got away. Removing it also removes the
 split in the swinging-strike vocabulary.
 
-The loop still records the strikeout immediately — right for almost every third strike, and what
-keeps the book correct if the scorer moves on. Resolving **voids that out** and writes what happened,
-one batch and one undo unit; §6 hides the voided out from the visible stream and keeps it in the raw
-one, where it reads as "the app called a strikeout and the scorer said otherwise."
+**It is declared with the pitch, not corrected after it.** A dropped third strike is the equivalent of
+a ball put in play — an outcome that opens a surface, not a note on a strikeout — so it belongs on
+§11.1's outcome sheet beside **In play**, where a scorer will look for it, rather than in a prompt
+that appears after every eligible strikeout. Choosing it asks which strike it was, then what happened
+to her. The automatic strikeout out is never written, so nothing is voided and no phantom out reaches
+the stream. Labeled **Dropped 3rd strike**: less precise than "uncaught" and the word scorers use,
+and already the wire word (§4.3).
 
 Four one-tap endings plus the field. **Out at first** writes 2-3 with a real putout and assist —
 credit the bare recorded strikeout never carried, and the reason even the ordinary D3K needed fixing.

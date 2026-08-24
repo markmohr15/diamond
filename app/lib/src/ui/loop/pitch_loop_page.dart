@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
@@ -19,6 +23,10 @@ const Key recordLastPitchKey = Key('recordLastPitch');
 const Key dismissLastPitchKey = Key('dismissLastPitch');
 @visibleForTesting
 const Key openIdleFieldKey = Key('openIdleField');
+@visibleForTesting
+const Key d3kCalledKey = Key('d3kCalled');
+@visibleForTesting
+const Key d3kSwingingKey = Key('d3kSwinging');
 @visibleForTesting
 const Key d3kOutThrowKey = Key('d3kOutThrow');
 @visibleForTesting
@@ -122,53 +130,6 @@ class PitchLoopPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                      // §11.3's D3K resolution. The loop already recorded
-                      // the strikeout, so this blocks nothing and dies by
-                      // being ignored — but the everyday ending is one tap
-                      // and it fixes real credit: a strikeout thrown out at
-                      // first is 2-3, which the recorded out does not say.
-                      if (flow.d3kOffer != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Wrap(
-                            spacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              const Text('Uncaught 3rd strike?'),
-                              FilledButton(
-                                key: d3kOutThrowKey,
-                                onPressed: controller.d3kOutOnThrow,
-                                child: const Text('Out at first'),
-                              ),
-                              OutlinedButton(
-                                key: d3kOutTagKey,
-                                onPressed: controller.d3kOutOnTag,
-                                child: const Text('Out (tag)'),
-                              ),
-                              OutlinedButton(
-                                key: d3kSafeWpKey,
-                                onPressed: controller.d3kSafeWildPitch,
-                                child: const Text('Safe (wild pitch)'),
-                              ),
-                              OutlinedButton(
-                                key: d3kSafePbKey,
-                                onPressed: controller.d3kSafePassedBall,
-                                child: const Text('Safe (passed ball)'),
-                              ),
-                              OutlinedButton(
-                                key: d3kFieldKey,
-                                onPressed: controller.d3kToField,
-                                child: const Text('Go to field'),
-                              ),
-                              IconButton(
-                                key: d3kDismissKey,
-                                onPressed: controller.dismissD3kOffer,
-                                icon: const Icon(Icons.close),
-                                tooltip: 'She was out on the strikeout',
-                              ),
-                            ],
-                          ),
-                        ),
                       // §15.6: the way to the field with nothing in play —
                       // a steal, a runner taking a base on a passed ball.
                       // Deliberately a plain affordance rather than a step
@@ -255,6 +216,84 @@ class PitchLoopPage extends ConsumerWidget {
     );
   }
 
+  /// Whether a dropped third strike is even on the table: two strikes, and
+  /// the rules let her run (§11.3). Read from the live fold, before the
+  /// pitch that would make it strike three is recorded.
+  bool _mayRunOnThirdStrike(WidgetRef ref) {
+    final gs = ref.read(gameControllerProvider).valueOrNull;
+    return gs != null && gs.strikes == 2 && gs.uncaughtThirdStrikeLive;
+  }
+
+  /// §11.3's dropped third strike, declared with the pitch. Two questions:
+  /// which strike it was — the swing data matters most on exactly the
+  /// pitches likeliest to have been offered at, so `strike_unspecified`
+  /// would be a poor trade for one tap — and then what happened to her.
+  Future<void> _droppedThirdStrike(BuildContext context, WidgetRef ref) async {
+    final controller = ref.read(pitchFlowProvider.notifier);
+    final kind = await showFieldDialog<Outcome>(
+      context,
+      title: 'Dropped 3rd strike — called or swinging?',
+      children: (dialogContext) => [
+        Wrap(
+          spacing: 12,
+          alignment: WrapAlignment.center,
+          children: [
+            FilledButton(
+              key: d3kCalledKey,
+              onPressed: () =>
+                  Navigator.pop(dialogContext, Outcome.CALLED_STRIKE),
+              child: const Text('Called'),
+            ),
+            FilledButton(
+              key: d3kSwingingKey,
+              onPressed: () =>
+                  Navigator.pop(dialogContext, Outcome.SWINGING_STRIKE),
+              child: const Text('Swinging'),
+            ),
+          ],
+        ),
+      ],
+    );
+    if (kind == null) return;
+    // Records the pitch and *not* the automatic out — she is running, so
+    // there is nothing to void afterwards.
+    await controller.commitOutcome(kind, uncaughtThirdStrike: true);
+    if (!context.mounted) return;
+
+    await showFieldDialog<void>(
+      context,
+      title: 'What happened to her?',
+      children: (dialogContext) => [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          alignment: WrapAlignment.center,
+          children: [
+            for (final (key, label, action) in <(Key, String, VoidCallback)>[
+              (d3kOutThrowKey, 'Out at first', controller.d3kOutOnThrow),
+              (d3kOutTagKey, 'Out (tag)', controller.d3kOutOnTag),
+              (d3kSafeWpKey, 'Safe (wild pitch)', controller.d3kSafeWildPitch),
+              (
+                d3kSafePbKey,
+                'Safe (passed ball)',
+                controller.d3kSafePassedBall,
+              ),
+              (d3kFieldKey, 'Go to field', controller.d3kToField),
+            ])
+              FilledButton(
+                key: key,
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  action();
+                },
+                child: Text(label),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
   /// §11.1's outcome, as the same popup design the field surface uses for
   /// its what-happened sheet: suggestion + full override row over a scrim,
   /// with the just-placed location visible behind it. Barrier dismiss →
@@ -279,6 +318,12 @@ class PitchLoopPage extends ConsumerWidget {
               Navigator.pop(dialogContext, true);
               ref.read(pitchFlowProvider.notifier).commitOutcome(outcome);
             },
+            onDroppedThirdStrike: _mayRunOnThirdStrike(ref)
+                ? () {
+                    Navigator.pop(dialogContext, true);
+                    unawaited(_droppedThirdStrike(context, ref));
+                  }
+                : null,
           ),
         ),
       ),

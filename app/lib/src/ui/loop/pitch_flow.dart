@@ -94,13 +94,8 @@ class PitchFlowState {
 /// open, or two already out. Carries what a resolution needs — the out to
 /// void, and the pitch its touches will anchor to.
 class D3kOffer {
-  const D3kOffer({
-    required this.strikeoutEventId,
-    required this.pitchEventId,
-    required this.batterId,
-  });
+  const D3kOffer({required this.pitchEventId, required this.batterId});
 
-  final String strikeoutEventId;
   final String pitchEventId;
   final String batterId;
 }
@@ -228,7 +223,13 @@ class PitchFlowController extends Notifier<PitchFlowState> {
 
   /// The one write of the loop: `PitchThrown`, plus the strikeout's
   /// `RunnerOut` when the loop itself is sure of it (§11.3).
-  Future<void> commitOutcome(Outcome outcome) async {
+  /// [uncaughtThirdStrike] is the scorer declaring, with the pitch, that
+  /// she is running — §11.3's equivalent of putting the ball in play. The
+  /// automatic strikeout out is not written when it is set.
+  Future<void> commitOutcome(
+    Outcome outcome, {
+    bool uncaughtThirdStrike = false,
+  }) async {
     final game = ref.read(gameControllerProvider.notifier);
     final gs = ref.read(gameControllerProvider).valueOrNull;
     if (gs == null) return; // still bootstrapping; nothing to attribute to
@@ -280,11 +281,16 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // blocked ball and a dropped clean strike are equally live, and the
       // catcher-misplay entry that detects the second is DIA-008's play
       // chain, so no per-outcome guard here could be honest.
-      if (struckOut) {
-        // Read eligibility from the state *before* the out is folded: with
-        // two away the strikeout is the third out, and the answer flips.
-        final live = gs.uncaughtThirdStrikeLive;
-        final strikeout = await game.append(
+      // §11.3 v0.46: an uncaught third strike is declared with the pitch,
+      // not corrected afterwards — it is the equivalent of a ball put in
+      // play (Mark), an outcome that opens a surface rather than a note on
+      // a strikeout. Declaring it up front means the automatic out is
+      // never written, so there is nothing to void and no phantom out in
+      // the stream.
+      if (struckOut && uncaughtThirdStrike) {
+        d3k = D3kOffer(pitchEventId: event.id, batterId: batterId);
+      } else if (struckOut) {
+        await game.append(
           type: 'RunnerOut',
           payload: RunnerOut(
             runnerId: batterId,
@@ -292,18 +298,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
             how: How.STRIKEOUT,
           ).toJson(),
         );
-        // §11.3 v0.46: the offer stands on *every* third strike she was
-        // entitled to run on — not only a ball in the dirt. A passed ball
-        // on a letter-high fastball arms it just as well, and only the
-        // scorer knows. Hidden when the rules prevent her running at all,
-        // which is the one case with no judgment in it.
-        if (live) {
-          d3k = D3kOffer(
-            strikeoutEventId: strikeout.id,
-            pitchEventId: event.id,
-            batterId: batterId,
-          );
-        }
       }
 
       // Walk / HBP: the forced chain auto-applies (§11.3 v0.41) — rulebook
@@ -377,13 +371,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
     await ref
         .read(gameControllerProvider.notifier)
-        .appendAllPending([
-          PendingEvent(
-            type: 'VoidEvent',
-            payload: VoidEvent(targetId: offer.strikeoutEventId).toJson(),
-          ),
-          ...build(offer),
-        ]);
+        .appendAllPending(build(offer));
   }
 
   /// Thrown out at first: the everyday D3K, and still wrong today — the
@@ -493,12 +481,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     final offer = state.d3kOffer;
     if (offer == null) return;
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
-    await ref.read(gameControllerProvider.notifier).appendAllPending([
-      PendingEvent(
-        type: 'VoidEvent',
-        payload: VoidEvent(targetId: offer.strikeoutEventId).toJson(),
-      ),
-    ]);
     await ref
         .read(playDraftProvider.notifier)
         .startBetweenPitches(

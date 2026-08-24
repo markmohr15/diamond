@@ -98,6 +98,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> tapKey(WidgetTester tester, Key key) async {
+    await tester.tap(find.byKey(key));
+    await tester.pumpAndSettle();
+  }
+
   group('the full loop, §11.1 in order', () {
     testWidgets('call → actual → outcome → commit, and back to the call '
         'screen with the count advanced', (tester) async {
@@ -746,46 +751,57 @@ void main() {
     });
   });
 
-  group('the uncaught third strike (§11.3 v0.46)', () {
-    Future<void> strikeThree(WidgetTester tester) async {
-      for (final call in ['Called strike', 'Called strike', 'Called strike']) {
+  group('the dropped third strike (§11.3 v0.46)', () {
+    /// Two called strikes, then open the outcome sheet on the third pitch.
+    Future<void> toThirdStrikeSheet(WidgetTester tester) async {
+      for (var i = 0; i < 2; i++) {
         await tapText(tester, 'Skip call');
         await tapText(tester, 'Skip location');
-        await tapText(tester, call);
+        await tapText(tester, 'Called strike');
       }
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
     }
 
-    testWidgets('offered on every third strike she may run on — not only a '
-        'ball in the dirt', (tester) async {
+    testWidgets('it lives on the outcome sheet, beside In play — an outcome '
+        'that opens a surface, not a note on a strikeout', (tester) async {
       await pumpLoop(tester);
-      await strikeThree(tester);
-      expect(find.byKey(d3kOutThrowKey), findsOneWidget);
+      await toThirdStrikeSheet(tester);
+      expect(find.byKey(outcomeD3kKey), findsOneWidget);
     });
 
-    testWidgets('hidden when the rules prevent her running: first occupied, '
-        'fewer than two out', (tester) async {
+    testWidgets('absent at one strike, and absent when the rules prevent her '
+        'running', (tester) async {
       await pumpLoop(tester);
-      // Walk a runner to first.
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      expect(find.byKey(outcomeD3kKey), findsNothing, reason: '0 strikes');
+      await tapText(tester, 'Called strike');
+
+      // Put a runner on first: now she may not run with fewer than two out.
       for (var i = 0; i < 4; i++) {
         await tapText(tester, 'Skip call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Ball');
       }
-      await strikeThree(tester);
-      expect(find.byKey(d3kOutThrowKey), findsNothing);
-      expect(find.text('1 out'), findsOneWidget);
+      await toThirdStrikeSheet(tester);
+      expect(find.byKey(outcomeD3kKey), findsNothing);
     });
 
-    testWidgets('out at first: the strikeout is voided and rewritten as 2-3', (
-      tester,
-    ) async {
+    testWidgets('out at first: no out is ever written and then voided — it '
+        'is recorded once, as 2-3', (tester) async {
       await pumpLoop(tester);
-      await strikeThree(tester);
-      await tester.tap(find.byKey(d3kOutThrowKey));
-      await tester.pumpAndSettle();
+      await toThirdStrikeSheet(tester);
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kSwingingKey);
+      await tapKey(tester, d3kOutThrowKey);
 
       final events = await stream();
-      // One out still, but now it says who made it.
+      expect(
+        events.where((e) => e.type == 'VoidEvent'),
+        isEmpty,
+        reason: 'declaring it up front leaves nothing to undo',
+      );
       expect(container.read(gameControllerProvider).value!.outs, 1);
       final out = RunnerOut.fromJson(
         events.lastWhere((e) => e.type == 'RunnerOut').payload,
@@ -794,51 +810,52 @@ void main() {
       final scoring = foldOfficialScoring(events);
       expect(scoring.putoutsByPosition, {3: 1});
       expect(scoring.assistsByPosition, {2: 1});
-      // The pitcher keeps the strikeout either way.
       expect(scoring.strikeoutsByPitcher.values.single, 1);
     });
 
-    testWidgets('safe on a passed ball: no out, the §13.2 pair, no error', (
+    testWidgets('safe on a passed ball: the §13.2 pair, no out, no error', (
       tester,
     ) async {
       await pumpLoop(tester);
-      await strikeThree(tester);
-      await tester.tap(find.byKey(d3kSafePbKey));
-      await tester.pumpAndSettle();
+      await toThirdStrikeSheet(tester);
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kCalledKey);
+      await tapKey(tester, d3kSafePbKey);
 
       final state = container.read(gameControllerProvider).value!;
-      expect(state.outs, 0, reason: 'the recorded strikeout was voided');
+      expect(state.outs, 0);
       expect(state.bases.first, isNotNull);
-
       final scoring = foldOfficialScoring(await stream());
       expect(scoring.passedBalls, 1);
       expect(scoring.errors, isEmpty);
       expect(scoring.strikeoutsByPitcher.values.single, 1);
     });
 
-    testWidgets('safe on a wild pitch: the advance alone', (tester) async {
+    testWidgets('the strike kind is kept: a called third strike stays called',
+        (tester) async {
       await pumpLoop(tester);
-      await strikeThree(tester);
-      await tester.tap(find.byKey(d3kSafeWpKey));
-      await tester.pumpAndSettle();
+      await toThirdStrikeSheet(tester);
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kCalledKey);
+      await tapKey(tester, d3kSafeWpKey);
 
-      final events = await stream();
-      expect(events.where((e) => e.type == 'FielderTouch'), isEmpty);
-      final scoring = foldOfficialScoring(events);
-      expect(scoring.wildPitchesByPitcher.values.single, 1);
-      expect(container.read(gameControllerProvider).value!.outs, 0);
+      final pitch = PitchThrown.fromJson(
+        (await stream()).lastWhere((e) => e.type == 'PitchThrown').payload,
+      );
+      expect(pitch.outcome, Outcome.CALLED_STRIKE);
     });
 
-    testWidgets('ignoring it leaves the strikeout standing', (tester) async {
+    testWidgets('backing out of the strike-kind question records nothing', (
+      tester,
+    ) async {
       await pumpLoop(tester);
-      await strikeThree(tester);
-      await tester.tap(find.byKey(d3kDismissKey));
+      final before = (await stream()).length;
+      await toThirdStrikeSheet(tester);
+      await tapKey(tester, outcomeD3kKey);
+      // Dismiss the dialog by tapping the barrier.
+      await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();
-
-      expect(find.byKey(d3kOutThrowKey), findsNothing);
-      expect(container.read(gameControllerProvider).value!.outs, 1);
-      final out = RunnerOut.fromJson((await stream()).last.payload);
-      expect(out.how, How.STRIKEOUT);
+      expect((await stream()).length, before + 2, reason: 'the two strikes');
     });
   });
 }
