@@ -255,13 +255,31 @@ class RuleCallEntry extends PlayEntry {
 /// The SAFE popup's classification vocabulary (§15.1 v0.43): what got the
 /// runner there. Encodes to §4.3 reasons and touch links — physics and
 /// linkage, never rulings.
+/// What got a runner where she ended up. The first five are a play's
+/// vocabulary (§15.1 v0.43); the last four are §15.6's, offered only
+/// between pitches. Disjoint by construction — nothing is stolen on a
+/// batted ball, and nothing comes "on the hit" when there was no hit — so
+/// the popup shows one set or the other and never both.
 enum SafeResolution {
   onTheHit,
   onTheThrow,
   onError,
   fieldersChoice,
   obstruction,
+  stolenBase,
+  wildPitch,
+  passedBall,
+  defensiveIndifference,
 }
+
+/// The leg reason each between-pitch resolution writes.
+const _betweenPitchReasons = <SafeResolution, RunnerAdvanceReason>{
+  SafeResolution.stolenBase: RunnerAdvanceReason.STOLEN_BASE,
+  SafeResolution.wildPitch: RunnerAdvanceReason.WILD_PITCH,
+  SafeResolution.passedBall: RunnerAdvanceReason.PASSED_BALL,
+  SafeResolution.defensiveIndifference:
+      RunnerAdvanceReason.DEFENSIVE_INDIFFERENCE,
+};
 
 /// One occupied spot as the forced cascade sees it: who and where they
 /// currently stand in the draft.
@@ -319,6 +337,8 @@ class PlayDraft {
     this.movedFielders = const {},
     this.openingLegCount = 0,
     this.nextKey = 0,
+    this.battedBall = true,
+    this.heldBy,
   });
 
   factory PlayDraft.fromJson(Map<String, dynamic> json) => PlayDraft(
@@ -346,6 +366,8 @@ class PlayDraft {
     },
     openingLegCount: json['openingLegCount'] as int? ?? 0,
     nextKey: json['nextKey'] as int? ?? 0,
+    battedBall: json['battedBall'] as bool? ?? true,
+    heldBy: json['heldBy'] as int?,
   );
 
   /// The committed `PitchThrown` this play hangs off (§4.2's link).
@@ -359,6 +381,25 @@ class PlayDraft {
 
   /// §15.1's tap-and-drag second grip; null ⇒ same as landing.
   final FieldCoord? retrieved;
+
+  /// Whether a ball was hit (§15.5) or this is a **between-pitch** entry
+  /// (§15.6) — a steal, a runner taking a base on a passed ball, a D3K
+  /// resolution. The two are the same structure with a different anchor:
+  /// a play hangs its chain off the `BallInPlay` it mints, a between-pitch
+  /// entry hangs it off the pitch that already exists. Everything else —
+  /// touches, legs, outs, chips, the ✓ — is identical, deliberately: the
+  /// scorer should not have two grammars to learn, and official scoring
+  /// should not have two shapes to read.
+  final bool battedBall;
+
+  /// Who holds the ball before any touch says so. Between pitches that is
+  /// the catcher, true after every pitch in both sports; null means the
+  /// ball is loose — the pitch got past her. Ignored once a touch secures
+  /// it, which is why [holderPosition] prefers [securedTouch].
+  final int? heldBy;
+
+  /// Who has the ball right now, seed included.
+  int? get holderPosition => securedTouch?.position ?? heldBy;
 
   final Trajectory? trajectory;
 
@@ -427,9 +468,13 @@ class PlayDraft {
     );
   }
 
-  /// A committable draft has the two facts §11.1 always collects: where and
-  /// how it came off the bat.
-  bool get committable => landing != null && trajectory != null;
+  /// A committable draft has the two facts §11.1 always collects — but only
+  /// a batted ball has them. A between-pitch entry (§15.6) has no landing
+  /// and no trajectory; what makes it committable is that something is on
+  /// the chain to commit.
+  bool get committable => battedBall
+      ? landing != null && trajectory != null
+      : entries.isNotEmpty;
 
   /// Whether the drawn path is frozen (§15.1 v0.43): once anything beyond
   /// the opening walk-up has been entered, the ball's path stops being
@@ -519,6 +564,7 @@ class PlayDraft {
     Map<int, FieldCoord>? movedFielders,
     int? openingLegCount,
     int? nextKey,
+    Object? heldBy = _unset,
   }) {
     return PlayDraft(
       pitchEventId: pitchEventId,
@@ -534,6 +580,8 @@ class PlayDraft {
       movedFielders: movedFielders ?? this.movedFielders,
       openingLegCount: openingLegCount ?? this.openingLegCount,
       nextKey: nextKey ?? this.nextKey,
+      battedBall: battedBall,
+      heldBy: heldBy == _unset ? this.heldBy : heldBy as int?,
     );
   }
 
@@ -580,11 +628,13 @@ class PlayDraft {
     int position,
     TouchType touchType, {
     FieldCoord? location,
+    bool? ordinaryEffort,
   }) => _appending(
     (key) => TouchEntry(
       key: key,
       position: position,
       touchType: touchType,
+      ordinaryEffort: ordinaryEffort,
       location: location,
     ),
   );
@@ -717,6 +767,20 @@ class PlayDraft {
       reasonOverride: reason,
     ),
   );
+
+  /// The catcher's missed-catch touch on this chain, if one is already
+  /// there — so a second runner advancing on the same passed ball links to
+  /// it rather than minting a second one (§15.6).
+  int? get passedBallTouchKey {
+    for (final entry in entries) {
+      if (entry is TouchEntry &&
+          entry.position == 2 &&
+          entry.touchType == TouchType.MISSED_CATCH) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
 
   /// The most recent touch of any kind — "on the throw" links here.
   int? get latestTouchKey {
@@ -880,6 +944,38 @@ class PlayDraft {
             againstPosition: againstPosition,
           );
         }(),
+        // §13.2's pair: a passed ball is physics, so the catcher's miss is
+        // recorded and the advance links to it. A second runner moving on
+        // the same ball reuses that touch — one PB, one touch, N advances.
+        SafeResolution.passedBall => () {
+          var withTouch = next;
+          var touchKey = next.passedBallTouchKey;
+          if (touchKey == null) {
+            withTouch = next.addingTouch(
+              2,
+              TouchType.MISSED_CATCH,
+              ordinaryEffort: true,
+            );
+            touchKey = withTouch.entries.last.key;
+          }
+          return withTouch.addingLeg(
+            move.runnerId,
+            from: move.from,
+            to: move.to,
+            attribute: false,
+            enabledByKey: touchKey,
+            reason: RunnerAdvanceReason.PASSED_BALL,
+          );
+        }(),
+        // A wild pitch is the advance alone — the absence of the catcher's
+        // touch is what makes it one (§13.2).
+        _ => next.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+          reason: _betweenPitchReasons[how],
+        ),
       };
     }
     return next;
@@ -966,6 +1062,8 @@ class PlayDraft {
     },
     'openingLegCount': openingLegCount,
     'nextKey': nextKey,
+    'battedBall': battedBall,
+    'heldBy': heldBy,
   };
 
   /// The atomic commit sequence (§15.5): `BallInPlay` first, then the chain
@@ -984,27 +1082,31 @@ class PlayDraft {
   List<PendingEvent> toEvents() {
     final landing = this.landing;
     final trajectory = this.trajectory;
-    if (landing == null || trajectory == null) {
+    if (battedBall && (landing == null || trajectory == null)) {
       throw StateError('draft is not committable: landing/trajectory missing');
     }
     const bipKey = 'bip';
     String entryKey(int key) => 'e$key';
 
     return [
-      PendingEvent(
-        type: 'BallInPlay',
-        localKey: bipKey,
-        payload: BallInPlay(
-          pitchEventId: pitchEventId,
-          fair: true,
-          trajectory: trajectory,
-          landing: landing,
-          retrieved: retrieved,
-          landingIsCaught: landingIsCaught,
-          offWall: offWall ? true : null,
-          sacrifice: sacrifice ? true : null,
-        ).toJson(),
-      ),
+      // A between-pitch entry mints no BallInPlay — nothing was hit. Its
+      // touches anchor to the pitch itself, which is already in the stream,
+      // so they carry a real id rather than a batch-local reference.
+      if (battedBall)
+        PendingEvent(
+          type: 'BallInPlay',
+          localKey: bipKey,
+          payload: BallInPlay(
+            pitchEventId: pitchEventId,
+            fair: true,
+            trajectory: trajectory!,
+            landing: landing!,
+            retrieved: retrieved,
+            landingIsCaught: landingIsCaught,
+            offWall: offWall ? true : null,
+            sacrifice: sacrifice ? true : null,
+          ).toJson(),
+        ),
       for (final entry in entries)
         switch (entry) {
           TouchEntry() => PendingEvent(
@@ -1019,7 +1121,9 @@ class PlayDraft {
                   defaultOrdinaryEffort(entry.touchType),
               receivedQuality: entry.receivedQuality,
               location: entry.location,
-            ).toJson()..['ballInPlayEventId'] = localRef(bipKey),
+            ).toJson()..['ballInPlayEventId'] = battedBall
+                ? localRef(bipKey)
+                : pitchEventId,
           ),
           LegEntry() => PendingEvent(
             type: 'RunnerAdvance',

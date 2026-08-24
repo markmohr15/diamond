@@ -1,3 +1,4 @@
+import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
@@ -53,10 +54,9 @@ class PitchLoopPage extends ConsumerWidget {
     // entry, and the pitch under this play is already committed.
     final draft = ref.watch(playDraftProvider).valueOrNull;
     // §15.6 v0.42: the same screen with no ball in play. One entity — a
-    // ball in play is a state of the field, not a different field — so the
-    // only difference here is which of the two opened it.
-    final idleField = ref.watch(idleFieldOpenProvider);
-    if (draft != null || idleField) {
+    // ball in play is a *state* of the draft (`battedBall`), not a
+    // different surface — so there is nothing extra to check here.
+    if (draft != null) {
       return Scaffold(
         body: SafeArea(
           child: Column(
@@ -122,9 +122,16 @@ class PitchLoopPage extends ConsumerWidget {
                           padding: const EdgeInsets.only(right: 16),
                           child: TextButton.icon(
                             key: openIdleFieldKey,
-                            onPressed: () => ref
-                                .read(idleFieldOpenProvider.notifier)
-                                .state = true,
+                            onPressed: () async {
+                              final anchors = await ref
+                                  .read(gameControllerProvider.notifier)
+                                  .betweenPitchAnchors();
+                              final pitchId = anchors.pitchId;
+                              if (pitchId == null) return;
+                              await ref
+                                  .read(playDraftProvider.notifier)
+                                  .startBetweenPitches(pitchEventId: pitchId);
+                            },
                             icon: const Icon(Icons.sports_baseball),
                             label: const Text('Field'),
                           ),

@@ -1593,17 +1593,17 @@ void main() {
       await tapKey(tester, openIdleFieldKey);
     }
 
-    testWidgets('a steal is three gestures: open field, drag, chip', (
-      tester,
-    ) async {
+    testWidgets('a steal: open field, drag, chip, commit', (tester) async {
       await runnerOnFirstThenField(tester);
       expect(find.byKey(fieldIdleLabelKey), findsOneWidget);
-      // No play chrome between pitches.
-      expect(find.byKey(fieldCommitKey), findsNothing);
+      // No batted ball, so no trajectory — but the same ✓ a play commits
+      // with, because a between-pitch entry accumulates a chain too.
       expect(find.byKey(trajectoryEditKey), findsNothing);
+      expect(find.byKey(fieldCommitKey), findsOneWidget);
 
       await dragToken(tester, 1, 2, target: 'base');
-      await tapKey(tester, betweenPitchChipKey('stolen_base'));
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await tapKey(tester, fieldCommitKey);
 
       final advances = (await stream())
           .where((e) => e.type == 'RunnerAdvance')
@@ -1627,7 +1627,8 @@ void main() {
         standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
       );
       await dragToken(tester, 1, 2, target: 'out');
-      await tapKey(tester, betweenPitchChipKey('caught_stealing'));
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
       final touches = events
@@ -1657,7 +1658,8 @@ void main() {
         canvasTopLeft(tester) + geometry.toPx(bag),
       );
       await dragToken(tester, 1, 2, target: 'out');
-      await tapKey(tester, betweenPitchChipKey('caught_stealing'));
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
 
       final touch = FielderTouch.fromJson(
         (await stream()).lastWhere((e) => e.type == 'FielderTouch').payload,
@@ -1672,7 +1674,8 @@ void main() {
     testWidgets('a passed ball emits the §13.2 pair, linked', (tester) async {
       await runnerOnFirstThenField(tester);
       await dragToken(tester, 1, 2, target: 'base');
-      await tapKey(tester, betweenPitchChipKey('passed_ball'));
+      await tapKey(tester, safeChipKey('passed_ball'));
+      await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
@@ -1718,11 +1721,14 @@ void main() {
       // The first baseman runs it down behind the plate, then throws home.
       final backstop = FieldCoord(x: 20, y: -14);
       await drag(tester, px(spots[3]!), px(backstop));
+      // A loose ball asks what happened, in either state of the screen.
+      await tapKey(tester, fielderPlayKey('fielded'));
       await tester.tapAt(px(spots[2]!));
       await tester.pumpAndSettle();
 
       await dragToken(tester, 1, 2, target: 'out');
-      await tapKey(tester, betweenPitchChipKey('caught_stealing'));
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
       final touches = events
@@ -1740,6 +1746,35 @@ void main() {
       expect(scoring.assistsByPosition, {3: 1});
     });
 
+    testWidgets('CS at third, but a missed tag: she is safe and the error '
+        'is charged — the chain is why this is enterable', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      // Catcher throws to third; the third baseman muffs the tag.
+      await tester.tapAt(
+        canvasTopLeft(tester) +
+            geometry.toPx(standardFielderSpots(geometry.profile)[5]!),
+      );
+      await tester.pumpAndSettle();
+      // Retype her touch to a missed tag — the chain strip's chip, the same
+      // one a play uses.
+      await tapKey(tester, chainNodeKey(1));
+      await tapKey(tester, chainChipKey('tag_missed'));
+
+      await dragToken(tester, 1, 3);
+      await tapKey(tester, safeChipKey('error'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final scoring = foldOfficialScoring(events);
+      // A muffed tag is a fielding error (§13.2 v0.43) once it has a
+      // consequence, and the consequence is that she is standing on third.
+      expect(scoring.errors.single.position, 5);
+      expect(container.read(gameControllerProvider).value!.bases.third,
+          'opp-1');
+      expect(container.read(gameControllerProvider).value!.outs, 0);
+    });
+
     testWidgets('a wild pitch is the advance alone — no touch is minted', (
       tester,
     ) async {
@@ -1748,7 +1783,8 @@ void main() {
           (await stream()).where((e) => e.type == 'FielderTouch').length;
 
       await dragToken(tester, 1, 2, target: 'base');
-      await tapKey(tester, betweenPitchChipKey('wild_pitch'));
+      await tapKey(tester, safeChipKey('wild_pitch'));
+      await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
       // §13.2: a wild pitch is an uncaught pitch with NO catcher touch —
@@ -1776,7 +1812,8 @@ void main() {
       final before = (await stream()).length;
 
       await dragToken(tester, 1, 2, target: 'base');
-      await tapKey(tester, betweenPitchChipKey('stolen_base'));
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await tapKey(tester, fieldCommitKey);
       expect((await stream()).length, before + 1);
 
       await container.read(gameControllerProvider.notifier).undoLast();

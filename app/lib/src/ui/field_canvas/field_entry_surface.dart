@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:diamond/src/events/generated/events.dart';
-import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
@@ -37,11 +36,7 @@ const Key fieldIdleCloseKey = Key('fieldIdleClose');
 @visibleForTesting
 Key betweenPitchChipKey(String reason) => Key('betweenPitch-$reason');
 
-/// §15.6: whether the scorer has opened the field with no ball in play.
-/// Deliberately a bare flag rather than a step in the pitch flow's machine —
-/// the idle field interrupts nothing, and if the field later becomes the
-/// loop's home surface this is the only thing that changes.
-final idleFieldOpenProvider = StateProvider<bool>((ref) => false);
+
 @visibleForTesting
 Key fielderPlayKey(String choice) => Key('fielderPlay-$choice');
 @visibleForTesting
@@ -87,9 +82,9 @@ const double _offWallToleranceFt = 6;
 /// her exactly as it does inside a play, which is what lets a caught stealing
 /// record 2-6 with real putout and assist credit.
 class FieldEntrySurface extends ConsumerStatefulWidget {
-  const FieldEntrySurface({this.draft, super.key});
+  const FieldEntrySurface({required this.draft, super.key});
 
-  final PlayDraft? draft;
+  final PlayDraft draft;
 
   @override
   ConsumerState<FieldEntrySurface> createState() => _FieldEntrySurfaceState();
@@ -110,38 +105,8 @@ class _ActiveDrag {
   bool get isPath => runnerId == null && fielderPosition == null;
 }
 
-/// One fielder touch accumulated by a between-pitch entry, before the reason
-/// chip commits the batch. Position plus the local key its links point at.
-typedef _LiveTouch = ({
-  String localKey,
-  int position,
-  TouchType type,
-  FieldCoord? location,
-});
-
 class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   _ActiveDrag? _drag;
-
-  /// §15.6's between-pitch batch: touches recorded since the surface opened,
-  /// oldest first. Empty until a throw actually happens — the catcher's
-  /// possession is virtual, so nothing reaches the stream when nobody
-  /// throws. Cleared on every commit; never journaled (§15.6: no chain, no
-  /// ✓, so there is nothing half-entered to restore).
-  final List<_LiveTouch> _liveTouches = [];
-
-  /// Who holds the ball between pitches, or null when it is **loose**.
-  /// Seeded to the catcher, which is true after every pitch in both sports
-  /// and costs nothing in the overwhelmingly common case. Tapping the
-  /// holder says she does *not* have it — the wild pitch that got past her
-  /// — and the next fielder tapped picks it up rather than receiving a
-  /// throw, the same rule §15.1 already uses for a loose ball in a play.
-  int? _livePossession = 2;
-
-  /// Where fielders went to make *this* play — the shortstop covering
-  /// second on a steal, the catcher chasing a passed ball to the backstop.
-  /// Not alignment (§16.4, M2): nobody is being pre-positioned, and these
-  /// clear the moment the entry commits.
-  final Map<int, FieldCoord> _liveFielderSpots = {};
 
   /// A throw just arrived at this base with a runner heading there: the
   /// SAFE/OUT pair is up at the bag, waiting for the tap that resolves the
@@ -156,7 +121,8 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // already answered it).
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Between pitches there is no batted ball to ask about.
-      if (mounted && widget.draft?.trajectory == null && widget.draft != null) {
+      final draft = widget.draft;
+      if (mounted && draft.battedBall && draft.trajectory == null) {
         _showTrajectoryDialog();
       }
     });
@@ -172,7 +138,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     return Column(
       children: [
-        if (draft == null)
+        if (!draft.battedBall)
           // Between pitches: no trajectory, no chain, nothing to commit —
           // the only chrome is a way back out.
           Padding(
@@ -188,17 +154,22 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                   ),
                 ),
                 const Spacer(),
-                // Not an ✕: nothing here is discardable — every entry
-                // committed the moment its chip was tapped, so "cancel" is
-                // the wrong promise. Not the play surface's filled ✓
-                // either, which commits something pending; this only
-                // leaves. Hence a checkmark that says which it is.
-                TextButton.icon(
+                // The same pair the play surface uses, and they mean the
+                // same things: ✕ leaves with nothing recorded, ✓ commits
+                // what is on the chain. A between-pitch entry accumulates
+                // now, so it earns a real commit rather than a "close".
+                IconButton(
                   key: fieldIdleCloseKey,
-                  onPressed: () =>
-                      ref.read(idleFieldOpenProvider.notifier).state = false,
+                  onPressed: controller.discard,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Leave without recording',
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  key: fieldCommitKey,
+                  onPressed: draft.committable ? controller.commit : null,
                   icon: const Icon(Icons.check),
-                  label: const Text('Done'),
+                  label: const Text('Commit'),
                 ),
               ],
             ),
@@ -257,7 +228,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         ),
         // §15.2: the chain above the canvas, once there is a play to chain.
         // Between pitches there is none — §15.6 is a single fact, not a chain.
-        if (draft != null && draft.trajectory != null)
+        if (!draft.battedBall || draft.trajectory != null)
           PlayChainStrip(
             draft: draft,
             runnerLabels: _runnerLabels(draft, bases),
@@ -285,28 +256,24 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     ink: scheme.onSurface,
                     accent: scheme.primary,
                     surface: scheme.surface,
-                    landing: draft?.landing,
-                    retrieved: draft?.retrieved,
+                    landing: draft.landing,
+                    retrieved: draft.retrieved,
                     tokens: tokens,
                     dragPosition: _drag?.current,
                     dragTokenId: _drag?.runnerId,
                     dragFielderPosition: _drag?.fielderPosition,
-                    // Between pitches the catcher holds it until a throw
-                    // moves it, so the accent ring is never absent.
-                    holderPosition: draft == null
-                        ? _livePossession
-                        : draft.securedTouch?.position,
-                    movedFielders: draft?.movedFielders ?? _liveFielderSpots,
+                    // Seed included, so the ring is right between pitches
+                    // too — and absent once the ball is loose.
+                    holderPosition: draft.holderPosition,
+                    movedFielders: draft.movedFielders,
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
                     route: [
-                      if (draft != null) ...[
-                        if (draft.landing != null)
-                          draft.retrieved ?? draft.landing!,
-                        for (final entry in draft.entries)
-                          if (entry is TouchEntry && entry.location != null)
-                            entry.location!,
-                      ],
+                      if (draft.landing != null)
+                        draft.retrieved ?? draft.landing!,
+                      for (final entry in draft.entries)
+                        if (entry is TouchEntry && entry.location != null)
+                          entry.location!,
                     ],
                   ),
                 ),
@@ -317,7 +284,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         // §13 v0.43: a bunt that moved a runner is the one play where the
         // record is genuinely incomplete without the scorer — nothing
         // physical separates giving herself up from bunting for a hit.
-        if (draft != null && draft.invitesSacrifice)
+        if (draft.invitesSacrifice)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: FilterChip(
@@ -327,9 +294,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               onSelected: (value) => controller.setSacrifice(sacrifice: value),
             ),
           ),
-        if (draft != null &&
-            draft.landing != null &&
-            _nearFence(draft.landing!))
+        if (draft.landing != null && _nearFence(draft.landing!))
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: FilterChip(
@@ -350,9 +315,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// catch *is* the third out, so there is nothing left to appeal.
   bool get _canRecordOut {
     final folded = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
-    final pending =
-        widget.draft?.entries.whereType<OutEntry>().length ?? 0;
-    return folded + pending < 3;
+    return folded + _draft.entries.whereType<OutEntry>().length < 3;
   }
 
   /// Who has the ball, said out loud. The assumption that the catcher holds
@@ -361,19 +324,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// ball, so it says itself and names the way out. Once anything has
   /// happened the hint drops and the line is just the fact.
   String get _possessionLabel {
-    final holder = _livePossession;
+    final holder = _draft.holderPosition;
     if (holder == null) return 'Ball is loose — tap the fielder who gets it';
-    if (holder == 2 && _liveTouches.isEmpty) {
+    if (holder == 2 && _draft.entries.isEmpty) {
       return "Catcher has the ball — tap her if she doesn't";
     }
     return '${positionAbbreviations[holder] ?? holder} has the ball';
   }
 
-  /// The play in progress. Only valid on paths that a ball in play reaches —
-  /// the trajectory modal, the chain, the SAFE/OUT classification, the ✓.
-  /// Between-pitch code must never call it; [FieldEntrySurface.draft] is the
-  /// honest question there.
-  PlayDraft get _draft => widget.draft!;
+  PlayDraft get _draft => widget.draft;
 
   BaseState get _foldBases =>
       ref.watch(gameControllerProvider).valueOrNull?.bases ?? BaseState.empty;
@@ -430,7 +389,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// The base the play found this runner on — force logic and cascade
   /// origins read this, never a mid-play draft position.
   int _originBase(String runnerId, BaseState bases) {
-    if (runnerId == widget.draft?.batterId) return 0;
+    if (runnerId == _draft.batterId) return 0;
     if (runnerId == bases.first) return 1;
     if (runnerId == bases.second) return 2;
     return 3;
@@ -443,7 +402,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   ) {
     // Nothing enters before the trajectory (§15.1 v0.43): a touch on the
     // canvas just brings the question back, front and center.
-    if (widget.draft != null && widget.draft!.trajectory == null) {
+    if (_draft.battedBall && _draft.trajectory == null) {
       _showTrajectoryDialog();
       return;
     }
@@ -495,8 +454,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     for (final entry in spots.entries) {
       // Grab her where she now stands, in either state of the screen.
       final spot =
-          (widget.draft?.movedFielders ?? _liveFielderSpots)[entry.key] ??
-          entry.value;
+          _draft.movedFielders[entry.key] ?? entry.value;
       final d = (position - geometry.toPx(spot)).distance;
       if (d <= bestFielderDistance) {
         bestFielderDistance = d;
@@ -540,13 +498,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     setState(() => _drag = null);
     final moved = (drag.current - drag.start).distance > kTouchSlop;
 
-    // §15.6: the one fork between the screen's two states. Everything above
-    // this line is shared; everything below assumes a play.
-    if (widget.draft == null) {
-      _onUpBetweenPitches(geometry, drag, moved, tokens);
-      return;
-    }
-
     if (drag.isPath) {
       // The drawn path, two taps (§15.1 v0.43): first tap = first bounce,
       // second tap = where it ended up; later taps adjust the streak's end
@@ -575,10 +526,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     if (drag.fielderPosition != null) {
       final position = drag.fielderPosition!;
-      final holder = _draft.securedTouch?.position;
+      // Seed included: between pitches the catcher holds it without a
+      // touch to prove it (§15.6), and a tap on the holder says she never
+      // had it — the pitch got past her.
+      final holder = _draft.holderPosition;
       final spot = moved
           ? geometry.toField(drag.current)
           : _currentFielderSpot(position, geometry);
+      if (position == holder && !moved) {
+        unawaited(controller.setHeldBy(null));
+        return;
+      }
+      // A loose ball falls through to the what-happened popup in BOTH
+      // states — she is making a play on it, and "picked it up" versus
+      // "booted it" is worth asking behind the plate too.
       // The ball is held and this is a different fielder: a THROW — one
       // tap sends it to her where she stands; a drag places the reception.
       // A throw arriving at a base with a runner heading there raises the
@@ -669,249 +630,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     4: 'Home run',
   };
 
-  /// §15.6's release, between pitches. Throws work exactly as they do in a
-  /// play — the catcher starts with the ball, tapping a fielder throws to
-  /// her — which is what lets a caught stealing carry real putout and assist
-  /// credit. A runner released on a base or an OUT pill opens the reason
-  /// chips, and the chip tap commits the whole batch.
-  void _onUpBetweenPitches(
-    FieldGeometry geometry,
-    _ActiveDrag drag,
-    bool moved,
-    List<RunnerToken> tokens,
-  ) {
-    // Nothing to draw between pitches: there is no batted ball.
-    if (drag.isPath) return;
-
-    if (drag.fielderPosition != null) {
-      final position = drag.fielderPosition!;
-      final spot = moved
-          ? geometry.toField(drag.current)
-          : _currentFielderSpot(position, geometry);
-      // Tapping the holder is the scorer saying she never had it: the
-      // pitch got past her. Reversible — tap again and she has it back.
-      if (position == _livePossession && !moved) {
-        setState(() => _livePossession = null);
-        return;
-      }
-      // Dragging the holder is her carrying it — the catcher chasing a
-      // passed ball to the backstop before she throws. She keeps the ball
-      // and her spot follows her.
-      if (position == _livePossession) {
-        setState(() {
-          _liveFielderSpots[position] = spot;
-          if (_liveTouches.isNotEmpty) {
-            final held = _liveTouches.last;
-            _liveTouches[_liveTouches.length - 1] = (
-              localKey: held.localKey,
-              position: held.position,
-              type: held.type,
-              location: spot,
-            );
-          }
-        });
-        return;
-      }
-      setState(() {
-        final holder = _livePossession;
-        // The thrower needs a touch of her own or she gets no assist; it is
-        // recorded lazily, here, so a surface nobody threw on stays silent.
-        // A loose ball has no thrower, so nobody is minted — which is the
-        // whole point of being able to say the catcher never had it.
-        if (holder != null && _liveTouches.isEmpty) {
-          _liveTouches.add((
-            localKey: 't0',
-            position: holder,
-            type: TouchType.FIELDED,
-            location: _liveFielderSpots[holder],
-          ));
-        }
-        // A drag says where she took it — the shortstop at the bag, not at
-        // her standard spot. §4.2's touch location, same as in a play.
-        _liveFielderSpots[position] = spot;
-        _liveTouches.add((
-          localKey: 't${_liveTouches.length}',
-          position: position,
-          // Off a loose ball she is making a play on it, not receiving a
-          // throw (§15.1's rule, carried over).
-          type: holder == null
-              ? TouchType.FIELDED
-              : TouchType.RECEIVED_THROW,
-          location: spot,
-        ));
-        _livePossession = position;
-      });
-      return;
-    }
-
-    if (!moved) return;
-    final runnerId = drag.runnerId!;
-    final token = tokens.firstWhere((t) => t.runnerId == runnerId);
-    final base = geometry.nearestBaseWithin(
-      drag.current,
-      FieldPainter.approachRadiusPx,
-    );
-    if (base == null) return;
-    final pill = geometry.pillAt(base, drag.current);
-    // Dropped where she already stands is not a between-pitch event.
-    if (base == token.base && pill != BaseCall.out) return;
-    _showBetweenPitchSheet(
-      runnerId: runnerId,
-      from: token.base,
-      to: base,
-      isOut: pill == BaseCall.out,
-    );
-  }
-
-  /// §15.6's reason chips. The tap commits — there is no ✓ here, because a
-  /// between-pitch entry is one fact rather than an accumulating chain.
-  void _showBetweenPitchSheet({
-    required String runnerId,
-    required int from,
-    required int to,
-    required bool isOut,
-  }) {
-    final choices = isOut
-        ? const [
-            ('caught_stealing', 'Caught stealing'),
-            ('picked_off', 'Picked off'),
-          ]
-        : const [
-            ('stolen_base', 'Stolen base'),
-            ('wild_pitch', 'Wild pitch'),
-            ('passed_ball', 'Passed ball'),
-            ('defensive_indifference', 'Defensive indifference'),
-          ];
-    _centeredDialog(
-      isOut ? 'Out at ${_baseLabels[to]} — how?' : 'To ${_baseLabels[to]} on?',
-      [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
-          children: [
-            for (final (id, label) in choices)
-              ChoiceChip(
-                key: betweenPitchChipKey(id),
-                label: Text(label),
-                // The first is the default read, pre-selected (§15.6).
-                selected: id == choices.first.$1,
-                onSelected: (_) {
-                  Navigator.pop(context);
-                  unawaited(
-                    _commitBetweenPitch(
-                      runnerId: runnerId,
-                      from: from,
-                      to: to,
-                      isOut: isOut,
-                      choice: id,
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  /// §15.6's commit: the batch becomes events in one append, and the
-  /// surface goes back to holding nothing. No journal — there is no
-  /// half-entered state to restore, because nothing accumulates across
-  /// entries.
-  ///
-  /// A passed ball is physics, never a ruling (§13.2): it emits the
-  /// catcher's `missed_catch` against the pitch and links the advance to it,
-  /// reusing a touch already recorded on that pitch so a second runner on
-  /// the same ball does not mint a second passed ball. A wild pitch is the
-  /// advance alone — the absence of the touch is what makes it one.
-  Future<void> _commitBetweenPitch({
-    required String runnerId,
-    required int from,
-    required int to,
-    required bool isOut,
-    required String choice,
-  }) async {
-    final game = ref.read(gameControllerProvider.notifier);
-    final anchors = await game.betweenPitchAnchors();
-    final pitchId = anchors.pitchId;
-    if (pitchId == null) return;
-
-    final pending = <PendingEvent>[
-      for (final touch in _liveTouches)
-        PendingEvent(
-          type: 'FielderTouch',
-          localKey: touch.localKey,
-          payload: FielderTouch(
-            ballInPlayEventId: pitchId,
-            position: touch.position,
-            touchType: touch.type,
-            location: touch.location,
-          ).toJson(),
-        ),
-    ];
-
-    // The passed ball's own touch, when one is not already on this pitch.
-    // Either a real id (a touch already on this pitch) or a `localRef` map
-    // resolved at append — both are legal payload values.
-    Object? passedBallRef = anchors.passedBallTouchId;
-    if (choice == 'passed_ball' && passedBallRef == null) {
-      const key = 'pb';
-      pending.insert(
-        0,
-        PendingEvent(
-          type: 'FielderTouch',
-          localKey: key,
-          payload: FielderTouch(
-            ballInPlayEventId: pitchId,
-            position: 2,
-            touchType: TouchType.MISSED_CATCH,
-            ordinaryEffort: true,
-          ).toJson(),
-        ),
-      );
-      passedBallRef = localRef(key);
-    }
-
-    if (isOut) {
-      pending.add(
-        PendingEvent(
-          type: 'RunnerOut',
-          payload: {
-            'runnerId': runnerId,
-            'atBase': to,
-            'how': choice,
-            if (_liveTouches.isNotEmpty)
-              'putoutTouchId': localRef(_liveTouches.last.localKey),
-          },
-        ),
-      );
-    } else {
-      pending.add(
-        PendingEvent(
-          type: 'RunnerAdvance',
-          payload: {
-            'runnerId': runnerId,
-            'from': from,
-            'to': to,
-            'reason': choice,
-            if (choice == 'passed_ball' && passedBallRef != null)
-              'enabledByTouchId': passedBallRef,
-          },
-        ),
-      );
-    }
-
-    await game.appendAllPending(pending);
-    if (mounted) {
-      setState(() {
-        _liveTouches.clear();
-        _liveFielderSpots.clear();
-        _livePossession = 2;
-      });
-    }
-  }
-
   /// The SAFE classification (§15.1 v0.43): what got the runner there.
   /// Safe-only vocabulary — obstruction lives here and never on OUT.
   void _showSafeDialog(
@@ -928,7 +646,24 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // the air; and "on the throw" is only true if somebody threw.
     // Obstruction is not here at all — it lives on the chain node, found
     // when looked for rather than offered on every play.
-    final choices = <(String, String, SafeResolution)>[
+    // §15.6's vocabulary between pitches — disjoint from a play's, because
+    // nothing is stolen on a batted ball and nothing comes "on the hit"
+    // when there was no hit. "On an error" is in both: it is how a runner
+    // is safe on a missed tag.
+    final choices = !draft.battedBall
+        ? <(String, String, SafeResolution)>[
+            ('stolen_base', 'Stolen base', SafeResolution.stolenBase),
+            ('wild_pitch', 'Wild pitch', SafeResolution.wildPitch),
+            ('passed_ball', 'Passed ball', SafeResolution.passedBall),
+            (
+              'defensive_indifference',
+              'Defensive indifference',
+              SafeResolution.defensiveIndifference,
+            ),
+            if (draft.latestMisplayTouchKey != null)
+              ('error', 'On an error', SafeResolution.onError),
+          ]
+        : <(String, String, SafeResolution)>[
       (
         'hit',
         isBatter ? _hitLabels[base]! : (caught ? 'Tagged up' : 'On the hit'),
@@ -941,7 +676,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       if (draft.latestMisplayTouchKey != null)
         ('error', 'On an error', SafeResolution.onError),
       if (!caught) ('fc', "Fielder's choice", SafeResolution.fieldersChoice),
-    ];
+          ];
 
     // One possible answer is not a question: tagging up on a routine fly
     // costs the gesture that moved her and nothing more.
@@ -1034,7 +769,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       );
 
   FieldCoord _currentFielderSpot(int position, FieldGeometry geometry) =>
-      (widget.draft?.movedFielders ?? _liveFielderSpots)[position] ??
+      _draft.movedFielders[position] ??
       standardFielderSpots(geometry.profile)[position]!;
 
   /// Every popup on this surface: a centered dialog, only as big as its
@@ -1188,6 +923,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final isBatter = origin == 0;
     final forced =
         !caught && atBase == origin + 1 && _forceChainLive(origin, bases);
+    // §15.6: between pitches she was running on her own, so the play's
+    // vocabulary does not apply — no force without a batter, no fly out
+    // without a batted ball.
+    if (!_draft.battedBall) {
+      return [
+        ('caught_stealing', 'Caught stealing', How.CAUGHT_STEALING),
+        ('picked_off', 'Picked off', How.PICKED_OFF),
+        ('tag', 'Tag', How.TAG),
+      ];
+    }
     return [
       if (caught && isBatter) ('fly_out', 'Fly out', How.FLY_OUT),
       if (forced) ('force', 'Force', How.FORCE),
