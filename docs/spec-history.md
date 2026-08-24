@@ -3,6 +3,44 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.45
+
+**Between-pitch entries are play drafts with a different anchor (§15.6).** v0.42 specified them as
+"a single fact, not an accumulating chain" — one event, committed by the reason chip, with no chain
+strip and no ✓. Building it that way produced a parallel mechanism no existing editor understood: a
+caught stealing where a missed tag makes the runner safe was **unenterable**, because the chain strip
+is what retypes a touch and links an advance to it.
+
+They are the same structure. A play hangs its chain off the `BallInPlay` it mints; a between-pitch
+entry hangs it off the pitch that already exists. So the chain strip, every §15.3 chip, and §15.5's ✓
+apply unchanged, and official scoring reads one shape rather than two. The catcher holds the ball by
+seed; tapping her says the pitch got past her, and the next fielder is then making a play on a loose
+ball rather than receiving a throw (§15.1's rule, carried over).
+
+The SAFE and OUT vocabularies stay disjoint by state — nothing is stolen on a batted ball, nothing
+comes "on the hit" when there was no hit — with "on an error" in both, since that is how a runner is
+safe on a missed tag.
+
+**Cost, deliberately paid:** a plain steal is four gestures rather than three (open · drag · chip · ✓).
+With a chain to edit, committing on the first chip is premature. DIA-008's accept criterion moves with
+it.
+
+## v0.44
+
+**One spelling for failing to receive a pitch (§13.2, §11.3, §15.6).** Receiving a pitch is binary.
+Whether the catcher got a glove on it or it went straight past her changes nothing that is scored,
+and asking the scorer to say which is a judgment with no consequence — the question at entry is
+"passed ball?", yes or no. So the passed-ball touch has exactly one spelling, **`missed_catch`**,
+chosen over `dropped` because it claims less: `dropped` asserts she had it and lost it. §13.2's
+definition, §11.3's D3K Safe-passed-ball fast path, and §15.6's PB chip all now name it.
+
+This does not widen the exemption. Two misplays that anchor to a pitch stay chargeable: `wild_throw`,
+because a throw is a thrown ball (§14 play #5's E2 stands), and `tag_missed`, because muffing a tag on
+the batter-runner is a play on her rather than a failure to receive. `missed_catch` remains legal on
+batted balls; it simply has no producer there, since §15.1's "Missed it" records no touch at all.
+
+**Implemented in DIA-008d**, which is the first writer of the value.
+
 ## v0.43
 
 **§15.1's entry grammar rewritten from DIA-008 field testing (design review with Mark).** Four

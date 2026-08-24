@@ -40,6 +40,32 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     state = AsyncData(draft);
   }
 
+  /// §15.6's between-pitch entry: the same draft with a different anchor.
+  /// No batted ball, so no `BallInPlay` and no trajectory question; no
+  /// batter-runner, so no walk-up cascade. The catcher starts with the
+  /// ball, which is true after every pitch in both sports.
+  ///
+  /// Everything after this point is the play grammar unchanged — touches,
+  /// throws, legs, outs, chips, the ✓ — deliberately, so a steal with an
+  /// error on it is entered the same way a batted ball with one is.
+  Future<void> startBetweenPitches({required String pitchEventId}) async {
+    final draft = PlayDraft(
+      pitchEventId: pitchEventId,
+      batterId: '',
+      battedBall: false,
+      heldBy: 2,
+    );
+    await _journal.save(_gameId, draft);
+    state = AsyncData(draft);
+  }
+
+  /// Tapping the holder says she never had it — the pitch got past her.
+  /// Reversible; the next fielder tapped then picks up a loose ball
+  /// (`fielded`) rather than receiving a throw, per §15.1's loose-ball rule.
+  Future<void> setHeldBy(int? position) {
+    return _mutate((draft) => draft.copyWith(heldBy: position));
+  }
+
   /// §15.5's escape hatch for a locked path (§15.1 v0.43): the whole play
   /// starts over — trajectory question included — with the committed pitch
   /// untouched. Everything or nothing; there is no partial unpick once
@@ -209,9 +235,25 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
           movedFielders: {...next.movedFielders, position: spot},
         );
       }
+      // Between pitches the thrower holds the ball by seed rather than by
+      // a touch (§15.6), so she has nothing to be credited an assist on.
+      // Mint it here, at the moment a throw proves she had it — not at
+      // open, where a surface nobody throws on would record a phantom.
+      final seed = next.heldBy;
+      if (seed != null && next.securedTouch == null) {
+        next = next.addingTouch(
+          seed,
+          TouchType.FIELDED,
+          location: next.movedFielders[seed],
+        );
+      }
+      // Off a loose ball she is making a play on it, not receiving a throw
+      // — §15.1's rule, and what makes "the catcher never had it" honest.
       return next.addingTouch(
         position,
-        TouchType.RECEIVED_THROW,
+        next.holderPosition == null
+            ? TouchType.FIELDED
+            : TouchType.RECEIVED_THROW,
         location: spot,
       );
     });

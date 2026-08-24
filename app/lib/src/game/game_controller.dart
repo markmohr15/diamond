@@ -4,6 +4,7 @@ import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_projector.dart';
+import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Event types the top-level undo will void — the events the loop itself
@@ -27,6 +28,34 @@ const _undoableTypes = {
 /// leads the atomic batch, so it roots the unit and the play voids whole —
 /// without reaching back through it to the pitch, which stays its own action.
 const _actionRootTypes = {'PitchThrown', 'BallInPlay', 'CountCorrection'};
+
+/// §15.6 v0.42: reasons a `RunnerAdvance` is a **root** rather than a
+/// consequence. The same event type is both — a forced advance after a walk
+/// rides the pitch's undo unit, a steal entered on the idle field is its own
+/// action — so root-ness cannot key on type alone.
+///
+/// The vocabularies settle it without a schema change: these reasons never
+/// appear inside a play or a forced chain (a walk's chain reads `walk`, a
+/// batted ball's reads `batted_ball`), so a reason from this set *is* the
+/// claim that a scorer authored it standing between pitches.
+const _betweenPitchReasons = {
+  'stolen_base',
+  'wild_pitch',
+  'passed_ball',
+  'defensive_indifference',
+};
+
+/// The same, for `RunnerOut`: only a between-pitch entry produces these.
+const _betweenPitchHows = {'caught_stealing', 'picked_off'};
+
+bool _isActionRoot(GameEvent event) {
+  if (_actionRootTypes.contains(event.type)) return true;
+  return switch (event.type) {
+    'RunnerAdvance' => _betweenPitchReasons.contains(event.payload['reason']),
+    'RunnerOut' => _betweenPitchHows.contains(event.payload['how']),
+    _ => false,
+  };
+}
 
 /// The UI's one writer and one reader of the event stream: append an event,
 /// re-project [GameState] (§5's pure fold, snapshot-aware via
@@ -146,19 +175,61 @@ class GameController extends AsyncNotifier<GameState> {
   /// a chain is back at its origin there is no further correction to unwind,
   /// so the next undo voids it, removing the underlying entry — which is by
   /// then the most recent action still standing.
+  /// §15.6's anchors for a between-pitch entry. Touches recorded between
+  /// pitches have no `BallInPlay` to hang from, so they anchor to the pitch
+  /// itself (§13.2, the same shape a D3K uses) — and a passed ball already
+  /// recorded on that pitch is reused rather than duplicated, so a second
+  /// runner moving on the same ball links to the same touch: one PB, one
+  /// touch, N advances.
+  Future<({String? pitchId, String? passedBallTouchId})>
+  betweenPitchAnchors() async {
+    final visible = await _store.readStream(_session.gameId);
+    String? pitchId;
+    for (final event in visible.reversed) {
+      if (event.type == 'PitchThrown') {
+        pitchId = event.id;
+        break;
+      }
+    }
+    if (pitchId == null) return (pitchId: null, passedBallTouchId: null);
+    String? touchId;
+    for (final event in visible) {
+      if (event.type != 'FielderTouch') continue;
+      final touch = FielderTouch.fromJson(event.payload);
+      if (touch.ballInPlayEventId != pitchId) continue;
+      if (!pitchReceivingTouchTypes.contains(touch.touchType)) continue;
+      touchId = event.id;
+    }
+    return (pitchId: pitchId, passedBallTouchId: touchId);
+  }
+
   Future<void> undoLast() async {
     final visible = await _store.readStream(_session.gameId);
     final unit = <GameEvent>[];
+    var rooted = false;
     for (final event in visible.reversed) {
       if (!_undoableTypes.contains(event.type)) break;
+      // A between-pitch entry is a small batch, and its root is the last
+      // event in it — the advance or the out the chips committed. The
+      // touches that earned the assist come *before* it, so the walk keeps
+      // going through them rather than stopping on the root and orphaning
+      // the throw (§15.6: the PB pair included, one tap voids it whole).
+      if (rooted && event.type != 'FielderTouch') break;
       unit.add(event);
-      if (_actionRootTypes.contains(event.type)) break;
+      if (_isActionRoot(event)) {
+        if (event.type != 'RunnerAdvance' && event.type != 'RunnerOut') break;
+        rooted = true;
+      }
     }
     // No complete action to undo (bootstrap only, or consequences with no
     // root — which the loop never writes): a no-op, not an error.
-    if (unit.isEmpty || !_actionRootTypes.contains(unit.last.type)) return;
+    if (unit.isEmpty || !unit.any(_isActionRoot)) return;
 
-    final root = unit.last;
+    // The event the scorer authored. For a play that is the batch's first
+    // event (BallInPlay/PitchThrown, reached last by the backward walk);
+    // for a between-pitch entry it is the advance or out the chips
+    // committed, with its touches collected after it.
+    final root = unit.firstWhere(_isActionRoot);
     if (root.corrects != null) {
       final raw = await _store.readRawStream(_session.gameId);
       final byId = {for (final e in raw) e.id: e};

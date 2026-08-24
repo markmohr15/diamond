@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
@@ -27,6 +29,14 @@ const Key sacrificeChipKey = Key('sacrificeChip');
 const Key fieldDistanceKey = Key('fieldDistance');
 @visibleForTesting
 const Key fieldCanvasKey = Key('fieldCanvas');
+@visibleForTesting
+const Key fieldIdleLabelKey = Key('fieldIdleLabel');
+@visibleForTesting
+const Key fieldIdleCloseKey = Key('fieldIdleClose');
+@visibleForTesting
+Key betweenPitchChipKey(String reason) => Key('betweenPitch-$reason');
+
+
 @visibleForTesting
 Key fielderPlayKey(String choice) => Key('fielderPlay-$choice');
 @visibleForTesting
@@ -59,6 +69,18 @@ const double _offWallToleranceFt = 6;
 ///
 /// Reads the *pre-play* base state from the fold — the draft's chain exists
 /// only here and in the journal until commit.
+/// The field screen (§15.1, §15.6 v0.42) — **one entity whether the ball was
+/// hit or not**. A ball in play is a *state* of this screen, not a different
+/// screen: same canvas, same fielders, same runner tokens, same throw
+/// grammar. What a draft adds is the play chrome (trajectory, chain strip,
+/// ✓) and the accumulating chain behind it.
+///
+/// With [draft] null the surface is **between pitches**: defense and runners
+/// visible, no chain strip and no ✓, and a runner drag commits its own event
+/// on the reason chip rather than joining a play. The catcher holds the ball
+/// — true after every pitch in both sports — so tapping a fielder throws to
+/// her exactly as it does inside a play, which is what lets a caught stealing
+/// record 2-6 with real putout and assist credit.
 class FieldEntrySurface extends ConsumerStatefulWidget {
   const FieldEntrySurface({required this.draft, super.key});
 
@@ -98,7 +120,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // center — the modal opens with the surface (unless a restored journal
     // already answered it).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && widget.draft.trajectory == null) {
+      // Between pitches there is no batted ball to ask about.
+      final draft = widget.draft;
+      if (mounted && draft.battedBall && draft.trajectory == null) {
         _showTrajectoryDialog();
       }
     });
@@ -114,6 +138,43 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     return Column(
       children: [
+        if (!draft.battedBall)
+          // Between pitches: no trajectory, no chain, nothing to commit —
+          // the only chrome is a way back out.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    _possessionLabel,
+                    key: fieldIdleLabelKey,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Spacer(),
+                // The same pair the play surface uses, and they mean the
+                // same things: ✕ leaves with nothing recorded, ✓ commits
+                // what is on the chain. A between-pitch entry accumulates
+                // now, so it earns a real commit rather than a "close".
+                IconButton(
+                  key: fieldIdleCloseKey,
+                  onPressed: controller.discard,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Leave without recording',
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  key: fieldCommitKey,
+                  onPressed: draft.committable ? controller.commit : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Commit'),
+                ),
+              ],
+            ),
+          )
+        else
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Row(
@@ -166,7 +227,8 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           ),
         ),
         // §15.2: the chain above the canvas, once there is a play to chain.
-        if (draft.trajectory != null)
+        // Between pitches there is none — §15.6 is a single fact, not a chain.
+        if (!draft.battedBall || draft.trajectory != null)
           PlayChainStrip(
             draft: draft,
             runnerLabels: _runnerLabels(draft, bases),
@@ -200,7 +262,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     dragPosition: _drag?.current,
                     dragTokenId: _drag?.runnerId,
                     dragFielderPosition: _drag?.fielderPosition,
-                    holderPosition: draft.securedTouch?.position,
+                    // Seed included, so the ring is right between pitches
+                    // too — and absent once the ball is loose.
+                    holderPosition: draft.holderPosition,
                     movedFielders: draft.movedFielders,
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
@@ -251,8 +315,24 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// catch *is* the third out, so there is nothing left to appeal.
   bool get _canRecordOut {
     final folded = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
-    return folded + widget.draft.entries.whereType<OutEntry>().length < 3;
+    return folded + _draft.entries.whereType<OutEntry>().length < 3;
   }
+
+  /// Who has the ball, said out loud. The assumption that the catcher holds
+  /// it is correct almost every time and costs nothing — but it was silently
+  /// wrong on a wild pitch, minting a touch for a catcher who never had the
+  /// ball, so it says itself and names the way out. Once anything has
+  /// happened the hint drops and the line is just the fact.
+  String get _possessionLabel {
+    final holder = _draft.holderPosition;
+    if (holder == null) return 'Ball is loose — tap the fielder who gets it';
+    if (holder == 2 && _draft.entries.isEmpty) {
+      return "Catcher has the ball — tap her if she doesn't";
+    }
+    return '${positionAbbreviations[holder] ?? holder} has the ball';
+  }
+
+  PlayDraft get _draft => widget.draft;
 
   BaseState get _foldBases =>
       ref.watch(gameControllerProvider).valueOrNull?.bases ?? BaseState.empty;
@@ -260,7 +340,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// Everyone the canvas shows as draggable: the batter-runner, then the
   /// fold's base runners — each at their draft position, and gone from the
   /// canvas once retired (their out lives on the chain strip).
-  List<RunnerToken> _tokens(PlayDraft draft, BaseState bases) {
+  List<RunnerToken> _tokens(PlayDraft? draft, BaseState bases) {
+    // Between pitches there is no batter-runner and nobody is in motion:
+    // everyone stands on the base the fold put them on.
+    if (draft == null) {
+      return [
+        for (final (origin, runnerId) in [
+          (1, bases.first),
+          (2, bases.second),
+          (3, bases.third),
+        ])
+          if (runnerId != null)
+            RunnerToken(runnerId: runnerId, label: '$origin', base: origin),
+      ];
+    }
     return [
       if (!draft.isOut(draft.batterId))
         RunnerToken(
@@ -296,7 +389,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// The base the play found this runner on — force logic and cascade
   /// origins read this, never a mid-play draft position.
   int _originBase(String runnerId, BaseState bases) {
-    if (runnerId == widget.draft.batterId) return 0;
+    if (runnerId == _draft.batterId) return 0;
     if (runnerId == bases.first) return 1;
     if (runnerId == bases.second) return 2;
     return 3;
@@ -309,7 +402,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   ) {
     // Nothing enters before the trajectory (§15.1 v0.43): a touch on the
     // canvas just brings the question back, front and center.
-    if (widget.draft.trajectory == null) {
+    if (_draft.battedBall && _draft.trajectory == null) {
       _showTrajectoryDialog();
       return;
     }
@@ -359,7 +452,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     var bestFielderDistance = _snapRadiusPx;
     final spots = standardFielderSpots(geometry.profile);
     for (final entry in spots.entries) {
-      final spot = widget.draft.movedFielders[entry.key] ?? entry.value;
+      // Grab her where she now stands, in either state of the screen.
+      final spot =
+          _draft.movedFielders[entry.key] ?? entry.value;
       final d = (position - geometry.toPx(spot)).distance;
       if (d <= bestFielderDistance) {
         bestFielderDistance = d;
@@ -385,7 +480,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   int? _fielderAt(Offset position, FieldGeometry geometry) {
     final spots = standardFielderSpots(geometry.profile);
     for (final entry in spots.entries) {
-      final spot = widget.draft.movedFielders[entry.key] ?? entry.value;
+      final spot = _draft.movedFielders[entry.key] ?? entry.value;
       if ((position - geometry.toPx(spot)).distance <= _snapRadiusPx) {
         return entry.key;
       }
@@ -408,11 +503,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // second tap = where it ended up; later taps adjust the streak's end
       // — until anything hangs off the path, which freezes it. From there
       // the ↺ reset is the only way to redraw.
-      if (widget.draft.pathLocked) return;
+      if (_draft.pathLocked) return;
       final point = geometry.toField(drag.start);
       final beyondFence =
           FieldGeometry.isFair(point) && geometry.fenceDepthFt(point) < 0;
-      final landing = widget.draft.landing;
+      final landing = _draft.landing;
       if (landing == null) {
         controller.setLanding(point);
         // §16.3's ball-flight sanity: the canvas knows where the fence is
@@ -431,10 +526,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     if (drag.fielderPosition != null) {
       final position = drag.fielderPosition!;
-      final holder = widget.draft.securedTouch?.position;
+      // Seed included: between pitches the catcher holds it without a
+      // touch to prove it (§15.6), and a tap on the holder says she never
+      // had it — the pitch got past her.
+      final holder = _draft.holderPosition;
       final spot = moved
           ? geometry.toField(drag.current)
           : _currentFielderSpot(position, geometry);
+      if (position == holder && !moved) {
+        unawaited(controller.setHeldBy(null));
+        return;
+      }
+      // A loose ball falls through to the what-happened popup in BOTH
+      // states — she is making a play on it, and "picked it up" versus
+      // "booted it" is worth asking behind the plate too.
       // The ball is held and this is a different fielder: a THROW — one
       // tap sends it to her where she stands; a drag places the reception.
       // A throw arriving at a base with a runner heading there raises the
@@ -463,7 +568,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         }
         // Re-dragging a fielder who already played the ball adjusts her
         // play — one play, moved, never a second touch.
-        if (widget.draft.latestTouchBy(position) != null) {
+        if (_draft.latestTouchBy(position) != null) {
           controller.adjustFielderPlay(position, spot: spot);
           return;
         }
@@ -511,7 +616,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       ];
       _showSafeDialog(
         base,
-        isBatter: runnerId == widget.draft.batterId,
+        isBatter: runnerId == _draft.batterId,
         moves: cascadeRunnerMove(slots, movedId: runnerId, to: base),
       );
     }
@@ -533,7 +638,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     required List<CascadedMove> moves,
   }) {
     final controller = ref.read(playDraftProvider.notifier);
-    final draft = widget.draft;
+    final draft = _draft;
     final caught = draft.caughtInFlight;
     // What could actually have moved her, and nothing else. A caught ball
     // was not hit anywhere she could run on, so the honest answer is that
@@ -541,7 +646,24 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // the air; and "on the throw" is only true if somebody threw.
     // Obstruction is not here at all — it lives on the chain node, found
     // when looked for rather than offered on every play.
-    final choices = <(String, String, SafeResolution)>[
+    // §15.6's vocabulary between pitches — disjoint from a play's, because
+    // nothing is stolen on a batted ball and nothing comes "on the hit"
+    // when there was no hit. "On an error" is in both: it is how a runner
+    // is safe on a missed tag.
+    final choices = !draft.battedBall
+        ? <(String, String, SafeResolution)>[
+            ('stolen_base', 'Stolen base', SafeResolution.stolenBase),
+            ('wild_pitch', 'Wild pitch', SafeResolution.wildPitch),
+            ('passed_ball', 'Passed ball', SafeResolution.passedBall),
+            (
+              'defensive_indifference',
+              'Defensive indifference',
+              SafeResolution.defensiveIndifference,
+            ),
+            if (draft.latestMisplayTouchKey != null)
+              ('error', 'On an error', SafeResolution.onError),
+          ]
+        : <(String, String, SafeResolution)>[
       (
         'hit',
         isBatter ? _hitLabels[base]! : (caught ? 'Tagged up' : 'On the hit'),
@@ -554,7 +676,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       if (draft.latestMisplayTouchKey != null)
         ('error', 'On an error', SafeResolution.onError),
       if (!caught) ('fc', "Fielder's choice", SafeResolution.fieldersChoice),
-    ];
+          ];
 
     // One possible answer is not a question: tagging up on a routine fly
     // costs the gesture that moved her and nothing more.
@@ -618,7 +740,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     FieldGeometry geometry,
   ) {
     const coverRadiusFt = 15.0;
-    final draft = widget.draft;
+    final draft = _draft;
     for (final base in const [1, 2, 3, 4]) {
       final center = geometry.baseCoord(base);
       final dx = spot.x - center.x;
@@ -647,7 +769,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       );
 
   FieldCoord _currentFielderSpot(int position, FieldGeometry geometry) =>
-      widget.draft.movedFielders[position] ??
+      _draft.movedFielders[position] ??
       standardFielderSpots(geometry.profile)[position]!;
 
   /// Every popup on this surface: a centered dialog, only as big as its
@@ -662,7 +784,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final controller = ref.read(playDraftProvider.notifier);
     _centeredDialog('How did it come off the bat?', [
       TrajectoryRow(
-        selected: widget.draft.trajectory,
+        selected: _draft.trajectory,
         onChosen: (trajectory) {
           controller.setTrajectory(trajectory);
           Navigator.pop(context);
@@ -719,15 +841,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// so there is officially nothing to record (§13) beyond where it went.
   void _showFielderPlaySheet(int position, FieldCoord spot) {
     final airborne =
-        widget.draft.trajectory == Trajectory.FLY ||
-        widget.draft.trajectory == Trajectory.POPUP ||
-        widget.draft.trajectory == Trajectory.LINE;
+        _draft.trajectory == Trajectory.FLY ||
+        _draft.trajectory == Trajectory.POPUP ||
+        _draft.trajectory == Trajectory.LINE;
     // A ball can only be caught while it is still in the air, and it is in
     // the air until somebody touches it — except for a deflection, the one
     // touch that leaves it up. After any other touch it is a ball on the
     // ground, whatever it was off the bat, so the fielder who comes over is
     // fielding it rather than catching it.
-    final touches = widget.draft.entries.whereType<TouchEntry>();
+    final touches = _draft.entries.whereType<TouchEntry>();
     final inFlight =
         touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED;
     final choices = <(String, String, TouchType?)>[
@@ -736,7 +858,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         ('dropped', 'Dropped', TouchType.DROPPED),
         // Only a liner caroms. A pop-up one fielder touches and another
         // catches is two fielders on one ball, not a deflection.
-        if (widget.draft.trajectory == Trajectory.LINE)
+        if (_draft.trajectory == Trajectory.LINE)
           ('deflected', 'Deflected', TouchType.DEFLECTED),
         ('missed', 'Missed it', null),
         ('picked_up', 'Picked it up', TouchType.FIELDED),
@@ -797,10 +919,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     BaseState bases,
   ) {
     final origin = _originBase(runnerId, bases);
-    final caught = widget.draft.caughtInFlight;
+    final caught = _draft.caughtInFlight;
     final isBatter = origin == 0;
     final forced =
         !caught && atBase == origin + 1 && _forceChainLive(origin, bases);
+    // §15.6: between pitches she was running on her own, so the play's
+    // vocabulary does not apply — no force without a batter, no fly out
+    // without a batted ball.
+    if (!_draft.battedBall) {
+      return [
+        ('caught_stealing', 'Caught stealing', How.CAUGHT_STEALING),
+        ('picked_off', 'Picked off', How.PICKED_OFF),
+        ('tag', 'Tag', How.TAG),
+      ];
+    }
     return [
       if (caught && isBatter) ('fly_out', 'Fly out', How.FLY_OUT),
       if (forced) ('force', 'Force', How.FORCE),

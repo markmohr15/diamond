@@ -1,3 +1,4 @@
+import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
@@ -16,6 +17,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key recordLastPitchKey = Key('recordLastPitch');
 @visibleForTesting
 const Key dismissLastPitchKey = Key('dismissLastPitch');
+@visibleForTesting
+const Key openIdleFieldKey = Key('openIdleField');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
@@ -50,6 +53,9 @@ class PitchLoopPage extends ConsumerWidget {
     // outside the two-finger detector on purpose: bailout simplifies *pitch*
     // entry, and the pitch under this play is already committed.
     final draft = ref.watch(playDraftProvider).valueOrNull;
+    // §15.6 v0.42: the same screen with no ball in play. One entity — a
+    // ball in play is a *state* of the draft (`battedBall`), not a
+    // different surface — so there is nothing extra to check here.
     if (draft != null) {
       return Scaffold(
         body: SafeArea(
@@ -104,6 +110,33 @@ class PitchLoopPage extends ConsumerWidget {
                             ),
                           ],
                         ),
+                      // §15.6: the way to the field with nothing in play —
+                      // a steal, a runner taking a base on a passed ball.
+                      // Deliberately a plain affordance rather than a step
+                      // in the flow: it interrupts nothing, and if the field
+                      // ever becomes the loop's home surface this is the
+                      // only line that changes.
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 16),
+                          child: TextButton.icon(
+                            key: openIdleFieldKey,
+                            onPressed: () async {
+                              final anchors = await ref
+                                  .read(gameControllerProvider.notifier)
+                                  .betweenPitchAnchors();
+                              final pitchId = anchors.pitchId;
+                              if (pitchId == null) return;
+                              await ref
+                                  .read(playDraftProvider.notifier)
+                                  .startBetweenPitches(pitchEventId: pitchId);
+                            },
+                            icon: const Icon(Icons.sports_baseball),
+                            label: const Text('Field'),
+                          ),
+                        ),
+                      ),
                       Expanded(
                         child: CallScreen(
                           batterSide: batterSide,

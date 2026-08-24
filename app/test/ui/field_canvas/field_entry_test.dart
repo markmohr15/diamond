@@ -4,6 +4,7 @@ import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_journal_store.dart';
+import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
@@ -1574,6 +1575,257 @@ void main() {
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       final location = touch.payload['location'] as Map<String, dynamic>;
       expect(location['x'] as double, closeTo(-45, 2));
+    });
+  });
+
+  group('the idle field (§15.6 v0.42) — between-pitch runner events', () {
+    /// Walk opp-1 aboard, then open the field with nothing in play.
+    Future<void> runnerOnFirstThenField(WidgetTester tester) async {
+      await pumpLoop(tester);
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text('Skip call'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skip location'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ball'));
+        await tester.pumpAndSettle();
+      }
+      await tapKey(tester, openIdleFieldKey);
+    }
+
+    testWidgets('a steal: open field, drag, chip, commit', (tester) async {
+      await runnerOnFirstThenField(tester);
+      expect(find.byKey(fieldIdleLabelKey), findsOneWidget);
+      // No batted ball, so no trajectory — but the same ✓ a play commits
+      // with, because a between-pitch entry accumulates a chain too.
+      expect(find.byKey(trajectoryEditKey), findsNothing);
+      expect(find.byKey(fieldCommitKey), findsOneWidget);
+
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await tapKey(tester, fieldCommitKey);
+
+      final advances = (await stream())
+          .where((e) => e.type == 'RunnerAdvance')
+          .map((e) => RunnerAdvance.fromJson(e.payload))
+          .toList();
+      final steal = advances.last;
+      expect(steal.runnerId, 'opp-1');
+      expect((steal.from, steal.to), (1, 2));
+      expect(steal.reason, RunnerAdvanceReason.STOLEN_BASE);
+      expect(container.read(gameControllerProvider).value!.bases.second,
+          'opp-1');
+    });
+
+    testWidgets('caught stealing carries the throw: 2-6 putout and assist', (
+      tester,
+    ) async {
+      await runnerOnFirstThenField(tester);
+      // The catcher has the ball, so tapping the shortstop throws to her.
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touches = events
+          .where((e) => e.type == 'FielderTouch')
+          .map((e) => FielderTouch.fromJson(e.payload))
+          .toList();
+      expect(touches.map((t) => t.position), [2, 6]);
+      expect(touches.first.touchType, TouchType.FIELDED);
+      expect(touches.last.touchType, TouchType.RECEIVED_THROW);
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {6: 1});
+      expect(scoring.assistsByPosition, {2: 1});
+      expect(container.read(gameControllerProvider).value!.outs, 1);
+    });
+
+    testWidgets('a fielder drags to where she made the play, and the touch '
+        'records it (§4.2)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      // The shortstop covers second — she is not at her standard spot.
+      final bag = geometry.baseCoord(2);
+      await drag(
+        tester,
+        canvasTopLeft(tester) +
+            geometry.toPx(standardFielderSpots(geometry.profile)[6]!),
+        canvasTopLeft(tester) + geometry.toPx(bag),
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
+
+      final touch = FielderTouch.fromJson(
+        (await stream()).lastWhere((e) => e.type == 'FielderTouch').payload,
+      );
+      expect(touch.position, 6);
+      expect(touch.location, isNotNull);
+      // Where she took it, not where she starts the inning.
+      expect(touch.location!.x, closeTo(bag.x, 6));
+      expect(touch.location!.y, closeTo(bag.y, 6));
+    });
+
+    testWidgets('a passed ball emits the §13.2 pair, linked', (tester) async {
+      await runnerOnFirstThenField(tester);
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('passed_ball'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touch = events.lastWhere((e) => e.type == 'FielderTouch');
+      final payload = FielderTouch.fromJson(touch.payload);
+      expect(payload.position, 2);
+      expect(payload.touchType, TouchType.MISSED_CATCH);
+      expect(payload.ordinaryEffort, isTrue);
+      // Anchored to the pitch, not a BallInPlay — there is no batted ball.
+      final lastPitch = events.lastWhere((e) => e.type == 'PitchThrown');
+      expect(payload.ballInPlayEventId, lastPitch.id);
+
+      final advance = RunnerAdvance.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerAdvance').payload,
+      );
+      expect(advance.reason, RunnerAdvanceReason.PASSED_BALL);
+      expect(advance.enabledByTouchId, touch.id);
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.passedBalls, 1);
+      expect(scoring.errors, isEmpty, reason: 'a PB is never an error');
+    });
+
+    testWidgets('the catcher never had it: 1B off the backstop, throw home '
+        'records 3-2 with no phantom assist', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      Offset px(FieldCoord c) => canvasTopLeft(tester) + geometry.toPx(c);
+      final spots = standardFielderSpots(geometry.profile);
+
+      // The line says who has it, and how to say she doesn't.
+      expect(
+        tester.widget<Text>(find.byKey(fieldIdleLabelKey)).data,
+        contains('Catcher has the ball'),
+      );
+      // Tap the catcher: she never had it, the ball got past her.
+      await tester.tapAt(px(spots[2]!));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(fieldIdleLabelKey)).data,
+        contains('loose'),
+      );
+
+      // The first baseman runs it down behind the plate, then throws home.
+      final backstop = FieldCoord(x: 20, y: -14);
+      await drag(tester, px(spots[3]!), px(backstop));
+      // A loose ball asks what happened, in either state of the screen.
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tester.tapAt(px(spots[2]!));
+      await tester.pumpAndSettle();
+
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touches = events
+          .where((e) => e.type == 'FielderTouch')
+          .map((e) => FielderTouch.fromJson(e.payload))
+          .toList();
+      // 3-2, not 2-3-2: the catcher is credited only for what she did.
+      expect(touches.map((t) => t.position), [3, 2]);
+      expect(touches.first.touchType, TouchType.FIELDED);
+      expect(touches.last.touchType, TouchType.RECEIVED_THROW);
+      expect(touches.first.location!.y, lessThan(0), reason: 'behind home');
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {2: 1});
+      expect(scoring.assistsByPosition, {3: 1});
+    });
+
+    testWidgets('CS at third, but a missed tag: she is safe and the error '
+        'is charged — the chain is why this is enterable', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      // Catcher throws to third; the third baseman muffs the tag.
+      await tester.tapAt(
+        canvasTopLeft(tester) +
+            geometry.toPx(standardFielderSpots(geometry.profile)[5]!),
+      );
+      await tester.pumpAndSettle();
+      // Retype her touch to a missed tag — the chain strip's chip, the same
+      // one a play uses.
+      await tapKey(tester, chainNodeKey(1));
+      await tapKey(tester, chainChipKey('tag_missed'));
+
+      await dragToken(tester, 1, 3);
+      await tapKey(tester, safeChipKey('error'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final scoring = foldOfficialScoring(events);
+      // A muffed tag is a fielding error (§13.2 v0.43) once it has a
+      // consequence, and the consequence is that she is standing on third.
+      expect(scoring.errors.single.position, 5);
+      expect(container.read(gameControllerProvider).value!.bases.third,
+          'opp-1');
+      expect(container.read(gameControllerProvider).value!.outs, 0);
+    });
+
+    testWidgets('a wild pitch is the advance alone — no touch is minted', (
+      tester,
+    ) async {
+      await runnerOnFirstThenField(tester);
+      final touchesBefore =
+          (await stream()).where((e) => e.type == 'FielderTouch').length;
+
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('wild_pitch'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      // §13.2: a wild pitch is an uncaught pitch with NO catcher touch —
+      // the absence is what makes it one, so minting a touch here would
+      // silently convert it into a passed ball.
+      expect(
+        events.where((e) => e.type == 'FielderTouch'),
+        hasLength(touchesBefore),
+      );
+      final advance = RunnerAdvance.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerAdvance').payload,
+      );
+      expect(advance.reason, RunnerAdvanceReason.WILD_PITCH);
+      expect(advance.enabledByTouchId, isNull);
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.passedBalls, 0);
+      expect(scoring.wildPitchesByPitcher, {'own-p1': 1});
+    });
+
+    testWidgets('one undo reverses the steal and never the pitch before it', (
+      tester,
+    ) async {
+      await runnerOnFirstThenField(tester);
+      final before = (await stream()).length;
+
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await tapKey(tester, fieldCommitKey);
+      expect((await stream()).length, before + 1);
+
+      await container.read(gameControllerProvider.notifier).undoLast();
+      await tester.pumpAndSettle();
+
+      final after = await stream();
+      expect(after.length, before, reason: 'exactly the steal came off');
+      // The walk that put her on first is untouched: still on first, and
+      // the four pitches still stand.
+      expect(container.read(gameControllerProvider).value!.bases.first,
+          'opp-1');
+      expect(after.where((e) => e.type == 'PitchThrown'), hasLength(4));
     });
   });
 }
