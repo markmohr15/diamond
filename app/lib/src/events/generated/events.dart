@@ -735,7 +735,6 @@ enum Outcome {
     NO_PITCH,
     STRIKE_UNSPECIFIED,
     SWINGING_STRIKE,
-    SWINGING_STRIKE_BLOCKED,
     UNKNOWN
 }
 
@@ -753,7 +752,6 @@ final outcomeValues = EnumValues({
     "no_pitch": Outcome.NO_PITCH,
     "strike_unspecified": Outcome.STRIKE_UNSPECIFIED,
     "swinging_strike": Outcome.SWINGING_STRIKE,
-    "swinging_strike_blocked": Outcome.SWINGING_STRIKE_BLOCKED,
     "unknown": Outcome.UNKNOWN
 });
 

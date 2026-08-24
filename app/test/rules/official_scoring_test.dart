@@ -761,7 +761,7 @@ void main() {
           id: 'p',
           batterId: 'b1',
           pitcherId: 'pit',
-          outcome: Outcome.SWINGING_STRIKE_BLOCKED,
+          outcome: Outcome.SWINGING_STRIKE,
         ),
         // Blocked and kept in front of her — the ball never got away. The
         // throw to first is what put her on.

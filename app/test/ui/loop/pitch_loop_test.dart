@@ -229,9 +229,9 @@ void main() {
       expect(gs.batterDue('opp'), 'opp-2');
     });
 
-    testWidgets('a blocked third strike with first open ALSO records the '
-        "out for now — D3K resolution is DIA-008's, arming keys on the "
-        'catch (§11.3 v0.41), and one undo reverses pitch + out as a unit', (
+    testWidgets('the strikeout and its pitch are one undo unit (§11.3) — '
+        'which is what a real D3K is reversed with until the resolution '
+        'flow lands', (
       tester,
     ) async {
       await pumpLoop(tester);
@@ -240,7 +240,7 @@ void main() {
       await skipToOutcome(tester);
       await tapText(tester, 'Swinging strike');
       await skipToOutcome(tester);
-      await tapText(tester, 'Swinging (in dirt)');
+      await tapText(tester, 'Swinging strike');
 
       final events = await stream();
       final out = RunnerOut.fromJson(events.last.payload);

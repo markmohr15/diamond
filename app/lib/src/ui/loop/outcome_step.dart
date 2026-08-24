@@ -16,7 +16,6 @@ const _rowOutcomes = <Outcome, String>{
   Outcome.BALL: 'Ball',
   Outcome.CALLED_STRIKE: 'Called strike',
   Outcome.SWINGING_STRIKE: 'Swinging strike',
-  Outcome.SWINGING_STRIKE_BLOCKED: 'Swinging (in dirt)',
   Outcome.FOUL: 'Foul',
   Outcome.FOUL_BUNT: 'Foul bunt',
   Outcome.FOUL_TIP: 'Foul tip',
