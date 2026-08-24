@@ -19,6 +19,18 @@ const Key recordLastPitchKey = Key('recordLastPitch');
 const Key dismissLastPitchKey = Key('dismissLastPitch');
 @visibleForTesting
 const Key openIdleFieldKey = Key('openIdleField');
+@visibleForTesting
+const Key d3kOutThrowKey = Key('d3kOutThrow');
+@visibleForTesting
+const Key d3kOutTagKey = Key('d3kOutTag');
+@visibleForTesting
+const Key d3kSafeWpKey = Key('d3kSafeWp');
+@visibleForTesting
+const Key d3kSafePbKey = Key('d3kSafePb');
+@visibleForTesting
+const Key d3kFieldKey = Key('d3kField');
+@visibleForTesting
+const Key d3kDismissKey = Key('d3kDismiss');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
@@ -109,6 +121,53 @@ class PitchLoopPage extends ConsumerWidget {
                               tooltip: 'Keep unlocated',
                             ),
                           ],
+                        ),
+                      // §11.3's D3K resolution. The loop already recorded
+                      // the strikeout, so this blocks nothing and dies by
+                      // being ignored — but the everyday ending is one tap
+                      // and it fixes real credit: a strikeout thrown out at
+                      // first is 2-3, which the recorded out does not say.
+                      if (flow.d3kOffer != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Wrap(
+                            spacing: 8,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              const Text('Uncaught 3rd strike?'),
+                              FilledButton(
+                                key: d3kOutThrowKey,
+                                onPressed: controller.d3kOutOnThrow,
+                                child: const Text('Out at first'),
+                              ),
+                              OutlinedButton(
+                                key: d3kOutTagKey,
+                                onPressed: controller.d3kOutOnTag,
+                                child: const Text('Out (tag)'),
+                              ),
+                              OutlinedButton(
+                                key: d3kSafeWpKey,
+                                onPressed: controller.d3kSafeWildPitch,
+                                child: const Text('Safe (wild pitch)'),
+                              ),
+                              OutlinedButton(
+                                key: d3kSafePbKey,
+                                onPressed: controller.d3kSafePassedBall,
+                                child: const Text('Safe (passed ball)'),
+                              ),
+                              OutlinedButton(
+                                key: d3kFieldKey,
+                                onPressed: controller.d3kToField,
+                                child: const Text('Field…'),
+                              ),
+                              IconButton(
+                                key: d3kDismissKey,
+                                onPressed: controller.dismissD3kOffer,
+                                icon: const Icon(Icons.close),
+                                tooltip: 'She was out on the strikeout',
+                              ),
+                            ],
+                          ),
                         ),
                       // §15.6: the way to the field with nothing in play —
                       // a steal, a runner taking a base on a passed ball.

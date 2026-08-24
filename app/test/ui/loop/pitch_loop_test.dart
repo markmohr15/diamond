@@ -4,6 +4,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/game_state.dart';
+import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
@@ -742,6 +743,102 @@ void main() {
 
     test('nothing captured, nothing suggested', () {
       expect(suggestOutcome(), isNull);
+    });
+  });
+
+  group('the uncaught third strike (§11.3 v0.46)', () {
+    Future<void> strikeThree(WidgetTester tester) async {
+      for (final call in ['Called strike', 'Called strike', 'Called strike']) {
+        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, call);
+      }
+    }
+
+    testWidgets('offered on every third strike she may run on — not only a '
+        'ball in the dirt', (tester) async {
+      await pumpLoop(tester);
+      await strikeThree(tester);
+      expect(find.byKey(d3kOutThrowKey), findsOneWidget);
+    });
+
+    testWidgets('hidden when the rules prevent her running: first occupied, '
+        'fewer than two out', (tester) async {
+      await pumpLoop(tester);
+      // Walk a runner to first.
+      for (var i = 0; i < 4; i++) {
+        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, 'Ball');
+      }
+      await strikeThree(tester);
+      expect(find.byKey(d3kOutThrowKey), findsNothing);
+      expect(find.text('1 out'), findsOneWidget);
+    });
+
+    testWidgets('out at first: the strikeout is voided and rewritten as 2-3', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await strikeThree(tester);
+      await tester.tap(find.byKey(d3kOutThrowKey));
+      await tester.pumpAndSettle();
+
+      final events = await stream();
+      // One out still, but now it says who made it.
+      expect(container.read(gameControllerProvider).value!.outs, 1);
+      final out = RunnerOut.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerOut').payload,
+      );
+      expect(out.how, How.STRIKEOUT_D3_K_THROW);
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {3: 1});
+      expect(scoring.assistsByPosition, {2: 1});
+      // The pitcher keeps the strikeout either way.
+      expect(scoring.strikeoutsByPitcher.values.single, 1);
+    });
+
+    testWidgets('safe on a passed ball: no out, the §13.2 pair, no error', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await strikeThree(tester);
+      await tester.tap(find.byKey(d3kSafePbKey));
+      await tester.pumpAndSettle();
+
+      final state = container.read(gameControllerProvider).value!;
+      expect(state.outs, 0, reason: 'the recorded strikeout was voided');
+      expect(state.bases.first, isNotNull);
+
+      final scoring = foldOfficialScoring(await stream());
+      expect(scoring.passedBalls, 1);
+      expect(scoring.errors, isEmpty);
+      expect(scoring.strikeoutsByPitcher.values.single, 1);
+    });
+
+    testWidgets('safe on a wild pitch: the advance alone', (tester) async {
+      await pumpLoop(tester);
+      await strikeThree(tester);
+      await tester.tap(find.byKey(d3kSafeWpKey));
+      await tester.pumpAndSettle();
+
+      final events = await stream();
+      expect(events.where((e) => e.type == 'FielderTouch'), isEmpty);
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.wildPitchesByPitcher.values.single, 1);
+      expect(container.read(gameControllerProvider).value!.outs, 0);
+    });
+
+    testWidgets('ignoring it leaves the strikeout standing', (tester) async {
+      await pumpLoop(tester);
+      await strikeThree(tester);
+      await tester.tap(find.byKey(d3kDismissKey));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(d3kOutThrowKey), findsNothing);
+      expect(container.read(gameControllerProvider).value!.outs, 1);
+      final out = RunnerOut.fromJson((await stream()).last.payload);
+      expect(out.how, How.STRIKEOUT);
     });
   });
 }

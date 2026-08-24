@@ -3,6 +3,32 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.46
+
+**D3K arming is the scorer's, not the pitch's (§11.3), and `swinging_strike_blocked` is gone (§4.1,
+schema change).** v0.41 armed the resolution on a bounced pitch or a catcher-misplay touch. Both
+halves were wrong: a passed ball on a letter-high fastball lets the batter run exactly as a ball in
+the dirt does, and the misplay that would prove it is entered *after* the moment arming has to
+happen. So the offer stands on **every third strike she was entitled to run on** — first base open,
+or two already out — and is **hidden**, not greyed, where the rules prevent her running, that being
+the one case with no judgment in it.
+
+`swinging_strike_blocked` goes with it. "Blocked" is not a property of the pitch the scorer is
+judging but of what the catcher did, and the app already holds it twice: `bounceLocation` says the
+ball was in the dirt, §13.2's derivation says whether anything got away. Removing it also removes the
+split in the swinging-strike vocabulary.
+
+The loop still records the strikeout immediately — right for almost every third strike, and what
+keeps the book correct if the scorer moves on. Resolving **voids that out** and writes what happened,
+one batch and one undo unit; §6 hides the voided out from the visible stream and keeps it in the raw
+one, where it reads as "the app called a strikeout and the scorer said otherwise."
+
+Four one-tap endings plus the field. **Out at first** writes 2-3 with a real putout and assist —
+credit the bare recorded strikeout never carried, and the reason even the ordinary D3K needed fixing.
+**Field…** opens §15.6's surface with the batter walked up, since a D3K is a pitch-anchored draft
+(v0.45) with a runner entitled to first: play #5 is entered with the ordinary play grammar and
+nothing D3K-specific.
+
 ## v0.45
 
 **Between-pitch entries are play drafts with a different anchor (§15.6).** v0.42 specified them as

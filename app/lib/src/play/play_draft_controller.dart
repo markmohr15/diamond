@@ -48,13 +48,33 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// Everything after this point is the play grammar unchanged — touches,
   /// throws, legs, outs, chips, the ✓ — deliberately, so a steal with an
   /// error on it is entered the same way a batted ball with one is.
-  Future<void> startBetweenPitches({required String pitchEventId}) async {
-    final draft = PlayDraft(
+  /// [batterId] is set only for a **dropped third strike** (§11.3): she is
+  /// entitled to run, so the surface opens with her walked up to first and
+  /// the forced chain cascading, exactly as a batted ball does. Everywhere
+  /// else between pitches there is no batter-runner and it stays null.
+  Future<void> startBetweenPitches({
+    required String pitchEventId,
+    String? batterId,
+  }) async {
+    var draft = PlayDraft(
       pitchEventId: pitchEventId,
-      batterId: '',
+      batterId: batterId ?? '',
       battedBall: false,
       heldBy: 2,
     );
+    if (batterId != null) {
+      final slots = _origins(batterId);
+      for (final move in cascadeRunnerMove(slots, movedId: batterId, to: 1)) {
+        draft = draft.addingLeg(
+          move.runnerId,
+          from: move.from,
+          to: move.to,
+          attribute: false,
+          reason: RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
+        );
+      }
+      draft = draft.copyWith(openingLegCount: draft.entries.length);
+    }
     await _journal.save(_gameId, draft);
     state = AsyncData(draft);
   }

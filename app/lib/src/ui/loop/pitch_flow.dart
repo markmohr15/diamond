@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
@@ -65,6 +66,7 @@ class PitchFlowState {
     this.actual,
     this.bounce,
     this.lastPitchOffer,
+    this.d3kOffer,
   });
 
   final PitchStep step;
@@ -80,6 +82,27 @@ class PitchFlowState {
   /// Survives the idle call screen and dies the moment the loop moves on —
   /// which is exactly "dismisses by simply proceeding."
   final RecordLastPitchOffer? lastPitchOffer;
+
+  /// Set while an uncaught third strike could still be resolved (§11.3).
+  /// Like [lastPitchOffer] it blocks nothing: the loop already recorded the
+  /// strikeout, which is right for the overwhelming majority of third
+  /// strikes, and taking the offer converts it.
+  final D3kOffer? d3kOffer;
+}
+
+/// A third strike the batter was entitled to run on (§11.3): first base
+/// open, or two already out. Carries what a resolution needs — the out to
+/// void, and the pitch its touches will anchor to.
+class D3kOffer {
+  const D3kOffer({
+    required this.strikeoutEventId,
+    required this.pitchEventId,
+    required this.batterId,
+  });
+
+  final String strikeoutEventId;
+  final String pitchEventId;
+  final String batterId;
 }
 
 /// §11.3's forced chain for a walk or HBP, lead runner first — ordered so no
@@ -245,6 +268,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     // Consequences (§11.3) — automatic where the rules leave no doubt,
     // a prompt where they don't. `unknown` never reaches any of them: no
     // known outcome, no consequence.
+    D3kOffer? d3k;
     if (outcome != Outcome.UNKNOWN) {
       final effect = applyPitchCountEffect(gs.balls, gs.strikes, outcome);
       final struckOut = effect.endsPlateAppearance && effect.strikes >= 3;
@@ -257,7 +281,10 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // catcher-misplay entry that detects the second is DIA-008's play
       // chain, so no per-outcome guard here could be honest.
       if (struckOut) {
-        await game.append(
+        // Read eligibility from the state *before* the out is folded: with
+        // two away the strikeout is the third out, and the answer flips.
+        final live = gs.uncaughtThirdStrikeLive;
+        final strikeout = await game.append(
           type: 'RunnerOut',
           payload: RunnerOut(
             runnerId: batterId,
@@ -265,6 +292,18 @@ class PitchFlowController extends Notifier<PitchFlowState> {
             how: How.STRIKEOUT,
           ).toJson(),
         );
+        // §11.3 v0.46: the offer stands on *every* third strike she was
+        // entitled to run on — not only a ball in the dirt. A passed ball
+        // on a letter-high fastball arms it just as well, and only the
+        // scorer knows. Hidden when the rules prevent her running at all,
+        // which is the one case with no judgment in it.
+        if (live) {
+          d3k = D3kOffer(
+            strikeoutEventId: strikeout.id,
+            pitchEventId: event.id,
+            batterId: batterId,
+          );
+        }
       }
 
       // Walk / HBP: the forced chain auto-applies (§11.3 v0.41) — rulebook
@@ -320,7 +359,157 @@ class PitchFlowController extends Notifier<PitchFlowState> {
               state.bounce == null
           ? RecordLastPitchOffer(eventId: event.id, payload: payload)
           : null,
+      d3kOffer: d3k,
     );
+  }
+
+  /// §11.3's D3K resolution. The loop already recorded the strikeout —
+  /// right for almost every third strike, and the reason the book is never
+  /// wrong if the scorer walks away — so resolving means **voiding that out
+  /// and writing what actually happened**, as one batch and one undo unit.
+  ///
+  /// The voided out is not noise in the stream: it is the record that the
+  /// app called a strikeout and the scorer said the ball was uncaught. §6
+  /// hides it from the visible stream and keeps it in the raw one.
+  Future<void> _resolveD3k(List<PendingEvent> Function(D3kOffer) build) async {
+    final offer = state.d3kOffer;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+    await ref
+        .read(gameControllerProvider.notifier)
+        .appendAllPending([
+          PendingEvent(
+            type: 'VoidEvent',
+            payload: VoidEvent(targetId: offer.strikeoutEventId).toJson(),
+          ),
+          ...build(offer),
+        ]);
+  }
+
+  /// Thrown out at first: the everyday D3K, and still wrong today — the
+  /// recorded strikeout carries no putout, so 2-3 goes uncredited.
+  Future<void> d3kOutOnThrow() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'c',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.FIELDED,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'f',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 3,
+          touchType: TouchType.RECEIVED_THROW,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerOut',
+        payload: {
+          'runnerId': offer.batterId,
+          'atBase': 1,
+          'how': 'strikeout_d3k_throw',
+          'putoutTouchId': localRef('f'),
+        },
+      ),
+    ],
+  );
+
+  /// Tagged by the catcher, who never had to throw.
+  Future<void> d3kOutOnTag() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'c',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.TAG_APPLIED,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerOut',
+        payload: {
+          'runnerId': offer.batterId,
+          'atBase': 1,
+          'how': 'tag',
+          'putoutTouchId': localRef('c'),
+        },
+      ),
+    ],
+  );
+
+  /// Safe, and the ball was the pitcher's doing: the advance alone. The
+  /// absence of a catcher touch is what makes it a wild pitch (§13.2).
+  Future<void> d3kSafeWildPitch() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'RunnerAdvance',
+        payload: {
+          'runnerId': offer.batterId,
+          'from': 0,
+          'to': 1,
+          'reason': 'dropped_third_strike',
+        },
+      ),
+    ],
+  );
+
+  /// Safe, and the catcher should have had it: the §13.2 pair.
+  Future<void> d3kSafePassedBall() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'pb',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.MISSED_CATCH,
+          ordinaryEffort: true,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerAdvance',
+        payload: {
+          'runnerId': offer.batterId,
+          'from': 0,
+          'to': 1,
+          'reason': 'dropped_third_strike',
+          'enabledByTouchId': localRef('pb'),
+        },
+      ),
+    ],
+  );
+
+  /// Anything else — play #5's throw into right field, a runner moving on
+  /// the same ball. Voids the out and opens the field, where a D3K is just
+  /// a pitch-anchored draft with the batter running (§15.6 v0.45).
+  Future<void> d3kToField() async {
+    final offer = state.d3kOffer;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+    await ref.read(gameControllerProvider.notifier).appendAllPending([
+      PendingEvent(
+        type: 'VoidEvent',
+        payload: VoidEvent(targetId: offer.strikeoutEventId).toJson(),
+      ),
+    ]);
+    await ref
+        .read(playDraftProvider.notifier)
+        .startBetweenPitches(
+          pitchEventId: offer.pitchEventId,
+          batterId: offer.batterId,
+        );
+  }
+
+  /// The offer dies by being ignored, like §11.1's.
+  void dismissD3kOffer() {
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
   }
 
   /// Take the standing offer (§11.1 v0.39): open location entry for the
