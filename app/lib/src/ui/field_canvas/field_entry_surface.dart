@@ -340,22 +340,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// Everyone the canvas shows as draggable: the batter-runner, then the
   /// fold's base runners — each at their draft position, and gone from the
   /// canvas once retired (their out lives on the chain strip).
-  List<RunnerToken> _tokens(PlayDraft? draft, BaseState bases) {
-    // Between pitches there is no batter-runner and nobody is in motion:
-    // everyone stands on the base the fold put them on.
-    if (draft == null) {
-      return [
-        for (final (origin, runnerId) in [
-          (1, bases.first),
-          (2, bases.second),
-          (3, bases.third),
-        ])
-          if (runnerId != null)
-            RunnerToken(runnerId: runnerId, label: '$origin', base: origin),
-      ];
-    }
+  List<RunnerToken> _tokens(PlayDraft draft, BaseState bases) {
     return [
-      if (!draft.isOut(draft.batterId))
+      // Most between-pitch entries have no batter-runner — nobody is at
+      // the plate on a steal — and say so with an empty batterId. A
+      // dropped third strike is the exception: she is entitled to first,
+      // so she runs like any batter (§11.3).
+      if (draft.batterId.isNotEmpty && !draft.isOut(draft.batterId))
         RunnerToken(
           runnerId: draft.batterId,
           label: 'B',

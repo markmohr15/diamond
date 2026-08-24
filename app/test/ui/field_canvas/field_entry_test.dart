@@ -1828,4 +1828,78 @@ void main() {
       expect(after.where((e) => e.type == 'PitchThrown'), hasLength(4));
     });
   });
+
+  group('play #5 through the UI (DIA-008 accept)', () {
+    testWidgets('D3K, wild throw to first: batter to 2nd, R1 to 3rd, a '
+        'strikeout with no out', (tester) async {
+      await pumpLoop(tester);
+
+      Future<void> pitch(String outcome) async {
+        await tester.tap(find.text('Skip call'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skip location'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(outcome));
+        await tester.pumpAndSettle();
+      }
+
+      // Two away, then a runner on first — play #5's setup.
+      for (var k = 0; k < 2; k++) {
+        for (var i = 0; i < 3; i++) {
+          await pitch('Called strike');
+        }
+      }
+      for (var i = 0; i < 4; i++) {
+        await pitch('Ball');
+      }
+      expect(container.read(gameControllerProvider).value!.outs, 2);
+
+      // Strike three she is entitled to run on: two are out.
+      for (var i = 0; i < 3; i++) {
+        await pitch('Called strike');
+      }
+      await tapKey(tester, d3kFieldKey);
+
+      // The field opens with her already running to first, catcher holding.
+      final geometry = canvasGeometry(tester);
+      expect(find.byKey(fieldIdleLabelKey), findsOneWidget);
+
+      // Catcher throws to first, and airmails it.
+      await tester.tapAt(
+        canvasTopLeft(tester) +
+            geometry.toPx(standardFielderSpots(geometry.profile)[3]!),
+      );
+      await tester.pumpAndSettle();
+      await tapKey(tester, chainNodeKey(2));
+      await tapKey(tester, chainChipKey('wild_throw'));
+      // A wild throw's ordinaryEffort defaults to null — "a throw can be
+      // wild and still change nothing" (§13.2 v0.43) — so the error is not
+      // charged until the scorer says it was one. This one was.
+      await tapKey(tester, chainNodeKey(2));
+      await tapKey(tester, chainChipKey('ordinaryEffort'));
+
+      // The throw arriving at first with her running raises the force
+      // question at the bag: she beat it, because it sailed.
+      await tapPill(tester, 1);
+
+      // Both runners then take the extra base on the same throw. The lead
+      // runner first — runners never pass one another, so moving the
+      // trailing one first would push her along too (§15.1's cascade).
+      await dragToken(tester, 2, 3, originFrom: 1);
+      await tapKey(tester, safeChipKey('error'));
+      await dragToken(tester, 1, 2);
+      await tapKey(tester, safeChipKey('error'));
+      await tapKey(tester, fieldCommitKey);
+
+      final state = container.read(gameControllerProvider).value!;
+      expect(state.outs, 2, reason: 'a strikeout with no out recorded');
+      expect(state.bases.second, isNotNull);
+      expect(state.bases.third, isNotNull);
+
+      final scoring = foldOfficialScoring(await stream());
+      expect(scoring.errors.single.position, 2);
+      expect(scoring.errors.single.kind, OfficialErrorKind.throwing);
+      expect(scoring.strikeoutsByPitcher.values.single, 3);
+    });
+  });
 }
