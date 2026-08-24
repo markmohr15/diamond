@@ -1644,6 +1644,31 @@ void main() {
       expect(container.read(gameControllerProvider).value!.outs, 1);
     });
 
+    testWidgets('a fielder drags to where she made the play, and the touch '
+        'records it (§4.2)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final geometry = canvasGeometry(tester);
+      // The shortstop covers second — she is not at her standard spot.
+      final bag = geometry.baseCoord(2);
+      await drag(
+        tester,
+        canvasTopLeft(tester) +
+            geometry.toPx(standardFielderSpots(geometry.profile)[6]!),
+        canvasTopLeft(tester) + geometry.toPx(bag),
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, betweenPitchChipKey('caught_stealing'));
+
+      final touch = FielderTouch.fromJson(
+        (await stream()).lastWhere((e) => e.type == 'FielderTouch').payload,
+      );
+      expect(touch.position, 6);
+      expect(touch.location, isNotNull);
+      // Where she took it, not where she starts the inning.
+      expect(touch.location!.x, closeTo(bag.x, 6));
+      expect(touch.location!.y, closeTo(bag.y, 6));
+    });
+
     testWidgets('a passed ball emits the §13.2 pair, linked', (tester) async {
       await runnerOnFirstThenField(tester);
       await dragToken(tester, 1, 2, target: 'base');

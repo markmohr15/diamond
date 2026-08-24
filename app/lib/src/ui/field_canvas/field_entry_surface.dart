@@ -112,7 +112,12 @@ class _ActiveDrag {
 
 /// One fielder touch accumulated by a between-pitch entry, before the reason
 /// chip commits the batch. Position plus the local key its links point at.
-typedef _LiveTouch = ({String localKey, int position, TouchType type});
+typedef _LiveTouch = ({
+  String localKey,
+  int position,
+  TouchType type,
+  FieldCoord? location,
+});
 
 class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   _ActiveDrag? _drag;
@@ -127,6 +132,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// Who holds the ball between pitches. Seeded to the catcher, which is
   /// true after every pitch in both sports, and moved by each throw.
   int _livePossession = 2;
+
+  /// Where fielders went to make *this* play — the shortstop covering
+  /// second on a steal, the catcher chasing a passed ball to the backstop.
+  /// Not alignment (§16.4, M2): nobody is being pre-positioned, and these
+  /// clear the moment the entry commits.
+  final Map<int, FieldCoord> _liveFielderSpots = {};
 
   /// A throw just arrived at this base with a runner heading there: the
   /// SAFE/OUT pair is up at the bag, waiting for the tap that resolves the
@@ -273,7 +284,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     holderPosition: draft == null
                         ? _livePossession
                         : draft.securedTouch?.position,
-                    movedFielders: draft?.movedFielders ?? const {},
+                    movedFielders: draft?.movedFielders ?? _liveFielderSpots,
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
                     route: [
@@ -456,8 +467,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     var bestFielderDistance = _snapRadiusPx;
     final spots = standardFielderSpots(geometry.profile);
     for (final entry in spots.entries) {
-      // Between pitches nobody has been repositioned: standard spots.
-      final spot = widget.draft?.movedFielders[entry.key] ?? entry.value;
+      // Grab her where she now stands, in either state of the screen.
+      final spot =
+          (widget.draft?.movedFielders ?? _liveFielderSpots)[entry.key] ??
+          entry.value;
       final d = (position - geometry.toPx(spot)).distance;
       if (d <= bestFielderDistance) {
         bestFielderDistance = d;
@@ -646,7 +659,28 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     if (drag.fielderPosition != null) {
       final position = drag.fielderPosition!;
-      if (position == _livePossession) return;
+      final spot = moved
+          ? geometry.toField(drag.current)
+          : _currentFielderSpot(position, geometry);
+      // Dragging the holder is her carrying it — the catcher chasing a
+      // passed ball to the backstop before she throws. She keeps the ball
+      // and her spot follows her.
+      if (position == _livePossession) {
+        if (!moved) return;
+        setState(() {
+          _liveFielderSpots[position] = spot;
+          if (_liveTouches.isNotEmpty) {
+            final held = _liveTouches.last;
+            _liveTouches[_liveTouches.length - 1] = (
+              localKey: held.localKey,
+              position: held.position,
+              type: held.type,
+              location: spot,
+            );
+          }
+        });
+        return;
+      }
       setState(() {
         // The thrower needs a touch of her own or she gets no assist; it is
         // recorded lazily, here, so a surface nobody threw on stays silent.
@@ -655,12 +689,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             localKey: 't0',
             position: _livePossession,
             type: TouchType.FIELDED,
+            location: _liveFielderSpots[_livePossession],
           ));
         }
+        // A drag says where she took it — the shortstop at the bag, not at
+        // her standard spot. §4.2's touch location, same as in a play.
+        _liveFielderSpots[position] = spot;
         _liveTouches.add((
           localKey: 't${_liveTouches.length}',
           position: position,
           type: TouchType.RECEIVED_THROW,
+          location: spot,
         ));
         _livePossession = position;
       });
@@ -769,6 +808,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ballInPlayEventId: pitchId,
             position: touch.position,
             touchType: touch.type,
+            location: touch.location,
           ).toJson(),
         ),
     ];
@@ -828,6 +868,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (mounted) {
       setState(() {
         _liveTouches.clear();
+        _liveFielderSpots.clear();
         _livePossession = 2;
       });
     }
@@ -955,7 +996,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       );
 
   FieldCoord _currentFielderSpot(int position, FieldGeometry geometry) =>
-      _draft.movedFielders[position] ??
+      (widget.draft?.movedFielders ?? _liveFielderSpots)[position] ??
       standardFielderSpots(geometry.profile)[position]!;
 
   /// Every popup on this surface: a centered dialog, only as big as its
