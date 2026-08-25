@@ -3,6 +3,35 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.46
+
+**D3K arming is the scorer's, not the pitch's (§11.3), and `swinging_strike_blocked` is gone (§4.1,
+schema change).** v0.41 armed the resolution on a bounced pitch or a catcher-misplay touch. Both
+halves were wrong: a passed ball on a letter-high fastball lets the batter run exactly as a ball in
+the dirt does, and the misplay that would prove it is entered *after* the moment arming has to
+happen. So the offer stands on **every third strike she was entitled to run on** — first base open,
+or two already out — and is **hidden**, not greyed, where the rules prevent her running, that being
+the one case with no judgment in it.
+
+`swinging_strike_blocked` goes with it. "Blocked" is not a property of the pitch the scorer is
+judging but of what the catcher did, and the app already holds it twice: `bounceLocation` says the
+ball was in the dirt, §13.2's derivation says whether anything got away. Removing it also removes the
+split in the swinging-strike vocabulary.
+
+**It is declared with the pitch, not corrected after it.** A dropped third strike is the equivalent of
+a ball put in play — an outcome that opens a surface, not a note on a strikeout — so it belongs on
+§11.1's outcome sheet beside **In play**, where a scorer will look for it, rather than in a prompt
+that appears after every eligible strikeout. Choosing it asks which strike it was, then what happened
+to her. The automatic strikeout out is never written, so nothing is voided and no phantom out reaches
+the stream. Labeled **Dropped 3rd strike**: less precise than "uncaught" and the word scorers use,
+and already the wire word (§4.3).
+
+Four one-tap endings plus the field. **Out at first** writes 2-3 with a real putout and assist —
+credit the bare recorded strikeout never carried, and the reason even the ordinary D3K needed fixing.
+**Field…** opens §15.6's surface with the batter walked up, since a D3K is a pitch-anchored draft
+(v0.45) with a runner entitled to first: play #5 is entered with the ordinary play grammar and
+nothing D3K-specific.
+
 ## v0.45
 
 **Between-pitch entries are play drafts with a different anchor (§15.6).** v0.42 specified them as

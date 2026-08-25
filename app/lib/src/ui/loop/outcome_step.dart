@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 const Key outcomeConfirmKey = Key('outcomeConfirm');
 @visibleForTesting
 const Key outcomeInPlayKey = Key('outcomeInPlay');
+@visibleForTesting
+const Key outcomeD3kKey = Key('outcomeD3k');
 
 /// Display labels for the outcomes the M1 row offers. `ball_intentional`,
 /// `no_pitch`, and the batter-action-dependent reads are deliberately absent
@@ -16,7 +18,6 @@ const _rowOutcomes = <Outcome, String>{
   Outcome.BALL: 'Ball',
   Outcome.CALLED_STRIKE: 'Called strike',
   Outcome.SWINGING_STRIKE: 'Swinging strike',
-  Outcome.SWINGING_STRIKE_BLOCKED: 'Swinging (in dirt)',
   Outcome.FOUL: 'Foul',
   Outcome.FOUL_BUNT: 'Foul bunt',
   Outcome.FOUL_TIP: 'Foul tip',
@@ -41,11 +42,19 @@ class OutcomeStep extends StatelessWidget {
   const OutcomeStep({
     required this.suggestion,
     required this.onChosen,
+    this.onDroppedThirdStrike,
     super.key,
   });
 
   final Outcome? suggestion;
   final ValueChanged<Outcome> onChosen;
+
+  /// Set only at two strikes with the batter entitled to run (§11.3). A
+  /// dropped third strike is not a note on a strikeout — it is an outcome
+  /// that opens a surface, the equivalent of putting the ball in play, and
+  /// belongs where the scorer looks for it rather than in a prompt after
+  /// the fact.
+  final VoidCallback? onDroppedThirdStrike;
 
   /// The two outcomes worth a full row of their own: the suggestion, and
   /// in play.
@@ -120,6 +129,19 @@ class OutcomeStep extends StatelessWidget {
             label: _rowOutcomes[Outcome.IN_PLAY]!,
             onPressed: () => onChosen(Outcome.IN_PLAY),
           ),
+          // The other outcome that opens a surface, and only ever offered
+          // when the rules let her run. "Dropped" rather than the more
+          // correct "uncaught" because it is what scorers say — and it is
+          // already the wire word (§4.3's `dropped_third_strike`).
+          if (onDroppedThirdStrike != null) ...[
+            const SizedBox(height: 12),
+            _bigButton(
+              context,
+              key: outcomeD3kKey,
+              label: 'Dropped 3rd strike',
+              onPressed: onDroppedThirdStrike!,
+            ),
+          ],
         ],
       ),
     );

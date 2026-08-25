@@ -578,6 +578,21 @@ List<PitchGetaway> _pitchGetaways({
   for (final advance in advances) {
     if (!_getawayReasons.contains(advance.payload.reason)) continue;
     final linked = touchById[advance.payload.enabledByTouchId];
+
+    // `dropped_third_strike` names the batter's *entitlement to run*, not
+    // what happened to the ball, so it is the one getaway reason that can
+    // be false. A reach claimed by some other misplay — the catcher blocks
+    // strike three, keeps it in front of her, then throws it away — is a
+    // reach on that error, not on a ball that got away: no WP, no PB, and
+    // never both an error and a passed ball for the same advance. Only a
+    // reach linked to a *receiving* misplay (a passed ball) or to nothing
+    // at all (a wild pitch) means the pitch itself got past her.
+    if (advance.payload.reason == RunnerAdvanceReason.DROPPED_THIRD_STRIKE &&
+        linked != null &&
+        !pitchReceivingTouchTypes.contains(linked.payload.touchType)) {
+      continue;
+    }
+
     final pitchId =
         (linked != null &&
             pitchEventIds.contains(linked.payload.ballInPlayEventId))

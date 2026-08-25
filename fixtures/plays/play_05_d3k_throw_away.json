@@ -4,7 +4,7 @@
   "specRef": "§14 Play #5",
   "setup": { "outs": 2, "count": { "balls": 1, "strikes": 2 }, "runners": { "1": "r1" } },
   "events": [
-    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": -0.4 }, "outcome": "swinging_strike_blocked" } },
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "bounceLocation": { "x": 0.1, "depth": -0.4 }, "outcome": "swinging_strike" } },
     { "id": "e2", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "dropped_third_strike" } },
     { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e1", "position": 2, "touchType": "wild_throw", "ordinaryEffort": true } },
     { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "wild_throw", "enabledByTouchId": "e3" } },
@@ -17,6 +17,6 @@
     "officialErrors": [ { "position": 2, "kind": "throwing" } ],
     "runnerBases": { "b1": 2, "r1": 3 },
     "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 1 } ],
-    "note": "K credited, no out recorded. FielderTouch here references the pitch event as its ball reference (no BallInPlay exists on a D3K); engine must accept that."
+    "note": "K credited, no out recorded. The reach is deliberately **unenabled**: the ball got past her, which is what entitled her to run, and `bounceLocation` says so now that `swinging_strike_blocked` is gone (v0.46). That is why it derives a wild pitch. Link the reach to the wild throw instead and it would say she blocked it and reached on the error — no WP, no PB (§13.2 v0.44).  FielderTouch here references the pitch event as its ball reference (no BallInPlay exists on a D3K); engine must accept that."
   }
 }

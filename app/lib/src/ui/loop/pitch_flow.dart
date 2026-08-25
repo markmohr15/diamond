@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
@@ -13,9 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// [call], [actual], and [outcome] are the loop proper. [recordLast] is the
 /// v0.39 location backfill for the pitch just committed, and [bailout] is
 /// §11.2's bottom rung: outcome only, reached by two-finger swipe from any
-/// entry step. D3K resolution is deliberately absent — its arming keys on
-/// the catch, not the pitch (§11.3 v0.41), and the catcher-misplay entry it
-/// needs is DIA-008's play chain.
+/// entry step. A dropped third strike is **not** a step here (v0.46): it is
+/// declared on the outcome sheet like any other outcome, and its two
+/// questions are dialogs over that sheet rather than states of the loop.
 enum PitchStep { call, actual, outcome, recordLast, bailout }
 
 /// Which box the batter stands in. Session-level stub for M1 — DIA-008/009's
@@ -65,6 +66,7 @@ class PitchFlowState {
     this.actual,
     this.bounce,
     this.lastPitchOffer,
+    this.droppedThirdStrike,
   });
 
   final PitchStep step;
@@ -80,6 +82,25 @@ class PitchFlowState {
   /// Survives the idle call screen and dies the moment the loop moves on —
   /// which is exactly "dismisses by simply proceeding."
   final RecordLastPitchOffer? lastPitchOffer;
+
+  /// Set between declaring a dropped third strike and saying what happened
+  /// to her (§11.3 v0.46) — the two steps of one decision, not an offer
+  /// standing over an already-recorded strikeout. Nothing has been written
+  /// for the batter yet, so there is nothing to void or dismiss.
+  final DroppedThirdStrike? droppedThirdStrike;
+}
+
+/// A dropped third strike the scorer has declared, waiting on its ending.
+/// Carries what the resolution needs: the pitch its touches anchor to —
+/// there is no `BallInPlay`, nothing was hit — and who is running.
+class DroppedThirdStrike {
+  const DroppedThirdStrike({
+    required this.pitchEventId,
+    required this.batterId,
+  });
+
+  final String pitchEventId;
+  final String batterId;
 }
 
 /// §11.3's forced chain for a walk or HBP, lead runner first — ordered so no
@@ -205,7 +226,13 @@ class PitchFlowController extends Notifier<PitchFlowState> {
 
   /// The one write of the loop: `PitchThrown`, plus the strikeout's
   /// `RunnerOut` when the loop itself is sure of it (§11.3).
-  Future<void> commitOutcome(Outcome outcome) async {
+  /// [uncaughtThirdStrike] is the scorer declaring, with the pitch, that
+  /// she is running — §11.3's equivalent of putting the ball in play. The
+  /// automatic strikeout out is not written when it is set.
+  Future<void> commitOutcome(
+    Outcome outcome, {
+    bool uncaughtThirdStrike = false,
+  }) async {
     final game = ref.read(gameControllerProvider.notifier);
     final gs = ref.read(gameControllerProvider).valueOrNull;
     if (gs == null) return; // still bootstrapping; nothing to attribute to
@@ -245,6 +272,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     // Consequences (§11.3) — automatic where the rules leave no doubt,
     // a prompt where they don't. `unknown` never reaches any of them: no
     // known outcome, no consequence.
+    DroppedThirdStrike? d3k;
     if (outcome != Outcome.UNKNOWN) {
       final effect = applyPitchCountEffect(gs.balls, gs.strikes, outcome);
       final struckOut = effect.endsPlateAppearance && effect.strikes >= 3;
@@ -256,7 +284,18 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // blocked ball and a dropped clean strike are equally live, and the
       // catcher-misplay entry that detects the second is DIA-008's play
       // chain, so no per-outcome guard here could be honest.
-      if (struckOut) {
+      // §11.3 v0.46: an uncaught third strike is declared with the pitch,
+      // not corrected afterwards — it is the equivalent of a ball put in
+      // play (Mark), an outcome that opens a surface rather than a note on
+      // a strikeout. Declaring it up front means the automatic out is
+      // never written, so there is nothing to void and no phantom out in
+      // the stream.
+      if (struckOut && uncaughtThirdStrike) {
+        d3k = DroppedThirdStrike(
+          pitchEventId: event.id,
+          batterId: batterId,
+        );
+      } else if (struckOut) {
         await game.append(
           type: 'RunnerOut',
           payload: RunnerOut(
@@ -320,7 +359,145 @@ class PitchFlowController extends Notifier<PitchFlowState> {
               state.bounce == null
           ? RecordLastPitchOffer(eventId: event.id, payload: payload)
           : null,
+      droppedThirdStrike: d3k,
     );
+  }
+
+  /// §11.3's D3K resolution, written as one batch and one undo unit.
+  ///
+  /// Nothing needs undoing first: declaring the dropped third strike with
+  /// the pitch means the automatic strikeout out was never appended, so
+  /// this only ever *adds* what happened. Clearing the state before the
+  /// append is what keeps a second tap from writing the ending twice.
+  Future<void> _resolveD3k(
+    List<PendingEvent> Function(DroppedThirdStrike) build,
+  ) async {
+    final offer = state.droppedThirdStrike;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+    await ref
+        .read(gameControllerProvider.notifier)
+        .appendAllPending(build(offer));
+  }
+
+  /// Thrown out at first — the everyday ending. She is out either way,
+  /// which makes a bare strikeout look sufficient; it is not, because it
+  /// credits nobody, and throwing runners out is most of what a catcher's
+  /// line is made of. So the throw is recorded as a real chain and the out
+  /// names who made it: putout 3, assist 2.
+  Future<void> d3kOutOnThrow() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'c',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.FIELDED,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'f',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 3,
+          touchType: TouchType.RECEIVED_THROW,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerOut',
+        payload: {
+          'runnerId': offer.batterId,
+          'atBase': 1,
+          'how': 'strikeout_d3k_throw',
+          'putoutTouchId': localRef('f'),
+        },
+      ),
+    ],
+  );
+
+  /// Tagged by the catcher, who never had to throw.
+  Future<void> d3kOutOnTag() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'c',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.TAG_APPLIED,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerOut',
+        payload: {
+          'runnerId': offer.batterId,
+          'atBase': 1,
+          'how': 'tag',
+          'putoutTouchId': localRef('c'),
+        },
+      ),
+    ],
+  );
+
+  /// Safe, and the ball was the pitcher's doing: the advance alone. The
+  /// absence of a catcher touch is what makes it a wild pitch (§13.2).
+  Future<void> d3kSafeWildPitch() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'RunnerAdvance',
+        payload: {
+          'runnerId': offer.batterId,
+          'from': 0,
+          'to': 1,
+          'reason': 'dropped_third_strike',
+        },
+      ),
+    ],
+  );
+
+  /// Safe, and the catcher should have had it: the §13.2 pair.
+  Future<void> d3kSafePassedBall() => _resolveD3k(
+    (offer) => [
+      PendingEvent(
+        type: 'FielderTouch',
+        localKey: 'pb',
+        payload: FielderTouch(
+          ballInPlayEventId: offer.pitchEventId,
+          position: 2,
+          touchType: TouchType.MISSED_CATCH,
+          ordinaryEffort: true,
+        ).toJson(),
+      ),
+      PendingEvent(
+        type: 'RunnerAdvance',
+        payload: {
+          'runnerId': offer.batterId,
+          'from': 0,
+          'to': 1,
+          'reason': 'dropped_third_strike',
+          'enabledByTouchId': localRef('pb'),
+        },
+      ),
+    ],
+  );
+
+  /// Anything else — play #5's throw into right field, a runner moving on
+  /// the same ball. Opens the field, where a dropped third strike is just a
+  /// pitch-anchored draft with the batter running (§15.6 v0.45): nothing on
+  /// that surface is D3K-specific, so play #5 is entered with the ordinary
+  /// play grammar.
+  Future<void> d3kToField() async {
+    final offer = state.droppedThirdStrike;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+    await ref
+        .read(playDraftProvider.notifier)
+        .startBetweenPitches(
+          pitchEventId: offer.pitchEventId,
+          batterId: offer.batterId,
+        );
   }
 
   /// Take the standing offer (§11.1 v0.39): open location entry for the

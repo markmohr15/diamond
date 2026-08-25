@@ -323,11 +323,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// wrong on a wild pitch, minting a touch for a catcher who never had the
   /// ball, so it says itself and names the way out. Once anything has
   /// happened the hint drops and the line is just the fact.
+  ///
+  /// Positions, not pronouns: the UI names people by what they are playing
+  /// (Mark, v0.46) — the app has no roster to know anyone's pronouns, and a
+  /// scorebook has never needed them.
+  ///
+  /// "if someone else does" rather than "if it got past her": the ball does
+  /// not have to have gone anywhere. It can deflect off her shin guards and
+  /// sit three feet away, and the claim being made is only that she is not
+  /// the one holding it.
   String get _possessionLabel {
     final holder = _draft.holderPosition;
     if (holder == null) return 'Ball is loose — tap the fielder who gets it';
     if (holder == 2 && _draft.entries.isEmpty) {
-      return "Catcher has the ball — tap her if she doesn't";
+      return 'Catcher has the ball — tap the catcher if someone else does';
     }
     return '${positionAbbreviations[holder] ?? holder} has the ball';
   }
@@ -340,22 +349,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// Everyone the canvas shows as draggable: the batter-runner, then the
   /// fold's base runners — each at their draft position, and gone from the
   /// canvas once retired (their out lives on the chain strip).
-  List<RunnerToken> _tokens(PlayDraft? draft, BaseState bases) {
-    // Between pitches there is no batter-runner and nobody is in motion:
-    // everyone stands on the base the fold put them on.
-    if (draft == null) {
-      return [
-        for (final (origin, runnerId) in [
-          (1, bases.first),
-          (2, bases.second),
-          (3, bases.third),
-        ])
-          if (runnerId != null)
-            RunnerToken(runnerId: runnerId, label: '$origin', base: origin),
-      ];
-    }
+  List<RunnerToken> _tokens(PlayDraft draft, BaseState bases) {
     return [
-      if (!draft.isOut(draft.batterId))
+      // Most between-pitch entries have no batter-runner — nobody is at
+      // the plate on a steal — and say so with an empty batterId. A
+      // dropped third strike is the exception: she is entitled to first,
+      // so she runs like any batter (§11.3).
+      if (draft.batterId.isNotEmpty && !draft.isOut(draft.batterId))
         RunnerToken(
           runnerId: draft.batterId,
           label: 'B',

@@ -753,6 +753,42 @@ void main() {
       expect(scoring.wildPitchesByPitcher, isEmpty);
     });
 
+    test('a reach claimed by the throw is no getaway: she blocked it, then '
+        'threw it away (§13.2 v0.44)', () {
+      final b = EventBuilder();
+      final scoring = foldOfficialScoring([
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.SWINGING_STRIKE,
+        ),
+        // Blocked and kept in front of her — the ball never got away. The
+        // throw to first is what put her on.
+        b.fielderTouch(
+          id: 'throw',
+          anchorEventId: 'p',
+          position: 2,
+          touchType: TouchType.WILD_THROW,
+          ordinaryEffort: true,
+        ),
+        b.runnerAdvance(
+          id: 'reach',
+          runnerId: 'b1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
+          enabledByTouchId: 'throw',
+        ),
+      ]);
+      expect(scoring.pitchGetaways, isEmpty, reason: 'no WP and no PB');
+      expect(scoring.passedBalls, 0);
+      expect(scoring.wildPitchesByPitcher, isEmpty);
+      // The error still stands — and it is the only charge on the play.
+      expect(scoring.errors.single.position, 2);
+      expect(scoring.errors.single.kind, OfficialErrorKind.throwing);
+    });
+
     test('one pitch, two runners: one passed ball, two advances', () {
       final b = EventBuilder();
       final scoring = foldOfficialScoring([

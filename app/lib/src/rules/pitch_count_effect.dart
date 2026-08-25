@@ -48,7 +48,6 @@ PitchCountEffect applyPitchCountEffect(
 
     case Outcome.CALLED_STRIKE:
     case Outcome.SWINGING_STRIKE:
-    case Outcome.SWINGING_STRIKE_BLOCKED:
     // §11.2 bailout (v0.41): kind unknown — called, swinging, or possibly an
     // uncaught foul — but the count advanced, which is the part that must be
     // right. At two strikes the scorer distinguishes FOUL from STRIKE by

@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -429,5 +430,27 @@ void main() {
     expect(state.balls, 0);
     // nextBatterIndexByTeam came from the snapshot, not from LineupSet.
     expect(state.batterDue('home'), 'h3');
+  });
+
+  group('uncaught third strike eligibility (§11.3)', () {
+    GameState at({required int outs, String? onFirst}) =>
+        GameState.initial.copyWith(
+          outs: outs,
+          bases: BaseState(first: onFirst),
+        );
+
+    test('first base open: she may run', () {
+      expect(at(outs: 0).uncaughtThirdStrikeLive, isTrue);
+      expect(at(outs: 1).uncaughtThirdStrikeLive, isTrue);
+    });
+
+    test('first occupied with fewer than two out: she is simply out', () {
+      expect(at(onFirst: 'r1', outs: 0).uncaughtThirdStrikeLive, isFalse);
+      expect(at(onFirst: 'r1', outs: 1).uncaughtThirdStrikeLive, isFalse);
+    });
+
+    test('two away: she may run even with first occupied', () {
+      expect(at(onFirst: 'r1', outs: 2).uncaughtThirdStrikeLive, isTrue);
+    });
   });
 }

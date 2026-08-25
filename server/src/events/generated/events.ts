@@ -318,7 +318,7 @@ export interface BounceCoord {
  * ends, batter awarded first with the forced chain — structurally the hit_by_pitch pattern;
  * scored E2 by derivation (§13.2).
  */
-export type Outcome = "ball" | "called_strike" | "swinging_strike" | "swinging_strike_blocked" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "catcher_interference" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
+export type Outcome = "ball" | "called_strike" | "swinging_strike" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "catcher_interference" | "ball_intentional" | "illegal_pitch" | "no_pitch" | "unknown";
 
 /**
  * Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).
@@ -811,7 +811,6 @@ const typeMap: any = {
         "no_pitch",
         "strike_unspecified",
         "swinging_strike",
-        "swinging_strike_blocked",
         "unknown",
     ],
     "CallType": [
