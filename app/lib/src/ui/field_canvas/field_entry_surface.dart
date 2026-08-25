@@ -323,11 +323,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// wrong on a wild pitch, minting a touch for a catcher who never had the
   /// ball, so it says itself and names the way out. Once anything has
   /// happened the hint drops and the line is just the fact.
+  ///
+  /// Positions, not pronouns: the UI names people by what they are playing
+  /// (Mark, v0.46) — the app has no roster to know anyone's pronouns, and a
+  /// scorebook has never needed them.
   String get _possessionLabel {
     final holder = _draft.holderPosition;
     if (holder == null) return 'Ball is loose — tap the fielder who gets it';
     if (holder == 2 && _draft.entries.isEmpty) {
-      return "Catcher has the ball — tap her if she doesn't";
+      return 'Catcher has the ball — tap to say it got past';
     }
     return '${positionAbbreviations[holder] ?? holder} has the ball';
   }

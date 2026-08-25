@@ -262,7 +262,7 @@ class PitchLoopPage extends ConsumerWidget {
 
     await showFieldDialog<void>(
       context,
-      title: 'What happened to her?',
+      title: 'What happened to the batter?',
       children: (dialogContext) => [
         Wrap(
           spacing: 8,
