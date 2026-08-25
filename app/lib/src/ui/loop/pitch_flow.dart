@@ -66,7 +66,7 @@ class PitchFlowState {
     this.actual,
     this.bounce,
     this.lastPitchOffer,
-    this.d3kOffer,
+    this.droppedThirdStrike,
   });
 
   final PitchStep step;
@@ -83,18 +83,21 @@ class PitchFlowState {
   /// which is exactly "dismisses by simply proceeding."
   final RecordLastPitchOffer? lastPitchOffer;
 
-  /// Set while an uncaught third strike could still be resolved (§11.3).
-  /// Like [lastPitchOffer] it blocks nothing: the loop already recorded the
-  /// strikeout, which is right for the overwhelming majority of third
-  /// strikes, and taking the offer converts it.
-  final D3kOffer? d3kOffer;
+  /// Set between declaring a dropped third strike and saying what happened
+  /// to her (§11.3 v0.46) — the two steps of one decision, not an offer
+  /// standing over an already-recorded strikeout. Nothing has been written
+  /// for the batter yet, so there is nothing to void or dismiss.
+  final DroppedThirdStrike? droppedThirdStrike;
 }
 
-/// A third strike the batter was entitled to run on (§11.3): first base
-/// open, or two already out. Carries what a resolution needs — the out to
-/// void, and the pitch its touches will anchor to.
-class D3kOffer {
-  const D3kOffer({required this.pitchEventId, required this.batterId});
+/// A dropped third strike the scorer has declared, waiting on its ending.
+/// Carries what the resolution needs: the pitch its touches anchor to —
+/// there is no `BallInPlay`, nothing was hit — and who is running.
+class DroppedThirdStrike {
+  const DroppedThirdStrike({
+    required this.pitchEventId,
+    required this.batterId,
+  });
 
   final String pitchEventId;
   final String batterId;
@@ -269,7 +272,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     // Consequences (§11.3) — automatic where the rules leave no doubt,
     // a prompt where they don't. `unknown` never reaches any of them: no
     // known outcome, no consequence.
-    D3kOffer? d3k;
+    DroppedThirdStrike? d3k;
     if (outcome != Outcome.UNKNOWN) {
       final effect = applyPitchCountEffect(gs.balls, gs.strikes, outcome);
       final struckOut = effect.endsPlateAppearance && effect.strikes >= 3;
@@ -288,7 +291,10 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // never written, so there is nothing to void and no phantom out in
       // the stream.
       if (struckOut && uncaughtThirdStrike) {
-        d3k = D3kOffer(pitchEventId: event.id, batterId: batterId);
+        d3k = DroppedThirdStrike(
+          pitchEventId: event.id,
+          batterId: batterId,
+        );
       } else if (struckOut) {
         await game.append(
           type: 'RunnerOut',
@@ -353,7 +359,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
               state.bounce == null
           ? RecordLastPitchOffer(eventId: event.id, payload: payload)
           : null,
-      d3kOffer: d3k,
+      droppedThirdStrike: d3k,
     );
   }
 
@@ -365,8 +371,10 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// The voided out is not noise in the stream: it is the record that the
   /// app called a strikeout and the scorer said the ball was uncaught. §6
   /// hides it from the visible stream and keeps it in the raw one.
-  Future<void> _resolveD3k(List<PendingEvent> Function(D3kOffer) build) async {
-    final offer = state.d3kOffer;
+  Future<void> _resolveD3k(
+    List<PendingEvent> Function(DroppedThirdStrike) build,
+  ) async {
+    final offer = state.droppedThirdStrike;
     if (offer == null) return;
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
     await ref
@@ -478,7 +486,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// the same ball. Voids the out and opens the field, where a D3K is just
   /// a pitch-anchored draft with the batter running (§15.6 v0.45).
   Future<void> d3kToField() async {
-    final offer = state.d3kOffer;
+    final offer = state.droppedThirdStrike;
     if (offer == null) return;
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
     await ref
@@ -487,11 +495,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           pitchEventId: offer.pitchEventId,
           batterId: offer.batterId,
         );
-  }
-
-  /// The offer dies by being ignored, like §11.1's.
-  void dismissD3kOffer() {
-    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
   }
 
   /// Take the standing offer (§11.1 v0.39): open location entry for the

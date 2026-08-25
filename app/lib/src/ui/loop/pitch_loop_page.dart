@@ -37,8 +37,6 @@ const Key d3kSafeWpKey = Key('d3kSafeWp');
 const Key d3kSafePbKey = Key('d3kSafePb');
 @visibleForTesting
 const Key d3kFieldKey = Key('d3kField');
-@visibleForTesting
-const Key d3kDismissKey = Key('d3kDismiss');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
