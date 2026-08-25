@@ -14,9 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// [call], [actual], and [outcome] are the loop proper. [recordLast] is the
 /// v0.39 location backfill for the pitch just committed, and [bailout] is
 /// §11.2's bottom rung: outcome only, reached by two-finger swipe from any
-/// entry step. D3K resolution is deliberately absent — its arming keys on
-/// the catch, not the pitch (§11.3 v0.41), and the catcher-misplay entry it
-/// needs is DIA-008's play chain.
+/// entry step. A dropped third strike is **not** a step here (v0.46): it is
+/// declared on the outcome sheet like any other outcome, and its two
+/// questions are dialogs over that sheet rather than states of the loop.
 enum PitchStep { call, actual, outcome, recordLast, bailout }
 
 /// Which box the batter stands in. Session-level stub for M1 — DIA-008/009's
@@ -363,14 +363,12 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     );
   }
 
-  /// §11.3's D3K resolution. The loop already recorded the strikeout —
-  /// right for almost every third strike, and the reason the book is never
-  /// wrong if the scorer walks away — so resolving means **voiding that out
-  /// and writing what actually happened**, as one batch and one undo unit.
+  /// §11.3's D3K resolution, written as one batch and one undo unit.
   ///
-  /// The voided out is not noise in the stream: it is the record that the
-  /// app called a strikeout and the scorer said the ball was uncaught. §6
-  /// hides it from the visible stream and keeps it in the raw one.
+  /// Nothing needs undoing first: declaring the dropped third strike with
+  /// the pitch means the automatic strikeout out was never appended, so
+  /// this only ever *adds* what happened. Clearing the state before the
+  /// append is what keeps a second tap from writing the ending twice.
   Future<void> _resolveD3k(
     List<PendingEvent> Function(DroppedThirdStrike) build,
   ) async {
