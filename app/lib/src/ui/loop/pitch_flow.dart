@@ -382,8 +382,11 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         .appendAllPending(build(offer));
   }
 
-  /// Thrown out at first: the everyday D3K, and still wrong today — the
-  /// recorded strikeout carries no putout, so 2-3 goes uncredited.
+  /// Thrown out at first — the everyday ending. She is out either way,
+  /// which makes a bare strikeout look sufficient; it is not, because it
+  /// credits nobody, and throwing runners out is most of what a catcher's
+  /// line is made of. So the throw is recorded as a real chain and the out
+  /// names who made it: putout 3, assist 2.
   Future<void> d3kOutOnThrow() => _resolveD3k(
     (offer) => [
       PendingEvent(
@@ -483,8 +486,10 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   );
 
   /// Anything else — play #5's throw into right field, a runner moving on
-  /// the same ball. Voids the out and opens the field, where a D3K is just
-  /// a pitch-anchored draft with the batter running (§15.6 v0.45).
+  /// the same ball. Opens the field, where a dropped third strike is just a
+  /// pitch-anchored draft with the batter running (§15.6 v0.45): nothing on
+  /// that surface is D3K-specific, so play #5 is entered with the ordinary
+  /// play grammar.
   Future<void> d3kToField() async {
     final offer = state.droppedThirdStrike;
     if (offer == null) return;
