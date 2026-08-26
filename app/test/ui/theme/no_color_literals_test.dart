@@ -20,14 +20,6 @@ void main() {
     'theme/brand_baseline.dart':
         'The brand baseline itself — tier 1 of §23.3 has to be written down '
             'somewhere, and this is that somewhere.',
-    'theme/pitch_type_colors.dart':
-        "§23's third colour tier: a categorical scale (pitch types) and the "
-            'dirt gradient. Neither is brand identity nor a team accent, and '
-            "the scale's governing rule is different from both — its members "
-            
-            'must stay mutually distinguishable at marker size, so they travel '
-            'as a set. Fastball and Slider reference the baseline rather than '
-            'copying it; only Curve, Rise and the dirt are literals here.',
     'zone_canvas/zone_canvas.dart':
         'Depiction of physical objects (dirt, chalk, ball leather, plate, cast '
             'shadows), which §23.4 governs as per-surface fidelity rather than '
