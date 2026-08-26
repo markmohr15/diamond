@@ -6,16 +6,21 @@ import 'package:flutter/material.dart';
 /// identifiable at exactly the moment the user is deepest in another team's
 /// data (§23.3).
 ///
-/// **Every color in this file is a placeholder and is expected to be thrown
-/// away.** The real palette is blocked on the logo/brand work (DIA-012's
-/// out-of-scope list). What is *not* provisional is the seam: this is the only
-/// file in `app/lib/src/ui/` permitted to contain color literals, enforced by
+/// The values are Claude Design's **1A "Infield"** (light) and **2A "Infield ·
+/// dark"**, landed in DIA-016. They are no longer placeholders; DIA-012 built
+/// the seam and said the colors filling it would be thrown away, and this is
+/// what replaced them.
+///
+/// The seam is the durable part: this is the only file in `app/lib/src/ui/`
+/// permitted to contain color literals, enforced by
 /// `test/ui/theme/no_color_literals_test.dart`. Everything else reads color
 /// from `Theme.of(context)`.
 ///
-/// The specific light/dark surface values below are inherited from DIA-011's
-/// canvas rather than invented here, so that migrating the pitch canvas onto
-/// the theme is a pure refactor with byte-identical goldens.
+/// Dark is **not an inversion**. Ink is promoted from "the darkest color" to
+/// *the card*, with the ground below it and one raised step above. The rule
+/// that keeps this small: Grass and Clay hold their light values wherever they
+/// are a **fill** with Chalk on top, and take the lifted values only as
+/// strokes, icons and text, where the light values disappear against Ink.
 @immutable
 class BrandBaseline {
   const BrandBaseline({

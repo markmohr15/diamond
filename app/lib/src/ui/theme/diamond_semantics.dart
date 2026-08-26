@@ -30,7 +30,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
         uncertainty: baseline.uncertainty,
         onUncertainty: baseline.onUncertainty,
         misplay: baseline.misplay,
-        // §23.2 v0.47: callable is not a reserved colour. The other three
+        // §23.2 v0.47: callable is not a reserved color. The other three
         // are events — something happened, look here — and this is a
         // standing description of where the tool works, true of most zones
         // most of the time. A hue of its own would put permanent alert

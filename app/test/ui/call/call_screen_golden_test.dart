@@ -8,6 +8,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'seeded_code_selector.dart';
+
 const _tabletSize = Size(760, 680);
 
 Widget _app({
@@ -31,7 +33,7 @@ Widget _app({
 /// goes through the widget in the tests; here it is set directly so each
 /// scenario renders one state without a gesture script.
 ProviderContainer _withCall({required String typeId, String? zoneId}) {
-  final container = ProviderContainer();
+  final container = ProviderContainer(overrides: [seededCodeSelector]);
   container.read(callDraftProvider.notifier).selectType(typeId);
   if (zoneId != null) {
     container.read(callDraftProvider.notifier).selectZone(zoneId);
@@ -68,7 +70,7 @@ void main() {
     fileName: 'call_screen_states',
     skip: true,
     builder: () {
-      final empty = ProviderContainer();
+      final empty = ProviderContainer(overrides: [seededCodeSelector]);
       final called = _withCall(typeId: 'dr', zoneId: 'c1r2');
       addTearDown(empty.dispose);
       addTearDown(called.dispose);

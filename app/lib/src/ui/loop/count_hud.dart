@@ -2,6 +2,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -55,13 +56,16 @@ class CountHud extends ConsumerWidget {
             onLongPress: gs == null ? null : () => _correctCount(context, ref),
             child: Text(
               gs == null ? '—' : '${gs.balls}-${gs.strikes}',
+              // Mono, because the count is the number most likely to be read
+              // at a glance and it changes in place: 1-2 → 2-2 must not shift
+              // its neighbors. A monospaced face gives that for free, which is
+              // why the tabular-figures feature it used to carry is gone —
+              // every digit already has the same advance width.
               style: TextStyle(
                 color: foreground,
                 fontSize: 34,
                 fontWeight: FontWeight.bold,
-                // Tabular figures: 1-2 → 2-2 must not shift its neighbors.
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+              ).code,
             ),
           ),
           const SizedBox(width: 24),
@@ -72,7 +76,9 @@ class CountHud extends ConsumerWidget {
           const Spacer(),
           Text(
             _inningLabel(gs),
-            style: TextStyle(color: foreground, fontSize: 20),
+            // "▲3" is read as a tag, not as words — unlike `_outsLabel`
+            // above it, which is the sentence "2 outs" and stays prose.
+            style: TextStyle(color: foreground, fontSize: 20).code,
           ),
           const SizedBox(width: 12),
           IconButton(

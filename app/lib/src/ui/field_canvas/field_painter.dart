@@ -1,8 +1,8 @@
 import 'dart:math' as math;
-
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:flutter/material.dart';
 
 /// One runner as the canvas shows them: who, what to print on the token,
@@ -416,10 +416,19 @@ class FieldPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
+        // The one funnel for every string this painter draws, and all of
+        // them are codes (§18.7): fielding positions, runner tokens, and the
+        // OUT/SAFE pills. None is prose, so the face is set here rather than
+        // at three call sites that could drift apart.
+        //
+        // w700 rather than w600: only 400/500/700 are bundled, and Flutter
+        // resolves an unbundled weight to the nearest one silently — so w600
+        // was already rendering as something else and calling it a choice.
         style: TextStyle(
           color: color,
+          fontFamily: BrandType.mono,
           fontSize: fontSize,
-          fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
+          fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
         ),
       ),
       textDirection: TextDirection.ltr,

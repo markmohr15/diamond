@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../call/seeded_code_selector.dart';
+
 const _tabletSize = Size(760, 680);
 
 void _noop() {}
@@ -23,7 +25,7 @@ void main() {
     'call step with the pitch-happened checkmark',
     fileName: 'loop_call_step_checkmark',
     builder: () {
-      final called = ProviderContainer();
+      final called = ProviderContainer(overrides: [seededCodeSelector]);
       called.read(callDraftProvider.notifier).selectType('dr');
       called.read(callDraftProvider.notifier).selectZone('c1r2');
       addTearDown(called.dispose);
