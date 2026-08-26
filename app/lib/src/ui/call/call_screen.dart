@@ -333,7 +333,7 @@ class _CodeDisplay extends StatelessWidget {
       child: Text(
         pending.code ?? '—',
         key: callScreenCodeKey,
-        // A wristband code is the type specimen for the mono rule (§18.7):
+        // A wristband code is the type specimen for the mono rule (§23.5):
         // three digits looked up on a band, read one at a time, never read as
         // a word.
         style: TextStyle(

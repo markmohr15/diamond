@@ -3,6 +3,47 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.48
+
+**§23 gains a type section (§23.5); Review moves to §23.6.** Diamond had two typefaces and no written
+rule for choosing between them — the rule lived in a Dart doc comment, which is not a place a design
+decision survives.
+
+**Space Grotesk carries prose, JetBrains Mono carries codes.** A code is read as a token rather than
+as language: looked up, compared, or read one character at a time. The count, a wristband code
+(§10.2), a fielding position, a distance in feet, a jersey number, the inning tag. Everything else is
+prose, **including prose that contains a number** — "2 outs" is a sentence and stays in the prose
+face; the `2` standing alone in the count HUD is not. That boundary is the whole rule, and it is drawn
+at *how the string is read*, not at whether it contains digits.
+
+The justification is movement, not decoration. A count ticking 1–1 → 2–1 in a proportional face
+reflows its own row, and the eye tracks the reflow instead of the value — the same failure §23.1.1
+already names when it asks for tabular numerals, generalized from digits to the whole class of strings
+that are not sentences. Small letter-spaced uppercase labels (eyebrows, section tags, chip glyphs,
+COUNT UNSURE) take the mono face on the same grounds: they are read as tags.
+
+**Type is tier 1 (§23.3)** — it moves with neither the team accent nor the brightness. One scale,
+rendered by both themes. The open question recorded rather than decided: light text on a dark ground
+reads optically bolder, and some systems drop a weight step in dark to compensate. Diamond does not,
+because the design panels do not. A full dark screen is where that becomes visible, not a swatch, so
+if it changes it changes here.
+
+**The faces ship in the bundle, never fetched**, which is §12.6/§19.1/§21.5 applied to a resource that
+does not look like data. A font pulled from a CDN — including the `google_fonts` package's default
+behavior — is a blank label in a dugout with no signal, failing on exactly the day it matters.
+
+**Weights are 400/500/700, and that set is a constraint rather than an inventory.** This is the part
+worth writing down: an unbundled weight does not fail. Flutter renders the nearest bundled weight, so
+asking for a w600 that was never shipped produces something that looks deliberate and is not. One such
+call site existed when the section was written.
+
+The scale itself stays out of the spec, the way §23.2 names three colors without enumerating every
+surface step: it is a token set in `app/lib/src/ui/theme/brand_type.dart`, read out of the design
+panels rather than invented. Its shape — display and headline for what is read across a dugout, title
+and body sharing three sizes separated by **weight and leading rather than size**, labels for text
+inside components — is described in §23.5 without pixel values, which are the kind of thing §23's
+preamble keeps out of prose.
+
 ## v0.47
 
 **The semantic reservations get real colors, and stop sharing (§23.2).** DIA-012's palette was

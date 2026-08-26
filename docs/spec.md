@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.47)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.48)
 
-**Status:** Draft for review — v0.47 gives §23.2's **semantic reservations real colors, and stops them sharing**: **Dusk** violet for uncertainty, **Rosin** amber for misplay, **Ejection** magenta-red for the app failing — never for a fielding error. Size governs treatment, since chroma is what separates a reserved color from Clay but large areas of it are unreadable after two innings: the persistent HUD takes a tinted field with a saturated label, the 40px chip takes a full fill, and Rosin is a fill never text. **`callable` stops being a reservation** — the others are events, it is a standing state — and becomes Grass in three steps. v0.46 makes **D3K arming the scorer's, not the pitch's** (§11.3): the resolution is offered on every third strike she was entitled to run on — first open, or two away — and hidden where the rules prevent her running. `swinging_strike_blocked` is **removed** (§4.1, schema change): "blocked" is what the catcher did, not what the pitch was, and `bounceLocation` plus §13.2's derivation already hold it. It is declared with the pitch on §11.1's outcome sheet beside **In play** — the equivalent of a ball put in play — so the automatic out is never written and nothing is voided. Four one-tap endings — **Out at first** writes 2-3 with the putout and assist the bare strikeout never carried — plus **Go to field**, which opens §15.6's surface with the batter walked up, so play #5 needs no D3K-specific grammar. v0.45 makes **between-pitch entries play drafts with a different anchor** (§15.6): v0.42's "single fact, not an accumulating chain" produced a parallel mechanism no editor understood — a caught stealing where a missed tag makes the runner safe was unenterable. A play anchors its chain to the `BallInPlay` it mints, a between-pitch entry to the pitch that already exists, so the chain strip, every §15.3 chip and §15.5's ✓ apply unchanged. The catcher holds the ball by seed; tapping her says the pitch got past her. Cost: a steal is four gestures, not three. Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.48 gives §23 a **type section (§23.5)**: **Space Grotesk carries prose, JetBrains Mono carries codes**, where a code is read as a token rather than as language — the count, a wristband code, a position, a distance, an inning tag — and prose containing a number stays prose ("2 outs" is a sentence; the 2 in the HUD is not). The rule earns its keep on numbers that change in place: a count reflowing its own row makes the eye track the movement instead of the value. Type is **tier 1** — it moves with neither the accent nor the brightness — and the faces **ship in the bundle, never fetched**, since a font resolved over the network is a blank label in a dugout with no signal. Weights are 400/500/700 and that set is a constraint: an unbundled weight does not fail, it renders as the nearest one that is. Review moves to §23.6. v0.47 gives §23.2's **semantic reservations real colors, and stops them sharing**: **Dusk** violet for uncertainty, **Rosin** amber for misplay, **Ejection** magenta-red for the app failing — never for a fielding error. Size governs treatment, since chroma is what separates a reserved color from Clay but large areas of it are unreadable after two innings: the persistent HUD takes a tinted field with a saturated label, the 40px chip takes a full fill, and Rosin is a fill never text. **`callable` stops being a reservation** — the others are events, it is a standing state — and becomes Grass in three steps. v0.46 makes **D3K arming the scorer's, not the pitch's** (§11.3): the resolution is offered on every third strike she was entitled to run on — first open, or two away — and hidden where the rules prevent her running. `swinging_strike_blocked` is **removed** (§4.1, schema change): "blocked" is what the catcher did, not what the pitch was, and `bounceLocation` plus §13.2's derivation already hold it. It is declared with the pitch on §11.1's outcome sheet beside **In play** — the equivalent of a ball put in play — so the automatic out is never written and nothing is voided. Four one-tap endings — **Out at first** writes 2-3 with the putout and assist the bare strikeout never carried — plus **Go to field**, which opens §15.6's surface with the batter walked up, so play #5 needs no D3K-specific grammar. Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -1373,7 +1373,39 @@ Craft and busyness are separable: what reads as *serious* is precision — corre
 registration, confident hierarchy — not photographic detail. Getting the geometry right is most of what
 makes any treatment look intentional.
 
-### 23.5 Review
+### 23.5 Type
+
+Two faces, and one rule for choosing between them.
+
+**Space Grotesk carries prose. JetBrains Mono carries codes.** A code is read as a token rather than
+as language — looked up, compared, or read one character at a time: the count, a wristband code
+(§10.2), a fielding position, a distance in feet, a jersey number, the inning tag. Everything else is
+prose, **including prose that contains a number**: "2 outs" is a sentence and stays in the prose face;
+the `2` standing alone in the count HUD is not.
+
+The rule earns its keep on numbers that change in place. A count ticking 1–1 → 2–1 in a proportional
+face reflows its own row, and the eye tracks the movement instead of the value. A monospaced face
+holds the digits still — the same argument §23.1.1 makes for tabular numerals, extended to the whole
+class of things that are not sentences. Small letter-spaced uppercase labels take the mono face for
+the same reason: an eyebrow, a section tag, a chip glyph, COUNT UNSURE are read as tags, not words.
+
+**Type is tier 1 (§23.3).** It does not move with the team accent and it does not move with
+brightness: one scale, rendered by both themes. Light text on a dark ground reads optically bolder and
+some systems drop a weight step to compensate; Diamond does not. If that changes it is a decision
+recorded here, not a per-screen adjustment.
+
+**The faces ship in the bundle, never fetched.** Offline-first is the prime directive (§12.6, §19.1,
+§21.5): a font resolved over the network is a blank label in a dugout with no signal, and it fails on
+exactly the day it matters. Weights are the static set the scale asks for — 400, 500 and 700 — and
+that set is a constraint, not an inventory. A weight that is not bundled does not fail; it renders as
+the nearest one that is, which is a wrong answer indistinguishable from a choice.
+
+The scale itself is a token set rather than prose, and lives in `app/lib/src/ui/theme/brand_type.dart`
+with the design panels it was read out of. Its shape: display and headline for the things read across
+a dugout, then title and body sharing the same three sizes and separated by **weight and leading
+rather than by size**, then labels for text inside components.
+
+### 23.6 Review
 
 Frontend work runs through the frontend-design review pass. **"Serviceable" is the failure bar, not the
 target.** Where a decision is genuinely contested, settle it on a real tablet in daylight rather than in

@@ -1303,7 +1303,7 @@ class _TopDownBackgroundPainter extends CustomPainter {
           // Unsigned: the plate sits between the two sides, so which way is
           // toward the catcher is not something a label has to carry.
           text: '${foot.abs().toInt()} ft',
-          // A distance in feet is a code (§18.7), and these sit in a column
+          // A distance in feet is a code (§23.5), and these sit in a column
           // where the digits should line up.
           style: TextStyle(
             color: structure.withValues(alpha: 0.55),

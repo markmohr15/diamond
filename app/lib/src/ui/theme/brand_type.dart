@@ -184,7 +184,7 @@ abstract final class BrandType {
   );
 }
 
-/// The mono rule (§18.7): **mono for anything read as a code rather than as
+/// The mono rule (§23.5): **mono for anything read as a code rather than as
 /// prose.**
 ///
 /// A code is a thing you look up, compare, or read digit by digit — the count,

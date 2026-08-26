@@ -417,7 +417,7 @@ class FieldPainter extends CustomPainter {
       text: TextSpan(
         text: text,
         // The one funnel for every string this painter draws, and all of
-        // them are codes (§18.7): fielding positions, runner tokens, and the
+        // them are codes (§23.5): fielding positions, runner tokens, and the
         // OUT/SAFE pills. None is prose, so the face is set here rather than
         // at three call sites that could drift apart.
         //
