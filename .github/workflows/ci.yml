@@ -47,8 +47,12 @@ jobs:
         run: flutter analyze
         working-directory: app
 
+      # --run-skipped picks up the platform-sensitive goldens, which are
+      # skipped by default so a bare local `flutter test` stays green on a
+      # Mac. They are generated on Linux by tools/goldens.sh, which is where
+      # this job compares them. See app/test/golden_tags.dart.
       - name: flutter test
-        run: flutter test
+        run: flutter test --run-skipped
         working-directory: app
 
       # Golden failures write the master, test and masked-diff images next to

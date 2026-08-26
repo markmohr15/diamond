@@ -1,0 +1,7 @@
+tags:
+  golden:
+  # Skipped by default so a bare `flutter test` is green and meaningful on
+  # any machine. CI runs them with `--run-skipped`; regenerate with
+  # tools/goldens.sh. See test/golden_tags.dart for why these two only.
+  platform-sensitive:
+    skip: "platform-specific pixels — run in CI, or regenerate via tools/goldens.sh"

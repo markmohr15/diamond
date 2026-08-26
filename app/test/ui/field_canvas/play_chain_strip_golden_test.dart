@@ -7,6 +7,8 @@ import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../golden_tags.dart';
+
 const _stripSize = Size(700, 130);
 
 /// §15.2's strip as the fixtures render it. What to look at: misplay nodes
@@ -45,6 +47,7 @@ void main() {
   goldenTest(
     'play chain strip states',
     fileName: 'play_chain_strip',
+    tags: platformSensitiveGolden,
     builder: () => GoldenTestGroup(
       columns: 1,
       children: [
