@@ -686,6 +686,9 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                         selectedZoneId: widget.selectedZoneId,
                         batterSide: widget.batterSide,
                         callableFill: DiamondSemantics.of(context).callable,
+                        callableOutline: DiamondSemantics.of(
+                          context,
+                        ).callableOutline,
                         accent: Theme.of(context).colorScheme.primary,
                       ),
                     ),

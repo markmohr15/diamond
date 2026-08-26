@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.46)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.47)
 
-**Status:** Draft for review — v0.46 makes **D3K arming the scorer's, not the pitch's** (§11.3): the resolution is offered on every third strike she was entitled to run on — first open, or two away — and hidden where the rules prevent her running. `swinging_strike_blocked` is **removed** (§4.1, schema change): "blocked" is what the catcher did, not what the pitch was, and `bounceLocation` plus §13.2's derivation already hold it. It is declared with the pitch on §11.1's outcome sheet beside **In play** — the equivalent of a ball put in play — so the automatic out is never written and nothing is voided. Four one-tap endings — **Out at first** writes 2-3 with the putout and assist the bare strikeout never carried — plus **Go to field**, which opens §15.6's surface with the batter walked up, so play #5 needs no D3K-specific grammar. v0.45 makes **between-pitch entries play drafts with a different anchor** (§15.6): v0.42's "single fact, not an accumulating chain" produced a parallel mechanism no editor understood — a caught stealing where a missed tag makes the runner safe was unenterable. A play anchors its chain to the `BallInPlay` it mints, a between-pitch entry to the pitch that already exists, so the chain strip, every §15.3 chip and §15.5's ✓ apply unchanged. The catcher holds the ball by seed; tapping her says the pitch got past her. Cost: a steal is four gestures, not three. v0.44 gives **failing to receive a pitch one spelling** (§13.2, §11.3, §15.6): receiving is binary, so whether the catcher got a glove on it is not a judgment the scorer is asked to make — the question at entry is "passed ball?", yes or no. The passed-ball touch is **`missed_catch`**, chosen over `dropped` because it claims less. The exemption does not widen: `wild_throw` and `tag_missed` still charge, because a throw is a thrown ball and a muffed tag is a play on the runner. Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.47 gives §23.2's **semantic reservations real colors, and stops them sharing**: **Dusk** violet for uncertainty, **Rosin** amber for misplay, **Ejection** magenta-red for the app failing — never for a fielding error. Size governs treatment, since chroma is what separates a reserved color from Clay but large areas of it are unreadable after two innings: the persistent HUD takes a tinted field with a saturated label, the 40px chip takes a full fill, and Rosin is a fill never text. **`callable` stops being a reservation** — the others are events, it is a standing state — and becomes Grass in three steps. v0.46 makes **D3K arming the scorer's, not the pitch's** (§11.3): the resolution is offered on every third strike she was entitled to run on — first open, or two away — and hidden where the rules prevent her running. `swinging_strike_blocked` is **removed** (§4.1, schema change): "blocked" is what the catcher did, not what the pitch was, and `bounceLocation` plus §13.2's derivation already hold it. It is declared with the pitch on §11.1's outcome sheet beside **In play** — the equivalent of a ball put in play — so the automatic out is never written and nothing is voided. Four one-tap endings — **Out at first** writes 2-3 with the putout and assist the bare strikeout never carried — plus **Go to field**, which opens §15.6's surface with the batter walked up, so play #5 needs no D3K-specific grammar. v0.45 makes **between-pitch entries play drafts with a different anchor** (§15.6): v0.42's "single fact, not an accumulating chain" produced a parallel mechanism no editor understood — a caught stealing where a missed tag makes the runner safe was unenterable. A play anchors its chain to the `BallInPlay` it mints, a between-pitch entry to the pitch that already exists, so the chain strip, every §15.3 chip and §15.5's ✓ apply unchanged. The catcher holds the ball by seed; tapping her says the pitch got past her. Cost: a steal is four gestures, not three. Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -1270,16 +1270,41 @@ Enforceable in review:
 Three colors carry fixed meaning app-wide and are **not available to any other purpose**, including
 accents:
 
-| Color | Means | Stated in |
-| --- | --- | --- |
-| **Amber** | uncertainty — the count is ambiguous | §12.5, §11.2 |
-| **Amber** | misplay — physical, fault not yet adjudicated | §13, §15.3 |
-| **Red** | error state / invalid input | — |
+| Name | Color | Means | Stated in |
+| --- | --- | --- | --- |
+| **Dusk** | violet `#5A47A0` / `#9B85E8` | uncertainty — the count is ambiguous | §12.5, §11.2 |
+| **Rosin** | amber `#E8A81C` / `#F2B935` | misplay — physical, fault not yet adjudicated | §13, §15.3 |
+| **Ejection** | magenta-red `#BB1E3C` / `#F4667B` | the app failed | — |
 
-Amber carrying both uncertainty and misplay is deliberate: both mean *"this needs your judgment
-later,"* which is one idea, and §13's whole design is that adjudication is deferrable. Per §23.1.7
-neither relies on color alone — §15.3 already establishes the pattern, rendering non-clean throw
-arrivals with a subtle underline rather than amber precisely because they are information, not fault.
+**They do not share a color (v0.47).** Uncertainty and misplay were both amber on the reasoning that
+both mean *"this needs your judgment later."* They do not ask the coach for the same thing: one says
+*I do not know what happened*, the other says *I know exactly what happened and someone muffed it.*
+
+**Size governs the treatment**, and it is why amber survives in one place and not the other. Chroma is
+what separates a reserved color from Clay, but a large area of high chroma is unreadable after two
+innings — so the persistent 84px count HUD takes a **tinted field with a saturated label**, while the
+40px misplay chip takes a **fully saturated fill**. Rosin's separation from Clay is *lightness plus
+saturation*, not hue: Clay is dark and muted, Rosin is bright and pure, which is the most robust pair
+of cues in direct sun. Dusk is violet because nothing on a ball field is — it cannot be misread as
+grass, dirt or blood — and because it reads *unresolved* rather than *bad*, which an ambiguous count
+is.
+
+**Rosin is a fill, never text or line work**: amber type on Chalk is illegible outdoors, so the chip
+carries Ink glyphs in both themes. **Ejection is the app failing and never a fielding error** — two
+phrases that mean opposite things in this product, which is exactly why they cannot share a color; a
+fielding error is Rosin's job.
+
+**`callable` is not a reservation.** It shades which zones the call grid can call (§10.1), and the
+three above are *events* — something happened, look here — where this is a standing description of
+where the tool works, true of most zones most of the time. A hue of its own would put permanent alert
+weight across half the grid. It is **Grass in three steps**: wash (14% fill / 34% border in light,
+18% / 42% in dark) = callable · solid = called · dashed = off. The border is not optional; a 14% fill
+alone reads as a smudge rather than a cell. The general rule: **a reserved color is for an event, not
+a state** — anything standing and common takes a step on an existing hue.
+
+Per §23.1.7 none of these rely on color alone — §15.3 already establishes the pattern, rendering
+non-clean throw arrivals with a subtle underline rather than a reserved color precisely because they
+are information, not fault.
 
 ### 23.3 Color Contexts
 

@@ -9,6 +9,12 @@
 # So goldens are generated in the same container family CI runs, on the
 # Flutter version .github/workflows/ci.yml pins. Bump both together.
 #
+# --run-skipped is not optional: the two platform-sensitive goldens are
+# skipped by dart_test.yaml so a local `flutter test` stays green, and without
+# it they are the only two this script would silently *not* regenerate — which
+# stays invisible until a visual change lands and CI compares fresh renders
+# against stale images.
+#
 #   tools/goldens.sh          regenerate every golden
 #   tools/goldens.sh -n zone  regenerate only tests matching "zone"
 set -euo pipefail
@@ -40,7 +46,7 @@ docker run --rm \
   "${IMAGE}" \
   bash -lc "git config --global --add safe.directory /repo &&
             flutter pub get &&
-            flutter test --tags golden --update-goldens ${NAME_FILTER[*]:-}"
+            flutter test --tags golden --run-skipped --update-goldens ${NAME_FILTER[*]:-}"
 
 # `flutter pub get` inside the container rewrote .dart_tool/package_config.json
 # with container paths, so the host toolchain can no longer resolve packages.
