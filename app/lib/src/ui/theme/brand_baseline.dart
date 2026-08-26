@@ -38,14 +38,13 @@ class BrandBaseline {
     required this.onNeutralHold,
     required this.inverseSurface,
     required this.onInverseSurface,
-    required this.uncertaintyAmber,
-    required this.onUncertaintyAmber,
-    required this.misplayAmber,
-    required this.callableGreen,
-    required this.errorRed,
-    required this.onErrorRed,
-    required this.errorRedContainer,
-    required this.onErrorRedContainer,
+    required this.uncertainty,
+    required this.onUncertainty,
+    required this.misplay,
+    required this.error,
+    required this.onError,
+    required this.errorContainer,
+    required this.onErrorContainer,
   });
 
   final Brightness brightness;
@@ -92,90 +91,92 @@ class BrandBaseline {
 
   /// §23.2: uncertainty — the count is ambiguous (§12.5, §11.2). Reserved
   /// app-wide and unavailable to any accent.
-  final Color uncertaintyAmber;
-  final Color onUncertaintyAmber;
+  final Color uncertainty;
+  final Color onUncertainty;
 
   /// §23.2: misplay — physical, fault not yet adjudicated (§13, §15.3). The
-  /// same amber as [uncertaintyAmber] deliberately: both mean "this needs your
+  /// same amber as [uncertainty] deliberately: both mean "this needs your
   /// judgement later," which is one idea. Kept as its own field because the two
   /// meanings are separate and either may need to diverge; call sites should
   /// name the one they mean.
-  final Color misplayAmber;
+  final Color misplay;
 
-  /// Available to call — the zones on the wristband for the pitch in hand
-  /// (§10.1).
-  ///
-  /// Not an accent and not one of §23.2's reservations: it marks *what can be
-  /// touched*, which is a property of the control rather than of the datum, and
-  /// it never competes with the accent because the accent marks the one zone
-  /// already chosen. Green is provisional here — see the note on §23 in
-  /// DIA-006's PR.
-  final Color callableGreen;
 
   /// §23.2: error state / invalid input.
-  final Color errorRed;
-  final Color onErrorRed;
-  final Color errorRedContainer;
-  final Color onErrorRedContainer;
+  final Color error;
+  final Color onError;
+  final Color errorContainer;
+  final Color onErrorContainer;
+
+  /// 1A's two brand accents, named once so everything that needs them —
+  /// including the categorical pitch-type scale — references rather than
+  /// copies. These are **fills**: they keep their light-theme values in both
+  /// themes, with Chalk sitting on top. Strokes, icons and text use the
+  /// lifted values (§23.3, v0.47).
+  static const Color grass = Color(0xFF2E5E3E);
+  static const Color clay = Color(0xFFB4643C);
+
+  /// The lifted values, for line work and text only — at their light values
+  /// Grass and Clay disappear against Ink.
+  static const Color grassLit = Color(0xFF5FA97A);
+  static const Color clayLit = Color(0xFFD07E4E);
 
   static const BrandBaseline light = BrandBaseline(
     brightness: Brightness.light,
-    surface: Color(0xFFF2F2F2),
-    surfaceBright: Color(0xFFFFFFFF),
-    surfaceDim: Color(0xFFDCDCE0),
-    surfaceContainerLowest: Color(0xFFFFFFFF),
-    surfaceContainerLow: Color(0xFFF7F7F8),
-    surfaceContainer: Color(0xFFEDEDEF),
-    surfaceContainerHigh: Color(0xFFE6E6E9),
-    surfaceContainerHighest: Color(0xFFDFDFE3),
-    ink: Color(0xFF1F1F22),
-    inkVariant: Color(0xFF55555A),
-    outline: Color(0xFF7A7A80),
-    outlineVariant: Color(0xFFC7C7CC),
-    chrome: Color(0xFF1F1F22),
-    onChrome: Color(0xFFF2F2F2),
-    neutralHold: Color(0xFF44444A),
-    onNeutralHold: Color(0xFFFFFFFF),
-    inverseSurface: Color(0xFF1F1F22),
-    onInverseSurface: Color(0xFFF2F2F2),
-    uncertaintyAmber: Color(0xFFB26A00),
-    onUncertaintyAmber: Color(0xFFFFFFFF),
-    misplayAmber: Color(0xFFB26A00),
-    callableGreen: Color(0xFF2E7D32),
-    errorRed: Color(0xFFB3261E),
-    onErrorRed: Color(0xFFFFFFFF),
-    errorRedContainer: Color(0xFFF9DEDC),
-    onErrorRedContainer: Color(0xFF410E0B),
+    surface: Color(0xFFE7E5DE),
+    surfaceBright: Color(0xFFFFFEF9),
+    surfaceDim: Color(0xFFDCD8CB),
+    surfaceContainerLowest: Color(0xFFFFFEF9),
+    surfaceContainerLow: Color(0xFFF4F2EB),
+    surfaceContainer: Color(0xFFF4F2EB),
+    surfaceContainerHigh: Color(0xFFE7E5DE),
+    surfaceContainerHighest: Color(0xFFDCD8CB),
+    ink: Color(0xFF16211C),
+    inkVariant: Color(0xFF4A4A44),
+    outline: Color(0xFF8A8A80),
+    outlineVariant: Color(0xFFD6D3C8),
+    chrome: Color(0xFF16211C),
+    onChrome: Color(0xFFF4F2EB),
+    neutralHold: Color(0xFF4A4A44),
+    onNeutralHold: Color(0xFFFFFEF9),
+    inverseSurface: Color(0xFF16211C),
+    onInverseSurface: Color(0xFFF4F2EB),
+    uncertainty: Color(0xFF5A47A0),
+    onUncertainty: Color(0xFFFFFEF9),
+    misplay: Color(0xFFE8A81C),
+    error: Color(0xFFBB1E3C),
+    onError: Color(0xFFFFFEF9),
+    errorContainer: Color(0xFFFBEEF0),
+    onErrorContainer: Color(0xFF16211C),
   );
 
   static const BrandBaseline dark = BrandBaseline(
     brightness: Brightness.dark,
-    surface: Color(0xFF1C1C1E),
-    surfaceBright: Color(0xFF2C2C2E),
-    surfaceDim: Color(0xFF121214),
-    surfaceContainerLowest: Color(0xFF121214),
-    surfaceContainerLow: Color(0xFF1F1F21),
-    surfaceContainer: Color(0xFF232326),
-    surfaceContainerHigh: Color(0xFF2C2C2E),
-    surfaceContainerHighest: Color(0xFF37373A),
-    ink: Color(0xFFE8E8EA),
-    inkVariant: Color(0xFFB0B0B6),
-    outline: Color(0xFF8A8A90),
-    outlineVariant: Color(0xFF3A3A3E),
-    chrome: Color(0xFF121214),
-    onChrome: Color(0xFFE8E8EA),
-    neutralHold: Color(0xFFC9C9CF),
-    onNeutralHold: Color(0xFF1F1F22),
-    inverseSurface: Color(0xFFE8E8EA),
-    onInverseSurface: Color(0xFF1F1F22),
-    uncertaintyAmber: Color(0xFFFFB74D),
-    onUncertaintyAmber: Color(0xFF3A2400),
-    misplayAmber: Color(0xFFFFB74D),
-    callableGreen: Color(0xFF66BB6A),
-    errorRed: Color(0xFFF2B8B5),
-    onErrorRed: Color(0xFF601410),
-    errorRedContainer: Color(0xFF8C1D18),
-    onErrorRedContainer: Color(0xFFF9DEDC),
+    surface: Color(0xFF0E1613),
+    surfaceBright: Color(0xFF26352E),
+    surfaceDim: Color(0xFF0E1613),
+    surfaceContainerLowest: Color(0xFF0E1613),
+    surfaceContainerLow: Color(0xFF16211C),
+    surfaceContainer: Color(0xFF16211C),
+    surfaceContainerHigh: Color(0xFF1E2C25),
+    surfaceContainerHighest: Color(0xFF26352E),
+    ink: Color(0xFFF4F2EB),
+    inkVariant: Color(0xFFA9C0AF),
+    outline: Color(0xFF8FA396),
+    outlineVariant: Color(0xFF2A3A32),
+    chrome: Color(0xFF16211C),
+    onChrome: Color(0xFFF4F2EB),
+    neutralHold: Color(0xFF8FA396),
+    onNeutralHold: Color(0xFF16211C),
+    inverseSurface: Color(0xFFF4F2EB),
+    onInverseSurface: Color(0xFF16211C),
+    uncertainty: Color(0xFF9B85E8),
+    onUncertainty: Color(0xFF16211C),
+    misplay: Color(0xFFF2B935),
+    error: Color(0xFFF4667B),
+    onError: Color(0xFF16211C),
+    errorContainer: Color(0xFF2B1418),
+    onErrorContainer: Color(0xFFF4F2EB),
   );
 
   static BrandBaseline of(Brightness brightness) =>

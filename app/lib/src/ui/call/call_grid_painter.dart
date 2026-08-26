@@ -20,6 +20,7 @@ class CallGridPainter extends CustomPainter {
     required this.selectedZoneId,
     required this.batterSide,
     required this.callableFill,
+    required this.callableOutline,
     required this.accent,
   });
 
@@ -37,7 +38,12 @@ class CallGridPainter extends CustomPainter {
   /// `DiamondSemantics.callable`. Zones that are *not* callable are simply not
   /// drawn: absence is the quietest possible treatment, and it leaves the
   /// ground furniture underneath unobscured.
+  /// The wash and its border (§23.2 v0.47). Both arrive at their final
+  /// opacity — Grass at 14/18% and 34/42% — so this paints them as given.
+  /// Multiplying an alpha here again would compound with the token and put
+  /// the wash back under the threshold where it reads as a smudge.
   final Color callableFill;
+  final Color callableOutline;
 
   /// The one zone already chosen (§23.1.3 — the accent goes to the datum).
   final Color accent;
@@ -81,11 +87,11 @@ class CallGridPainter extends CustomPainter {
       }
       final rect = _zoneRect(zone, size);
       canvas
-        ..drawRect(rect, Paint()..color = callableFill.withValues(alpha: 0.22))
+        ..drawRect(rect, Paint()..color = callableFill)
         ..drawRect(
           rect,
           Paint()
-            ..color = callableFill.withValues(alpha: 0.85)
+            ..color = callableOutline
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );

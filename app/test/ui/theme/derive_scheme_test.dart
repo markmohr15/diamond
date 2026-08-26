@@ -62,8 +62,8 @@ void main() {
           brightness: brightness,
         );
 
-        expect(scheme.error, baseline.errorRed);
-        expect(scheme.onError, baseline.onErrorRed);
+        expect(scheme.error, baseline.error);
+        expect(scheme.onError, baseline.onError);
         // Open Question #10 — the accent itself is still allowed to collide
         // with the reserved band today. When that is solved it is solved in
         // deriveScheme, and this expectation is what will change.
@@ -106,8 +106,8 @@ void main() {
         );
         final semantics = theme.extension<DiamondSemantics>()!;
 
-        expect(semantics.uncertainty, baseline.uncertaintyAmber);
-        expect(semantics.misplay, baseline.misplayAmber);
+        expect(semantics.uncertainty, baseline.uncertainty);
+        expect(semantics.misplay, baseline.misplay);
       }
     });
 

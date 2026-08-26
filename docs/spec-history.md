@@ -3,6 +3,37 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.47
+
+**The semantic reservations get real colors, and stop sharing (§23.2).** DIA-012's palette was
+placeholder by its own admission; 1A "Infield" replaces it, and the three reserved states become
+**Dusk** (violet, uncertainty), **Rosin** (amber, misplay) and **Ejection** (magenta-red, the app
+failing).
+
+Uncertainty and misplay were both amber on the reasoning that both mean "this needs your judgment
+later." They do not ask the coach for the same thing: one says *I do not know what happened*, the
+other says *I know, and someone muffed it.*
+
+**Size governs the treatment**, which is why amber survives in one place and not the other. Chroma is
+what separates a reserved color from Clay, but large areas of high chroma are unreadable after two
+innings — so the persistent count HUD takes a tinted field with a saturated label, and the 40px chip
+takes a full fill. Rosin's separation from Clay is lightness plus saturation rather than hue. Dusk is
+violet because nothing on a ball field is, so it cannot be misread as grass, dirt or blood.
+
+Two rules that follow: **Rosin is a fill, never text or line** (amber type on Chalk is illegible
+outdoors), and **Ejection is the app failing, never a fielding error** — two phrases that mean
+opposite things here.
+
+**`callable` stops being a reservation.** The three above are events; callable is a standing
+description of where the tool works, true of most zones most of the time, and a hue of its own would
+put permanent alert weight across half the grid. It becomes Grass in three steps — wash = callable,
+solid = called, dashed = off — with the wash carrying a border, since a 14% fill alone reads as a
+smudge. General rule: **a reserved color is for an event, not a state.**
+
+**A third color tier appears**, described in §23.3's terms but governed by neither: a **categorical
+scale** (pitch types), whose rule is that its members stay mutually distinguishable rather than that
+they express identity.
+
 ## v0.46
 
 **D3K arming is the scorer's, not the pitch's (§11.3), and `swinging_strike_blocked` is gone (§4.1,

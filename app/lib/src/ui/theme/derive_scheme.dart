@@ -59,10 +59,10 @@ ColorScheme deriveScheme({
     onTertiaryFixed: base.ink,
     onTertiaryFixedVariant: base.inkVariant,
 
-    error: base.errorRed,
-    onError: base.onErrorRed,
-    errorContainer: base.errorRedContainer,
-    onErrorContainer: base.onErrorRedContainer,
+    error: base.error,
+    onError: base.onError,
+    errorContainer: base.errorContainer,
+    onErrorContainer: base.onErrorContainer,
 
     surface: base.surface,
     onSurface: base.ink,
