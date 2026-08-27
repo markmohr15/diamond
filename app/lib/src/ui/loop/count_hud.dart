@@ -17,16 +17,28 @@ const Key countHudUndoKey = Key('countHudUndo');
 @visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
 @visibleForTesting
+const Key countHudUnsureKey = Key('countHudUnsure');
+@visibleForTesting
 const Key countCorrectionSetKey = Key('countCorrectionSet');
 
 /// The count strip (§11.2): balls–strikes, outs, inning — the invariant that
 /// is never wrong, so it is always on screen while the loop runs.
 ///
-/// Amber when the count is uncertain (§12.5): an `unknown` pitch is in the
-/// span and the projection refuses to guess. The treatment is §23.2's
-/// uncertainty reservation — background and text both switch, because a thin
-/// accent line is exactly what sunlight erases. Long-press on the count opens
-/// §12.5's CountCorrection sheet — the checkpoint that clears it.
+/// **Dusk** when the count is uncertain (§12.5): an `unknown` pitch is in the
+/// span and the projection refuses to guess. Not amber — v0.47 split the two
+/// reservations apart, and amber is misplay alone now.
+///
+/// The treatment is a **tinted field with a saturated label**, not a wholesale
+/// swap (§23.2). Size is why: chroma is what separates a reserved color from
+/// Clay, but this strip is persistent and 84px tall, and a large area of high
+/// chroma is unreadable after two innings. So the field takes a wash, and full
+/// saturation goes to the two things that carry the meaning — the COUNT UNSURE
+/// label and the separator between balls and strikes.
+///
+/// The label is also §23.1.7's non-color cue: the state is never signalled by
+/// color alone, so a scorer who cannot separate violet from ink still reads
+/// the words. Long-press on the count opens §12.5's CountCorrection sheet —
+/// the checkpoint that clears it.
 ///
 /// Undo lives here too: top-level, always visible, one event per tap (§6).
 class CountHud extends ConsumerWidget {
@@ -40,10 +52,19 @@ class CountHud extends ConsumerWidget {
     final gs = ref.watch(gameControllerProvider).valueOrNull;
 
     final uncertain = gs?.uncertainCount ?? false;
+
+    // A wash, not a fill. The saturated value is reserved for the label and
+    // the separator below; at this size it would be a wall.
     final background = uncertain
-        ? semantics.uncertainty
+        ? Color.alphaBlend(
+            semantics.uncertainty.withValues(alpha: 0.16),
+            scheme.surfaceContainerHigh,
+          )
         : scheme.surfaceContainerHigh;
-    final foreground = uncertain ? semantics.onUncertainty : scheme.onSurface;
+
+    // Ink either way. The old treatment switched this too, which is what made
+    // the strip a solid block of chroma.
+    final foreground = scheme.onSurface;
 
     return Container(
       key: countHudKey,
@@ -59,17 +80,44 @@ class CountHud extends ConsumerWidget {
           GestureDetector(
             key: countHudCountKey,
             onLongPress: gs == null ? null : () => _correctCount(context, ref),
-            child: Text(
-              gs == null ? '—' : '${gs.balls}-${gs.strikes}',
-              // Mono, because the count is the number most likely to be read
-              // at a glance and it changes in place: 1-2 → 2-2 must not shift
-              // its neighbors. A monospaced face gives that for free, which is
-              // why the tabular-figures feature it used to carry is gone —
-              // every digit already has the same advance width.
+            // Mono, because the count is the number most likely to be read
+            // at a glance and it changes in place: 1-2 → 2-2 must not shift
+            // its neighbors. A monospaced face gives that for free, which is
+            // why the tabular-figures feature it used to carry is gone —
+            // every digit already has the same advance width.
+            //
+            // Spans rather than one string so the separator can carry the
+            // uncertainty on its own. It is the smallest mark on the strip
+            // that still sits between the two numbers in question.
+            child: Text.rich(
+              gs == null
+                  ? const TextSpan(text: '—')
+                  : TextSpan(
+                      children: [
+                        TextSpan(text: '${gs.balls}'),
+                        TextSpan(
+                          text: '-',
+                          style: uncertain
+                              ? TextStyle(color: semantics.uncertainty)
+                              : null,
+                        ),
+                        TextSpan(text: '${gs.strikes}'),
+                      ],
+                    ),
               style: text.displaySmall!.copyWith(color: foreground).code,
             ),
           ),
-          const SizedBox(width: 24),
+          if (uncertain) ...[
+            const SizedBox(width: BrandMetrics.spaceMd),
+            Text(
+              // §23.1.7: the words are the cue that does not depend on
+              // telling violet from ink.
+              'COUNT UNSURE',
+              key: countHudUnsureKey,
+              style: BrandType.eyebrow.copyWith(color: semantics.uncertainty),
+            ),
+          ],
+          const SizedBox(width: BrandMetrics.space2xl),
           Text(
             _outsLabel(gs),
             style: text.headlineMedium!.copyWith(color: foreground),
@@ -96,7 +144,7 @@ class CountHud extends ConsumerWidget {
 
   /// §12.5's CountCorrection sheet: "the scoreboard says 2-1, make it so."
   /// Prefilled with the current count, appended as an authoritative
-  /// checkpoint — back-inference and the amber flag are the fold's job.
+  /// checkpoint — back-inference and the uncertainty flag are the fold's job.
   Future<void> _correctCount(BuildContext context, WidgetRef ref) async {
     final gs = ref.read(gameControllerProvider).valueOrNull;
     if (gs == null) return;

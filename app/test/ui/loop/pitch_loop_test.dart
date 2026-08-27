@@ -129,7 +129,7 @@ void main() {
       // Back on CALL with the whole arsenal, count advanced, one event.
       expect(find.byType(CallScreen), findsOneWidget);
       expect(find.text('Rise'), findsOneWidget);
-      expect(find.text('0-1'), findsOneWidget);
+      expect(find.text('0-1', findRichText: true), findsOneWidget);
 
       final pitch = await lastPitch();
       expect(pitch.outcome, Outcome.CALLED_STRIKE);
@@ -203,7 +203,7 @@ void main() {
       expect(pitch.outcome, Outcome.BALL);
       expect(pitch.intendedType, isNull);
       expect(pitch.actualLocation, isNull);
-      expect(find.text('1-0'), findsOneWidget);
+      expect(find.text('1-0', findRichText: true), findsOneWidget);
     });
   });
 
@@ -230,7 +230,8 @@ void main() {
       expect(out.runnerId, 'opp-1');
 
       expect(find.text('1 out'), findsOneWidget);
-      expect(find.text('0-0'), findsOneWidget); // next batter's count
+      // next batter's count
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
       final gs = container.read(gameControllerProvider).requireValue;
       expect(gs.batterDue('opp'), 'opp-2');
     });
@@ -257,12 +258,14 @@ void main() {
       await tester.tap(find.byKey(countHudUndoKey));
       await tester.pumpAndSettle();
       expect(find.text('0 outs'), findsOneWidget);
-      expect(find.text('0-2'), findsOneWidget);
+      expect(find.text('0-2', findRichText: true), findsOneWidget);
     });
   });
 
   group('unknown and the uncertain count (§12.5)', () {
-    testWidgets('an unknown outcome turns the HUD amber', (tester) async {
+    testWidgets('an unknown outcome tints the HUD and says so', (
+      tester,
+    ) async {
       await pumpLoop(tester);
 
       await tapText(tester, 'Skip call');
@@ -270,12 +273,21 @@ void main() {
       await tapText(tester, 'Unknown');
 
       final hud = tester.widget<Container>(find.byKey(countHudKey));
-      final semantics = DiamondSemantics.of(
-        tester.element(find.byKey(countHudKey)),
-      );
-      expect(hud.color, semantics.uncertainty);
+      final element = tester.element(find.byKey(countHudKey));
+      final semantics = DiamondSemantics.of(element);
+      final scheme = Theme.of(element).colorScheme;
+
+      // A wash, not a fill (§23.2): the field moved off its resting color but
+      // did not become the saturated reservation, which at this size would be
+      // a wall of chroma the eye stops reading after two innings.
+      expect(hud.color, isNot(scheme.surfaceContainerHigh));
+      expect(hud.color, isNot(semantics.uncertainty));
+
+      // §23.1.7: the state is never signalled by color alone.
+      expect(find.byKey(countHudUnsureKey), findsOneWidget);
+
       // The count itself did not move — unknown never guesses (§12.5).
-      expect(find.text('0-0'), findsOneWidget);
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
     });
   });
 
@@ -288,11 +300,11 @@ void main() {
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Ball');
-      expect(find.text('1-0'), findsOneWidget);
+      expect(find.text('1-0', findRichText: true), findsOneWidget);
 
       await tester.tap(find.byKey(countHudUndoKey));
       await tester.pumpAndSettle();
-      expect(find.text('0-0'), findsOneWidget);
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
     });
   });
 
@@ -335,7 +347,7 @@ void main() {
       final gs = container.read(gameControllerProvider).requireValue;
       expect(gs.bases.first, isNull);
       expect((gs.balls, gs.strikes), (3, 0));
-      expect(find.text('3-0'), findsOneWidget);
+      expect(find.text('3-0', findRichText: true), findsOneWidget);
     });
   });
 
@@ -377,7 +389,7 @@ void main() {
       await tapText(tester, 'STRIKE');
 
       expect((await lastPitch()).outcome, Outcome.STRIKE_UNSPECIFIED);
-      expect(find.text('0-1'), findsOneWidget);
+      expect(find.text('0-1', findRichText: true), findsOneWidget);
       expect(
         find.byType(CallScreen),
         findsOneWidget,
@@ -402,7 +414,7 @@ void main() {
       final events = await stream();
       expect(events.last.type, 'RunnerOut');
       expect(find.text('1 out'), findsOneWidget);
-      expect(find.text('0-0'), findsOneWidget);
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
     });
 
     testWidgets('at two strikes, FOUL stays a no-op — she is still in the '
@@ -417,7 +429,7 @@ void main() {
       await twoFingerSwipeDown(tester);
       await tapText(tester, 'FOUL');
 
-      expect(find.text('0-2'), findsOneWidget);
+      expect(find.text('0-2', findRichText: true), findsOneWidget);
       expect(find.text('0 outs'), findsOneWidget);
     });
 
@@ -449,7 +461,7 @@ void main() {
 
       // Straight back to the call screen: no play canvas for a dead ball.
       expect(find.byType(CallScreen), findsOneWidget);
-      expect(find.text('0-0'), findsOneWidget);
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
 
       final events = await stream();
       expect(events.map((e) => e.type).toList().sublist(events.length - 3), [
@@ -562,7 +574,7 @@ void main() {
       // Re-confirming from the canvas reopens the sheet and commits.
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       await tapText(tester, 'Ball');
-      expect(find.text('1-0'), findsOneWidget);
+      expect(find.text('1-0', findRichText: true), findsOneWidget);
     });
   });
 

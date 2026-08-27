@@ -49,26 +49,18 @@ ProviderContainer _withCall({required String typeId, String? zoneId}) {
 // matched locally and not on CI. One column gives every scenario the same
 // integral origin, so no label can move a pixel.
 void main() {
-  // §10.3's flow, one scenario per state. What to look at: the arsenal sits
-  // above the zone rect and collapses to the chosen pitch, and the code lands
-  // over the middle without the grid moving underneath it.
-  // Skipped on purpose. This sheet renders identically on macOS and Linux —
-  // measured, 1396 of its 1399 differing pixels differ in the *alpha* channel
-  // only, with identical RGB, and the other 3 sit on the divider between
-  // panels. That is two rasterizers rounding fractional coverage differently
-  // over transparent background, not a rendering change, and no arrangement of
-  // widgets makes them agree. Closing it properly means generating goldens in
-  // the same Linux environment CI verifies them in; until then a permanently
-  // red pipeline costs more than the coverage lost here.
+  // Re-enabled in DIA-016f. This was skipped because the image differed
+  // between macOS and Linux by anti-aliasing alone — 8 pixels of it — and the
+  // comment here said it could be closed once goldens were generated in the
+  // same Linux environment CI verifies them in. DIA-016a did exactly that, so
+  // the precondition is met and the deferral had outlived itself.
   //
-  // What still covers this screen: `call_screen_variants` (states 2 and 3,
-  // both brightnesses, both handednesses) and `call_grid_*`. What is lost is
-  // the picture of state 1 — the full arsenal before a pitch is chosen — whose
-  // *behavior* is asserted in call_screen_test.dart regardless.
+  // What it restores is the picture of **state 1** — the full arsenal before a
+  // pitch is chosen — which no other golden covers. `call_screen_variants`
+  // has states 2 and 3 in both brightnesses and handednesses.
   goldenTest(
     'call screen, the three states',
     fileName: 'call_screen_states',
-    skip: true,
     builder: () {
       final empty = ProviderContainer(overrides: [seededCodeSelector]);
       final called = _withCall(typeId: 'dr', zoneId: 'c1r2');
