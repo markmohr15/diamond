@@ -10,6 +10,58 @@ void main() {
     trajectory: Trajectory.LINE,
   );
 
+  group('invitesSacrifice (§13.6) — the two calls only a scorer can make', () {
+    PlayDraft flyScoring({required bool caught, int to = 4}) {
+      var draft = base.copyWith(
+        landing: FieldCoord(x: 0, y: 240),
+        trajectory: Trajectory.FLY,
+      );
+      if (caught) draft = draft.addingTouch(8, TouchType.CAUGHT);
+      return draft.addingLeg('r3', from: 3, to: to);
+    }
+
+    test('a dropped fly that scores a runner asks — clause (2)', () {
+      // The rule credits a sac fly on either of two clauses, and the second —
+      // dropped, with a runner scoring who could have scored had it been
+      // caught — is judgment. Nothing in the record says whether she would
+      // have made it, so without this question clause (2) has no way in.
+      expect(flyScoring(caught: false).invitesSacrifice, isTrue);
+    });
+
+    test('a caught fly does not ask — clause (1) derives', () {
+      // Caught with a runner scoring has no judgment in it, so asking would
+      // be a question with a known answer.
+      expect(flyScoring(caught: true).invitesSacrifice, isFalse);
+    });
+
+    test('a dropped fly with nobody scoring does not ask', () {
+      // A runner merely advancing is not the clause: it turns on a run.
+      expect(flyScoring(caught: false, to: 3).invitesSacrifice, isFalse);
+    });
+
+    test('a ground ball never asks, caught or not', () {
+      final grounder = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 90),
+            trajectory: Trajectory.GROUND,
+          )
+          .addingLeg('r3', from: 3, to: 4);
+      expect(grounder.invitesSacrifice, isFalse);
+    });
+
+    test('a bunt still asks on any runner moved up, not only a run', () {
+      // The bunt case is unchanged and deliberately wider: moving a runner
+      // along is the whole point of a sacrifice bunt.
+      final bunt = base
+          .copyWith(
+            landing: FieldCoord(x: -18, y: 24),
+            trajectory: Trajectory.BUNT,
+          )
+          .addingLeg('r1', from: 1, to: 2);
+      expect(bunt.invitesSacrifice, isTrue);
+    });
+  });
+
   group('PlayDraft JSON (the §15.5 journal format)', () {
     test('round-trips a full chain', () {
       final draft = landed

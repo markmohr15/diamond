@@ -163,26 +163,57 @@ class MisplayRecord {
 class BatterOutcome {
   const BatterOutcome({
     required this.batterId,
+    required this.complete,
     required this.scoring,
     required this.hit,
     required this.rbi,
-    this.atBat = true,
+    required this.atBat,
+    required this.sacrifice,
   });
 
   final String batterId;
 
+  /// Whether the plate appearance finished — she reached, or she was retired.
+  ///
+  /// Explicit because the alternative was worse: [atBat] `false` used to mean
+  /// both *"a completed PA that is not an at-bat"* (a walk, a sacrifice) and
+  /// *"a PA that has not finished"*, which would give a correct AB and a wrong
+  /// OBP — the nastier failure, because it looks plausible. The old `'batting'`
+  /// sentinel smuggled the same fact through [scoring], a field that means
+  /// something else.
+  final bool complete;
+
   /// 'out', 'single'..'home_run', 'reached_on_error', or the wire form of
   /// a non-batted reach reason ('walk', 'dropped_third_strike', ...).
-  final String scoring;
+  ///
+  /// Null exactly when [complete] is false: a batter still standing at the
+  /// plate has no result yet.
+  final String? scoring;
+
   final bool hit;
   final int rbi;
 
   /// Whether this plate appearance is charged as an at-bat. Walks, HBP,
   /// catcher's interference and obstruction awards are plate appearances
   /// but not at-bats (§13, v0.43) — the distinction batting average turns
-  /// on. Sacrifices (§13.6) are the other exclusion: a sac bunt is the
-  /// scorer's judgment on the batted ball, a sac fly derives.
+  /// on. Sacrifices (§13.6) are the other exclusion.
+  ///
+  /// Computed explicitly on every path. It used to default to `true`, and
+  /// that default is what hid the sacrifice bug: three of the four return
+  /// paths never consulted the judgment at all, so any sacrifice where the
+  /// batter reached base lost the credit and was charged an at-bat.
   final bool atBat;
+
+  /// A sacrifice (§13.6), as a flag beside [hit] rather than a value competing
+  /// for [scoring].
+  ///
+  /// The two facts are orthogonal and every consumer wants them separately: a
+  /// sacrifice is a scoring judgment about the plate appearance, while
+  /// `reached_on_error` is what happened to the batter, and a clause-(2) sac
+  /// fly is **both**. One string cannot hold them, and the compounds multiply
+  /// — sac fly plus error, sac bunt plus fielder's choice, sac bunt plus
+  /// reached on error. Three flags and one string cover all of them.
+  final bool sacrifice;
 }
 
 /// Official scoring derived from a play/half-inning stream (spec §13):
@@ -225,9 +256,8 @@ class OfficialScoring {
   /// PB charged to the catcher. Team-level rather than per-player: a
   /// passed ball is charged to whoever was catching, and `fielderId` has
   /// no writer yet (there is no roster for our own defense).
-  int get passedBalls => pitchGetaways
-      .where((g) => g.kind == PitchGetawayKind.passedBall)
-      .length;
+  int get passedBalls =>
+      pitchGetaways.where((g) => g.kind == PitchGetawayKind.passedBall).length;
 
   /// runnerId -> conditional flag consumed by §13.3 and surfaced in the
   /// UI: 'unearned_if_scores' (reach enabled by a charged error) or
@@ -521,7 +551,6 @@ OfficialScoring foldOfficialScoring(
           battedBall: pa.battedBallId == null
               ? null
               : ballInPlayById[pa.battedBallId],
-          anyChargedError: errors.isNotEmpty,
         ),
       ),
   ];
@@ -772,11 +801,7 @@ const _nonAtBatReachReasons = {
 /// and no error anywhere on the play, since a run that needed a misplay was
 /// not the sacrifice's doing. An explicit flag overrides the derivation
 /// either way.
-String? _sacrificeFor(
-  _PlateAppearance pa, {
-  required BallInPlay? battedBall,
-  required bool anyChargedError,
-}) {
+String? _sacrificeFor(_PlateAppearance pa, {required BallInPlay? battedBall}) {
   if (battedBall == null) return null;
   final bunt = battedBall.trajectory == Trajectory.BUNT;
   // Scoped by construction: `pa.outs` holds only what happened while she was
@@ -796,18 +821,30 @@ String? _sacrificeFor(
       battedBall.trajectory == Trajectory.FLY ||
       battedBall.trajectory == Trajectory.POPUP ||
       battedBall.trajectory == Trajectory.LINE;
+  // Clause (1) derives silently: the ball is caught and a runner scores.
+  // Clause (2) — dropped, and a runner scores who could have scored had it
+  // been caught — is the scorer's judgment and arrives above, through
+  // `battedBall.sacrifice`. It reaches here only if the entry surface asked
+  // (`PlayDraft.invitesSacrifice`), which is why widening that is half of
+  // this fix.
   if (!airborne || !battedBall.landingIsCaught) return null;
-  if (!wasOut || anyChargedError) return null;
+  if (!wasOut) return null;
   if ((pa.outsAtContact ?? 0) >= 2) return null;
 
-  final scoredFromThird = pa.advances.any(
+  // `anyChargedError` used to guard here and was wrong even for clause (1): a
+  // runner tags and scores, the throw home gets away, another runner takes a
+  // base — still a sacrifice fly, and still an error.
+  //
+  // The condition is that a runner scores after the catch, not that she
+  // started on third. A runner tagging from second on a deep fly is legal and
+  // happens; the old name encoded the wrong assumption in the vocabulary.
+  final runnerScored = pa.advances.any(
     (a) =>
         a.payload.runnerId != pa.batterId &&
-        a.payload.from == 3 &&
         a.payload.to == 4 &&
         a.payload.reason == RunnerAdvanceReason.BATTED_BALL,
   );
-  return scoredFromThird ? 'sacrifice_fly' : null;
+  return runnerScored ? 'sacrifice_fly' : null;
 }
 
 BatterOutcome _batterOutcome(
@@ -837,15 +874,38 @@ BatterOutcome _batterOutcome(
     if (_rbiReasons.contains(a.payload.reason)) rbi++;
   }
 
-  if (reach == null) {
-    final wasOut = pa.outs.any((o) => o.payload.runnerId == batterId);
+  // Shared facts, resolved once above the branching. `sacrifice` used to be
+  // consulted in the `reach == null` arm alone, so a sacrifice where the
+  // batter reached base — a clause-(2) sac fly, a sac bunt beaten out on an
+  // error or a fielder's choice — lost the credit and was charged an at-bat.
+  final isSacrifice = sacrifice != null;
+  final wasOut = pa.outs.any((o) => o.payload.runnerId == batterId);
+
+  // Neither reached nor retired: the plate appearance never finished. Either
+  // she is still up, or a third out on the bases ended the inning under her,
+  // and by rule that is not a plate appearance at all.
+  if (reach == null && !wasOut) {
     return BatterOutcome(
       batterId: batterId,
-      scoring: sacrifice ?? (wasOut ? 'out' : 'batting'),
+      complete: false,
+      scoring: null,
+      hit: false,
+      rbi: rbi,
+      atBat: false,
+      sacrifice: false,
+    );
+  }
+
+  if (reach == null) {
+    return BatterOutcome(
+      batterId: batterId,
+      complete: true,
+      scoring: sacrifice ?? 'out',
       hit: false,
       rbi: rbi,
       // A sacrifice is a plate appearance, never an at-bat (§13.6).
-      atBat: sacrifice == null && wasOut,
+      atBat: !isSacrifice,
+      sacrifice: isSacrifice,
     );
   }
 
@@ -853,10 +913,12 @@ BatterOutcome _batterOutcome(
   if (_nonBattedReachReasons.contains(reason)) {
     return BatterOutcome(
       batterId: batterId,
-      scoring: runnerAdvanceReasonValues.reverse[reason]!,
+      complete: true,
+      scoring: runnerAdvanceReasonValues.reverse[reason],
       hit: false,
       rbi: rbi,
-      atBat: !_nonAtBatReachReasons.contains(reason),
+      atBat: !_nonAtBatReachReasons.contains(reason) && !isSacrifice,
+      sacrifice: isSacrifice,
     );
   }
 
@@ -871,9 +933,15 @@ BatterOutcome _batterOutcome(
           reach.payload.enabledByTouchId == null)) {
     return BatterOutcome(
       batterId: batterId,
+      complete: true,
+      // Both facts are true and neither is discarded: what she did is
+      // `reached_on_error`, and whether it was a sacrifice rides beside it.
+      // This is the clause-(2) sac fly, and the reason `sacrifice` is a flag.
       scoring: 'reached_on_error',
       hit: false,
       rbi: rbi,
+      atBat: !isSacrifice,
+      sacrifice: isSacrifice,
     );
   }
 
@@ -891,8 +959,14 @@ BatterOutcome _batterOutcome(
   }
   return BatterOutcome(
     batterId: batterId,
-    scoring: _hitByBase[base]!,
+    complete: true,
+    scoring: _hitByBase[base],
     hit: true,
     rbi: rbi,
+    atBat: true,
+    // A hit is never a sacrifice by rule — beating out a bunt is a hit, not a
+    // sacrifice bunt — so the judgment does not carry onto this path even if
+    // the scorer offered one.
+    sacrifice: false,
   );
 }

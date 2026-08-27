@@ -64,8 +64,118 @@ void main() {
     expect(o.rbi, 1, reason: 'the run she gave herself up for still counts');
   });
 
+  test(
+    'two plate appearances are independent — the second is not the first',
+    () {
+      // The bug this closes: `reach` and `wasOut` scanned the whole game's
+      // advances and outs, so a batter's result was pinned to her *first* plate
+      // appearance forever. She flies out, the order comes back around, she
+      // singles — and the single used to report as an out.
+      //
+      // This is the criterion that generalizes. It fails for any read that
+      // reaches outside its plate appearance, including ones nobody has thought
+      // of, which is what all four of Part 1's bugs turned out to be.
+      final b = EventBuilder();
+      final events = <GameEvent>[
+        // PA 1 — b1 flies out.
+        b.pitch(
+          id: 'p1',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.make(
+          id: 'bip1',
+          type: 'BallInPlay',
+          payload: BallInPlay(
+            pitchEventId: 'p1',
+            fair: true,
+            trajectory: Trajectory.FLY,
+            landing: FieldCoord(x: 0, y: 240),
+            landingIsCaught: true,
+          ).toJson(),
+        ),
+        b.fielderTouch(
+          id: 't1',
+          anchorEventId: 'bip1',
+          position: 8,
+          touchType: TouchType.CAUGHT,
+        ),
+        b.runnerOut(id: 'o1', runnerId: 'b1', atBase: 1, how: How.FLY_OUT),
+
+        // PA 2 — somebody else, so the partition has a boundary to find.
+        b.pitch(
+          id: 'p2',
+          batterId: 'b2',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.make(
+          id: 'bip2',
+          type: 'BallInPlay',
+          payload: BallInPlay(
+            pitchEventId: 'p2',
+            fair: true,
+            trajectory: Trajectory.GROUND,
+            landing: FieldCoord(x: -40, y: 90),
+            landingIsCaught: false,
+          ).toJson(),
+        ),
+        b.fielderTouch(
+          id: 't2',
+          anchorEventId: 'bip2',
+          position: 6,
+          touchType: TouchType.FIELDED,
+        ),
+        b.runnerOut(id: 'o2', runnerId: 'b2', atBase: 1, how: How.FORCE),
+
+        // PA 3 — b1 again, and this time she singles.
+        b.pitch(
+          id: 'p3',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.make(
+          id: 'bip3',
+          type: 'BallInPlay',
+          payload: BallInPlay(
+            pitchEventId: 'p3',
+            fair: true,
+            trajectory: Trajectory.LINE,
+            landing: FieldCoord(x: 60, y: 200),
+            landingIsCaught: false,
+          ).toJson(),
+        ),
+        b.fielderTouch(
+          id: 't3',
+          anchorEventId: 'bip3',
+          position: 9,
+          touchType: TouchType.FIELDED,
+        ),
+        b.runnerAdvance(
+          id: 'a3',
+          runnerId: 'b1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+        ),
+      ];
+
+      final forB1 = foldOfficialScoring(
+        events,
+      ).batterOutcomes.where((o) => o.batterId == 'b1').toList();
+
+      expect(forB1, hasLength(2), reason: 'two plate appearances, two results');
+      expect(forB1.first.scoring, 'out');
+      expect(forB1.first.atBat, isTrue);
+      expect(forB1.last.scoring, 'single', reason: 'not pinned to the flyout');
+      expect(forB1.last.hit, isTrue);
+    },
+  );
+
   test('each condition is load-bearing: drop it and the sacrifice goes', () {
-    String scoringOf(List<GameEvent> events) =>
+    String? scoringOf(List<GameEvent> events) =>
         foldOfficialScoring(events).outcomeFor('b1')!.scoring;
 
     // Not caught: she did not give herself up, somebody muffed it.
@@ -73,12 +183,8 @@ void main() {
       scoringOf(sacFly(EventBuilder(), caught: false)),
       isNot('sacrifice_fly'),
     );
-    // Nobody scored from third.
-    expect(
-      scoringOf(sacFly(EventBuilder(), scoresFrom: 2)),
-      isNot('sacrifice_fly'),
-    );
-    // An error on the play: the run needed a misplay, not her out.
+    // Not judged and not caught: no clause-(1) derivation, and clause (2)
+    // needs the scorer to say so.
     expect(
       scoringOf(sacFly(EventBuilder(), caught: false, withError: true)),
       isNot('sacrifice_fly'),
@@ -88,6 +194,69 @@ void main() {
       scoringOf(sacFly(EventBuilder(), trajectory: Trajectory.GROUND)),
       isNot('sacrifice_fly'),
     );
+  });
+
+  test('a runner scoring from second credits it, not just from third', () {
+    // The rule asks only that a runner scores after the catch. A runner
+    // tagging from second on a deep fly is legal and happens; the derivation
+    // used to require `from == 3` and the variable was named for the
+    // assumption, which is how it survived.
+    final o = foldOfficialScoring(
+      sacFly(EventBuilder(), scoresFrom: 2),
+    ).outcomeFor('b1')!;
+    expect(o.scoring, 'sacrifice_fly');
+    expect(o.sacrifice, isTrue);
+    expect(o.atBat, isFalse);
+  });
+
+  test('clause (2): a dropped fly the scorer judges a sacrifice', () {
+    // The rule credits a sac fly on either of two clauses — caught and a
+    // runner scores, *or* dropped and a runner scores who could have scored
+    // had it been caught. Clause (2) is judgment, so it arrives through the
+    // scorer's flag rather than deriving.
+    //
+    // She reaches on the error, so she is not retired — and it is still a
+    // sacrifice, still a plate appearance, and still not an at-bat. That
+    // combination is what the old single `scoring` string could not hold.
+    final o = foldOfficialScoring(
+      sacFly(EventBuilder(), caught: false, withError: true, judged: true),
+    ).outcomeFor('b1')!;
+
+    expect(o.sacrifice, isTrue);
+    expect(o.atBat, isFalse, reason: 'a sacrifice is never an at-bat');
+    expect(o.complete, isTrue);
+    expect(o.hit, isFalse);
+  });
+
+  test('an error on the play does not cancel a caught sacrifice fly', () {
+    // `anyChargedError` used to guard the derivation and was wrong even for
+    // clause (1): the runner tags and scores, the throw home gets away, and
+    // another runner takes a base. Still a sacrifice fly, and still an error.
+    final b = EventBuilder();
+    final scoring = foldOfficialScoring([
+      ...sacFly(b),
+      b.fielderTouch(
+        id: 'wild',
+        anchorEventId: 'bip',
+        position: 8,
+        touchType: TouchType.WILD_THROW,
+        ordinaryEffort: true,
+      ),
+      b.runnerAdvance(
+        id: 'extra',
+        runnerId: 'r1',
+        from: 1,
+        to: 2,
+        reason: RunnerAdvanceReason.ERROR,
+        enabledByTouchId: 'wild',
+      ),
+    ]);
+
+    expect(scoring.errors, isNotEmpty, reason: 'the throw is still an error');
+    final o = scoring.outcomeFor('b1')!;
+    expect(o.scoring, 'sacrifice_fly');
+    expect(o.sacrifice, isTrue);
+    expect(o.atBat, isFalse);
   });
 
   test('anything caught in the air qualifies — pop-up and line drive too', () {
