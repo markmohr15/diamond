@@ -11,6 +11,7 @@ import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +36,6 @@ const Key fieldIdleLabelKey = Key('fieldIdleLabel');
 const Key fieldIdleCloseKey = Key('fieldIdleClose');
 @visibleForTesting
 Key betweenPitchChipKey(String reason) => Key('betweenPitch-$reason');
-
 
 @visibleForTesting
 Key fielderPlayKey(String choice) => Key('fielderPlay-$choice');
@@ -142,7 +142,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           // Between pitches: no trajectory, no chain, nothing to commit —
           // the only chrome is a way back out.
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: BrandMetrics.spaceLg,
+              vertical: 8,
+            ),
             child: Row(
               children: [
                 Flexible(
@@ -175,57 +178,60 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ),
           )
         else
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              // The chosen batted-ball type; taps reopen the modal for the
-              // "line or fly?" second thought.
-              ActionChip(
-                key: trajectoryEditKey,
-                label: Text(
-                  draft.trajectory == null
-                      ? '…'
-                      : trajectoryLabel(draft.trajectory!),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: BrandMetrics.spaceLg,
+              vertical: 8,
+            ),
+            child: Row(
+              children: [
+                // The chosen batted-ball type; taps reopen the modal for the
+                // "line or fly?" second thought.
+                ActionChip(
+                  key: trajectoryEditKey,
+                  label: Text(
+                    draft.trajectory == null
+                        ? '…'
+                        : trajectoryLabel(draft.trajectory!),
+                  ),
+                  onPressed: _showTrajectoryDialog,
                 ),
-                onPressed: _showTrajectoryDialog,
-              ),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  _statusLabel(draft),
-                  key: fieldDistanceKey,
-                  style: Theme.of(context).textTheme.titleMedium,
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    _statusLabel(draft),
+                    key: fieldDistanceKey,
+                    style: Theme.of(context).textTheme.titleMedium,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              IconButton(
-                key: fieldResetKey,
-                onPressed: () async {
-                  setState(() => _pendingForcePlay = null);
-                  await controller.reset();
-                  if (mounted) _showTrajectoryDialog();
-                },
-                icon: const Icon(Icons.replay),
-                tooltip: 'Start the play over',
-              ),
-              IconButton(
-                key: fieldDiscardKey,
-                onPressed: controller.discard,
-                icon: const Icon(Icons.close),
-                tooltip: 'Discard play',
-              ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                key: fieldCommitKey,
-                onPressed: draft.committable ? controller.commit : null,
-                icon: const Icon(Icons.check),
-                label: const Text('Commit play'),
-              ),
-            ],
+                const Spacer(),
+                IconButton(
+                  key: fieldResetKey,
+                  onPressed: () async {
+                    setState(() => _pendingForcePlay = null);
+                    await controller.reset();
+                    if (mounted) _showTrajectoryDialog();
+                  },
+                  icon: const Icon(Icons.replay),
+                  tooltip: 'Start the play over',
+                ),
+                IconButton(
+                  key: fieldDiscardKey,
+                  onPressed: controller.discard,
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Discard play',
+                ),
+                const SizedBox(width: 8),
+                FilledButton.icon(
+                  key: fieldCommitKey,
+                  onPressed: draft.committable ? controller.commit : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Commit play'),
+                ),
+              ],
+            ),
           ),
-        ),
         // §15.2: the chain above the canvas, once there is a play to chain.
         // Between pitches there is none — §15.6 is a single fact, not a chain.
         if (!draft.battedBall || draft.trajectory != null)
@@ -453,8 +459,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final spots = standardFielderSpots(geometry.profile);
     for (final entry in spots.entries) {
       // Grab her where she now stands, in either state of the screen.
-      final spot =
-          _draft.movedFielders[entry.key] ?? entry.value;
+      final spot = _draft.movedFielders[entry.key] ?? entry.value;
       final d = (position - geometry.toPx(spot)).distance;
       if (d <= bestFielderDistance) {
         bestFielderDistance = d;
@@ -664,18 +669,22 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               ('error', 'On an error', SafeResolution.onError),
           ]
         : <(String, String, SafeResolution)>[
-      (
-        'hit',
-        isBatter ? _hitLabels[base]! : (caught ? 'Tagged up' : 'On the hit'),
-        SafeResolution.onTheHit,
-      ),
-      if (draft.hasThrow) ('throw', 'On the throw', SafeResolution.onTheThrow),
-      // Only offered when there is a misplay to point at: an advance that
-      // claims an error but links to nothing derives as a hit (§13.2), so
-      // the answer must not exist without its cause.
-      if (draft.latestMisplayTouchKey != null)
-        ('error', 'On an error', SafeResolution.onError),
-      if (!caught) ('fc', "Fielder's choice", SafeResolution.fieldersChoice),
+            (
+              'hit',
+              isBatter
+                  ? _hitLabels[base]!
+                  : (caught ? 'Tagged up' : 'On the hit'),
+              SafeResolution.onTheHit,
+            ),
+            if (draft.hasThrow)
+              ('throw', 'On the throw', SafeResolution.onTheThrow),
+            // Only offered when there is a misplay to point at: an advance that
+            // claims an error but links to nothing derives as a hit (§13.2), so
+            // the answer must not exist without its cause.
+            if (draft.latestMisplayTouchKey != null)
+              ('error', 'On an error', SafeResolution.onError),
+            if (!caught)
+              ('fc', "Fielder's choice", SafeResolution.fieldersChoice),
           ];
 
     // One possible answer is not a question: tagging up on a routine fly

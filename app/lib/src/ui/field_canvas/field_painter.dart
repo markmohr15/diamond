@@ -405,6 +405,12 @@ class FieldPainter extends CustomPainter {
     }
   }
 
+  /// The sizes callers pass here are **canvas geometry, not type scale**
+  /// (§23.5 keeps the scale to prose and codes in widgets). Each is chosen to
+  /// fit inside a shape this painter draws — an 82x40 pill, a 20px-radius
+  /// token — so moving them onto a scale step would overflow the shape rather
+  /// than restyle the text. §23's preamble is explicit that a design pass does
+  /// not relitigate a derived value.
   void _paintLabel(
     Canvas canvas,
     String text,

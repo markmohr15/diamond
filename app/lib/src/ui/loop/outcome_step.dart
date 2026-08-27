@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:flutter/material.dart';
 
 /// Key the widget tests resolve against. Production code has no reason to
@@ -68,8 +69,8 @@ class OutcomeStep extends StatelessWidget {
       key: key,
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 22),
-        textStyle: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        padding: const EdgeInsets.symmetric(vertical: BrandMetrics.space2xl),
+        textStyle: Theme.of(context).textTheme.headlineLarge,
       ),
       child: Text(label),
     );

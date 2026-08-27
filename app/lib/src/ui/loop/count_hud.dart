@@ -2,6 +2,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
@@ -34,6 +35,7 @@ class CountHud extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
     final semantics = DiamondSemantics.of(context);
     final gs = ref.watch(gameControllerProvider).valueOrNull;
 
@@ -46,7 +48,10 @@ class CountHud extends ConsumerWidget {
     return Container(
       key: countHudKey,
       color: background,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: BrandMetrics.spaceLg,
+        vertical: 10,
+      ),
       child: Row(
         children: [
           // Long-press the count → §12.5's checkpoint sheet. The gesture the
@@ -61,24 +66,20 @@ class CountHud extends ConsumerWidget {
               // its neighbors. A monospaced face gives that for free, which is
               // why the tabular-figures feature it used to carry is gone —
               // every digit already has the same advance width.
-              style: TextStyle(
-                color: foreground,
-                fontSize: 34,
-                fontWeight: FontWeight.bold,
-              ).code,
+              style: text.displaySmall!.copyWith(color: foreground).code,
             ),
           ),
           const SizedBox(width: 24),
           Text(
             _outsLabel(gs),
-            style: TextStyle(color: foreground, fontSize: 20),
+            style: text.headlineMedium!.copyWith(color: foreground),
           ),
           const Spacer(),
           Text(
             _inningLabel(gs),
             // "▲3" is read as a tag, not as words — unlike `_outsLabel`
             // above it, which is the sentence "2 outs" and stays prose.
-            style: TextStyle(color: foreground, fontSize: 20).code,
+            style: text.headlineMedium!.copyWith(color: foreground).code,
           ),
           const SizedBox(width: 12),
           IconButton(
@@ -150,7 +151,7 @@ class _CountCorrectionSheetState extends State<_CountCorrectionSheet> {
       children: [
         SizedBox(
           width: 72,
-          child: Text(label, style: const TextStyle(fontSize: 18)),
+          child: Text(label, style: Theme.of(context).textTheme.titleLarge),
         ),
         for (var i = 0; i <= max; i++)
           Padding(
@@ -174,10 +175,10 @@ class _CountCorrectionSheetState extends State<_CountCorrectionSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
+            Text(
               'Set the count',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 16),
             _chipRow(

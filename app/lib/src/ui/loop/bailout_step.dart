@@ -37,10 +37,7 @@ class BailoutStep extends StatelessWidget {
                 child: FilledButton.tonal(
                   onPressed: () => onChosen(outcome),
                   style: FilledButton.styleFrom(
-                    textStyle: const TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle: Theme.of(context).textTheme.displayMedium,
                   ),
                   child: Text(label),
                 ),
