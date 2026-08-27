@@ -101,10 +101,38 @@ TARGETS = [
     # The splash lockup, unenclosed, on transparency.
     ("mark_light.svg", mark(512, SPLASH, GRASS, CLAY)),
     ("mark_dark.svg", mark(512, SPLASH, GRASS_LIT, CLAY_LIT)),
-    # The dark icon, for a dark-mode app icon and anywhere the mark needs to
-    # sit on Ink.
-    ("icon_dark.svg", mark(1024, ICON, GRASS_LIT, CLAY_LIT, bg=INK)),
 ]
+
+# How each PNG has to be encoded, because the platforms disagree:
+#
+#   opaque      iOS rejects an app icon that carries an alpha channel at all.
+#   transparent Android's adaptive foreground is nothing but alpha, and the
+#               splash mark sits on a background the OS paints.
+ENCODING = {
+    "icon.svg": ("opaque", GRASS),
+    "icon_foreground.svg": ("transparent", None),
+    "mark_light.svg": ("transparent", None),
+    "mark_dark.svg": ("transparent", None),
+}
+
+
+def render(svg_name):
+    src = os.path.join(OUT, svg_name)
+    dst = src[:-4] + ".png"
+    kind, bg = ENCODING[svg_name]
+    # -strip is what makes this reproducible: ImageMagick otherwise stamps
+    # date:create/date:modify into every file, so a regeneration that changed
+    # nothing would still show up as four modified binaries in the diff — and
+    # a generator whose output always looks changed is one nobody re-runs.
+    if kind == "opaque":
+        cmd = ["magick", src, "-background", bg,
+               "-alpha", "remove", "-alpha", "off", "-strip", "PNG24:" + dst]
+    else:
+        cmd = ["magick", "-background", "none", src, "-strip", "PNG32:" + dst]
+    subprocess.run(cmd, check=True)
+    return dst
+
 
 for name, svg in TARGETS:
     print("wrote", write(name, svg))
+    print("wrote", render(name))
