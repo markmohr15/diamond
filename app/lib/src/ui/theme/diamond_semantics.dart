@@ -21,6 +21,8 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     required this.misplay,
     required this.callable,
     required this.callableOutline,
+    required this.grassLine,
+    required this.clayLine,
   });
 
   /// Built from the baseline, so a semantic color can never drift from the
@@ -42,6 +44,17 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
         callableOutline: BrandBaseline.grass.withValues(
           alpha: baseline.brightness == Brightness.light ? 0.34 : 0.42,
         ),
+        // The "as line" row of §23.3's table, which until now had no home in
+        // code. Grass and Clay keep their light values wherever they are a
+        // *fill* with Chalk on top — those are BrandBaseline.grass/clay — and
+        // take the lifted values only as strokes, icons and text, where the
+        // light values disappear against Ink.
+        grassLine: baseline.brightness == Brightness.light
+            ? BrandBaseline.grass
+            : BrandBaseline.grassLit,
+        clayLine: baseline.brightness == Brightness.light
+            ? BrandBaseline.clay
+            : BrandBaseline.clayLit,
       );
 
   /// Dusk (violet): the count is ambiguous (§12.5, §11.2). Violet because
@@ -67,6 +80,12 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
   final Color callable;
   final Color callableOutline;
 
+  /// Grass and Clay as **line** rather than fill — brand tier 1, so neither
+  /// moves with a team accent (§23.3). The splash tagline is [grassLine]; the
+  /// splash progress fill is [clayLine].
+  final Color grassLine;
+  final Color clayLine;
+
   /// The error color is [ColorScheme.error]; it is not duplicated here.
   static DiamondSemantics of(BuildContext context) =>
       Theme.of(context).extension<DiamondSemantics>()!;
@@ -78,12 +97,16 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     Color? misplay,
     Color? callable,
     Color? callableOutline,
+    Color? grassLine,
+    Color? clayLine,
   }) => DiamondSemantics(
     uncertainty: uncertainty ?? this.uncertainty,
     onUncertainty: onUncertainty ?? this.onUncertainty,
     misplay: misplay ?? this.misplay,
     callable: callable ?? this.callable,
     callableOutline: callableOutline ?? this.callableOutline,
+    grassLine: grassLine ?? this.grassLine,
+    clayLine: clayLine ?? this.clayLine,
   );
 
   @override
@@ -99,6 +122,8 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
         other.callableOutline,
         t,
       )!,
+      grassLine: Color.lerp(grassLine, other.grassLine, t)!,
+      clayLine: Color.lerp(clayLine, other.clayLine, t)!,
     );
   }
 
@@ -108,7 +133,9 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       other.uncertainty == uncertainty &&
       other.onUncertainty == onUncertainty &&
       other.misplay == misplay &&
-      other.callable == callable;
+      other.callable == callable &&
+      other.grassLine == grassLine &&
+      other.clayLine == clayLine;
 
   @override
   int get hashCode =>
