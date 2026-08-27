@@ -117,11 +117,11 @@ void main() {
     await tester.pumpAndSettle();
     await placeActualAt(tester, ZoneCoord(x: 1.6, y: 0.5));
     await tapText(tester, 'Ball'); // the suggestion, tapped from the big button
-    expect(find.text('1-0'), findsOneWidget);
+    expect(find.text('1-0', findRichText: true), findsOneWidget);
 
     // P2 — called strike.
     await quickPitch(tester, 'Called strike');
-    expect(find.text('1-1'), findsOneWidget);
+    expect(find.text('1-1', findRichText: true), findsOneWidget);
 
     // P3 — the scorer looked up and the count changed (§12.5).
     await quickPitch(tester, 'Unknown');
@@ -134,7 +134,8 @@ void main() {
         ).colorScheme.surfaceContainerHigh,
       ),
     );
-    expect(find.text('1-1'), findsOneWidget); // unchanged — never guessed
+    // unchanged — never guessed
+    expect(find.text('1-1', findRichText: true), findsOneWidget);
 
     // The checkpoint: scoreboard says 2-1, make it so.
     await tester.longPress(find.byKey(countHudCountKey));
@@ -143,7 +144,7 @@ void main() {
     await tester.tap(find.widgetWithText(ChoiceChip, '2').first);
     await tester.pumpAndSettle();
     await tapText(tester, 'Make it 2-1');
-    expect(find.text('2-1'), findsOneWidget);
+    expect(find.text('2-1', findRichText: true), findsOneWidget);
     final clearedHud = tester.widget<Container>(find.byKey(countHudKey));
     expect(
       clearedHud.color,
@@ -155,9 +156,9 @@ void main() {
 
     // P4–P6: foul, ball, ball four.
     await quickPitch(tester, 'Foul');
-    expect(find.text('2-2'), findsOneWidget);
+    expect(find.text('2-2', findRichText: true), findsOneWidget);
     await quickPitch(tester, 'Ball');
-    expect(find.text('3-2'), findsOneWidget);
+    expect(find.text('3-2', findRichText: true), findsOneWidget);
     await quickPitch(tester, 'Ball');
 
     // Ball four: the forced advance auto-applied (§11.3 v0.41) — no
@@ -166,7 +167,7 @@ void main() {
     var gs = container.read(gameControllerProvider).requireValue;
     expect(gs.bases.first, 'opp-1');
     expect(gs.batterDue('opp'), 'opp-2');
-    expect(find.text('0-0'), findsOneWidget);
+    expect(find.text('0-0', findRichText: true), findsOneWidget);
 
     // P7 — opp-2 puts it in play; nobody saw where it crossed. The field
     // surface opens (§15.1, DIA-008a); this script discards the play — its
@@ -280,6 +281,6 @@ void main() {
     gs = container.read(gameControllerProvider).requireValue;
     expect(gs.bases.first, isNull);
     expect((gs.balls, gs.strikes), (3, 2));
-    expect(find.text('3-2'), findsOneWidget);
+    expect(find.text('3-2', findRichText: true), findsOneWidget);
   });
 }

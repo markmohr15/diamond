@@ -32,7 +32,7 @@ void main() {
     // The count HUD is up with the seeded game's zero state, and the loop
     // sits on §11.1's first step: the call, whole arsenal on screen.
     expect(find.byKey(countHudKey), findsOneWidget);
-    expect(find.text('0-0'), findsOneWidget);
+    expect(find.text('0-0', findRichText: true), findsOneWidget);
     expect(find.byType(CallScreen), findsOneWidget);
     for (final type in StubTeamCallConfig.arsenal) {
       expect(find.text(type.name), findsOneWidget);
