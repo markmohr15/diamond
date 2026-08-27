@@ -102,5 +102,21 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 
 **Score a half-inning of one game, locally, no backend:** event store + projection engine + rules engine
 passing all play fixtures + scoring overrides + zone canvas + pitch bounce capture + call screen + pitch
-loop + field canvas subset + one scripted end-to-end half-inning test. Tickets DIA-001 … DIA-011. Server
-work is out of scope until M2.
+loop + field canvas subset + one scripted end-to-end half-inning test. Server work is out of scope
+until M2.
+
+**The bar for calling M1 done (Mark, 2026-08-27)** — capability is necessary and not sufficient:
+
+- the known small bugs are **gone**, not triaged;
+- **99.9% of possible plays score correctly**, which is a statement about the derivation being right
+  rather than about the entry surface being complete;
+- and where it cannot be right, the **scorer can override** — the §13.5 pattern, so an unreachable
+  judgment call never becomes an unscorable play.
+
+The middle one is the load-bearing clause: it means a play that enters cleanly but derives wrongly is
+an M1 blocker, and it is why DIA-015 gates DIA-009 rather than riding alongside it.
+
+**Tickets: DIA-001 … DIA-012, plus DIA-014, DIA-015, DIA-016.** The old range stopped at DIA-011,
+which was written before 014 and 015 existed and undercounted M1 by two. **DIA-013** (the batter
+figure) is the only outstanding ticket that is *not* M1 — it is an illustration-sourcing problem, and
+nothing scores wrongly without it.
