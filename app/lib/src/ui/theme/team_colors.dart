@@ -66,7 +66,7 @@ class StubTeamColors {
   static const TeamColors ownTeam = TeamColors(
     id: 'own',
     name: 'Riverside Thunder',
-    // Grass — the baseline accent (§23.3). A team that has not set a colour
+    // Grass — the baseline accent (§23.3). A team that has not set a color
     // falls back to this, and until rosters exist that is every team.
     primaryHex: '#2E5E3E',
     // Chart series only — see [TeamColors.secondaryHex].

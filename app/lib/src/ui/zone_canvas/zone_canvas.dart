@@ -1,9 +1,9 @@
 import 'dart:math' as math;
-
 import 'package:diamond/src/call/call_zone.dart';
 import 'package:diamond/src/call/canonical_cells.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/call/call_grid_painter.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter/gestures.dart';
@@ -1303,8 +1303,11 @@ class _TopDownBackgroundPainter extends CustomPainter {
           // Unsigned: the plate sits between the two sides, so which way is
           // toward the catcher is not something a label has to carry.
           text: '${foot.abs().toInt()} ft',
+          // A distance in feet is a code (§23.5), and these sit in a column
+          // where the digits should line up.
           style: TextStyle(
             color: structure.withValues(alpha: 0.55),
+            fontFamily: BrandType.mono,
             fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
@@ -1547,8 +1550,12 @@ class _ModeBanner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         child: Text(
           label,
+          // An eyebrow (BrandType.eyebrow): mono like a code, but it keeps
+          // its tracking rather than zeroing it the way `.code` would — wide
+          // letter-spacing is what makes a small uppercase tag legible.
           style: TextStyle(
             color: scheme.onPrimary,
+            fontFamily: BrandType.mono,
             fontWeight: FontWeight.bold,
             fontSize: 12,
             letterSpacing: 1.2,

@@ -7,8 +7,6 @@ import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:flutter/material.dart';
 
-import '../../golden_tags.dart';
-
 const _canvasSize = Size(700, 640);
 
 /// The field render (§16.3, §18.7), painter-direct: deterministic, no
@@ -51,7 +49,6 @@ void main() {
   goldenTest(
     'field canvas from the 12U profile',
     fileName: 'field_canvas',
-    tags: platformSensitiveGolden,
     builder: () => GoldenTestGroup(
       columns: 2,
       children: [

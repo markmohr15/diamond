@@ -2,6 +2,7 @@ import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -332,12 +333,15 @@ class _CodeDisplay extends StatelessWidget {
       child: Text(
         pending.code ?? '—',
         key: callScreenCodeKey,
+        // A wristband code is the type specimen for the mono rule (§23.5):
+        // three digits looked up on a band, read one at a time, never read as
+        // a word.
         style: TextStyle(
           color: Theme.of(context).colorScheme.primary,
           fontSize: _codeFontSize,
           fontWeight: FontWeight.bold,
           height: 1,
-        ),
+        ).code,
       ),
     );
   }

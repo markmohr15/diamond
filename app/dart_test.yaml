@@ -1,7 +1,19 @@
 tags:
+  # Every golden is platform-sensitive now.
+  #
+  # Before DIA-016 only two were: text was rendered as blocks, so the only
+  # thing that could differ between macOS and Linux was curve anti-aliasing,
+  # and 27 of 29 images came out byte-identical. Real type changed that —
+  # glyph rasterization differs between platforms far more than curves do, and
+  # every image carrying a string now drifts.
+  #
+  # So goldens are generated on Linux (tools/goldens.sh), which is where CI
+  # compares them, and skipped by default so a bare local `flutter test` stays
+  # a clean signal rather than ten failures nobody can act on. CI runs them
+  # with `--run-skipped`.
+  #
+  # A tolerance comparator was the alternative and is worse: it would have to
+  # be wide enough to absorb glyph antialiasing, which is wide enough to hide
+  # a moved chip.
   golden:
-  # Skipped by default so a bare `flutter test` is green and meaningful on
-  # any machine. CI runs them with `--run-skipped`; regenerate with
-  # tools/goldens.sh. See test/golden_tags.dart for why these two only.
-  platform-sensitive:
-    skip: "platform-specific pixels — run in CI, or regenerate via tools/goldens.sh"
+    skip: "platform-specific pixels — CI runs these; regenerate via tools/goldens.sh"

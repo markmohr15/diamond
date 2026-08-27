@@ -1,4 +1,5 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
 
@@ -97,6 +98,11 @@ ThemeData buildTheme(ColorScheme scheme) {
   final baseline = BrandBaseline.of(scheme.brightness);
   return ThemeData(
     colorScheme: scheme,
+    // Tier 1, and brightness-independent: the same scale in both themes
+    // (BrandType). Passed with null colors so Material's brightness-appropriate
+    // defaults still supply ink and only face, size, weight and tracking come
+    // from us.
+    textTheme: BrandType.textTheme,
     // Tier 1: nav chrome is baseline, and stays baseline under an opponent
     // accent (§23.3).
     appBarTheme: AppBarTheme(

@@ -62,6 +62,34 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # Bundled, never fetched. Offline-first is the prime directive (§12.6, §19.1,
+  # §21.5): a dugout has no signal, and a face that arrives over the network is
+  # a blank label on the Saturday it matters. This is also why `google_fonts` is
+  # not a dependency — its default behavior is a runtime fetch. Both halves are
+  # pinned by `test/ui/theme/typography_test.dart`.
+  #
+  # Static weights rather than variable: the scale is fixed and asks for exactly
+  # these three. The 500 files self-report their family as "... Medium" (Google's
+  # legacy naming model); Flutter keys off the `family` and `weight` declared
+  # here and ignores the name table, so this grouping is what counts.
+  fonts:
+    - family: Space Grotesk
+      fonts:
+        - asset: fonts/SpaceGrotesk-400.ttf
+          weight: 400
+        - asset: fonts/SpaceGrotesk-500.ttf
+          weight: 500
+        - asset: fonts/SpaceGrotesk-700.ttf
+          weight: 700
+    - family: JetBrains Mono
+      fonts:
+        - asset: fonts/JetBrainsMono-400.ttf
+          weight: 400
+        - asset: fonts/JetBrainsMono-500.ttf
+          weight: 500
+        - asset: fonts/JetBrainsMono-700.ttf
+          weight: 700
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg
