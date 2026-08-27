@@ -3,6 +3,42 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.49
+
+**Wild pitch vs. passed ball is the scorer's call, always (§13.2)** — the one place §13 does not
+derive. The scorer says which it was on the advance's `wild_pitch` / `passed_ball` reason (§4.3), the
+projection reads that, and Diamond has no logic for choosing between them.
+
+v0.41 had made it a derivation: a passed ball was an ordinary-effort `missed_catch` touch recorded
+against the pitch, a wild pitch was the absence of one. The implementation followed faithfully and
+documented itself as taking the answer "from physics, never from the advance's label" — so a
+`passed_ball`-labelled advance with no such touch was scored a **wild pitch**, overruling the scorer
+who had just said otherwise.
+
+**What makes this exception principled rather than convenient** is that the evidence is *optional to
+enter*. Everywhere else in §13 the physical record is complete by construction — a fielder either
+touched the ball or she did not, and both are recorded by the act of entering the play. Here,
+`bounceLocation` is an extra tap and a `missed_catch` touch on a pitch nobody fielded is another, and
+a scorer working at game speed may enter neither. Reading that absence as meaning charges the
+**pitcher** whenever the scorer was busy, which is a ruling about the scorer's workload rather than
+about the play. Mark, deciding it: *"we may not even have the physics a decent amount of the time
+there."*
+
+It is also not the kind of judgment §13 exists to remove. Charging an error applies an objective test
+(ordinary effort) to something observable. Which of two players let the ball get away is a genuine
+real-time call — a low-and-away pitch that handcuffs a catcher is exactly the case — and the only
+reliable observer is the person watching. So the scorer declaring it **is** recording an observation
+rather than issuing a ruling, which is what §13's principle asks for, not an exemption from it.
+
+`bounceLocation` and any `missed_catch` touch are still recorded when entered and still feed the
+pitching book, the heat maps and the error model. They become **corroboration, never the decider**:
+nothing reconciles the label against them, and a disagreement between the two is not an error
+condition. A passed ball still feeds §13.3's earned-run reconstruction; it simply arrives from the
+label instead of from a touch.
+
+No schema change — `wild_pitch` and `passed_ball` already exist as `RunnerAdvanceReason` values, and
+the entry paths already write them. The work is deletion: DIA-015 Part 4.
+
 ## v0.48
 
 **§23 gains a type section (§23.5); Review moves to §23.6.** Diamond had two typefaces and no written
