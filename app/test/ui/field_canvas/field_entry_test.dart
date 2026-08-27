@@ -1302,13 +1302,14 @@ void main() {
       expect(find.byKey(sacrificeChipKey), findsNothing);
     });
 
-    testWidgets('a fly ball never asks — the sac fly derives', (tester) async {
+    testWidgets('a fly with nobody scoring does not ask', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await tapWorld(tester, FieldCoord(x: 0, y: 180));
       expect(find.byKey(sacrificeChipKey), findsNothing);
     });
+
   });
 
   group('the locked path and the reset (§15.1 v0.43)', () {

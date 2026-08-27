@@ -455,26 +455,43 @@ class PlayDraft {
     (touch) => touch.touchType == TouchType.CAUGHT,
   );
 
-  /// Whether this play needs §13's sacrifice judgment: a bunt that moved a
-  /// runner up. Only the scorer can say whether she was giving herself up,
-  /// so the surface offers the answer exactly here.
+  /// Whether this play needs §13.6's sacrifice judgment — the two cases only
+  /// the scorer can settle.
+  ///
+  /// **A bunt that moved a runner up.** No derivation exists for a bunt:
+  /// whether she was giving herself up or bunting for a hit looks identical in
+  /// the physical record, so the surface has to ask.
+  ///
+  /// **A fly that was *not* caught, with a runner scoring.** This is the sac
+  /// fly's second clause — dropped, and a runner scores who in the scorer's
+  /// judgment could have scored had it been caught. It is judgment for the
+  /// same reason: nothing in the record says whether the runner would have
+  /// made it.
+  ///
+  /// Clause (1) — caught, and a runner scores — is deliberately absent. That
+  /// one derives with no judgment in it, so asking there would be a question
+  /// with a known answer.
   bool get invitesSacrifice {
-    if (trajectory != Trajectory.BUNT) return false;
-    return entries.any(
+    bool movedARunner(bool Function(LegEntry) reached) => entries.any(
       (entry) =>
-          entry is LegEntry &&
-          entry.runnerId != batterId &&
-          entry.to > entry.from,
+          entry is LegEntry && entry.runnerId != batterId && reached(entry),
     );
+
+    if (trajectory == Trajectory.BUNT) {
+      return movedARunner((leg) => leg.to > leg.from);
+    }
+
+    const airborne = {Trajectory.FLY, Trajectory.POPUP, Trajectory.LINE};
+    if (!airborne.contains(trajectory) || caughtInFlight) return false;
+    return movedARunner((leg) => leg.to == 4);
   }
 
   /// A committable draft has the two facts §11.1 always collects — but only
   /// a batted ball has them. A between-pitch entry (§15.6) has no landing
   /// and no trajectory; what makes it committable is that something is on
   /// the chain to commit.
-  bool get committable => battedBall
-      ? landing != null && trajectory != null
-      : entries.isNotEmpty;
+  bool get committable =>
+      battedBall ? landing != null && trajectory != null : entries.isNotEmpty;
 
   /// Whether the drawn path is frozen (§15.1 v0.43): once anything beyond
   /// the opening walk-up has been entered, the ball's path stops being
@@ -1112,18 +1129,20 @@ class PlayDraft {
           TouchEntry() => PendingEvent(
             type: 'FielderTouch',
             localKey: entryKey(entry.key),
-            payload: FielderTouch(
-              ballInPlayEventId: '',
-              position: entry.position,
-              touchType: entry.touchType,
-              ordinaryEffort:
-                  entry.ordinaryEffort ??
-                  defaultOrdinaryEffort(entry.touchType),
-              receivedQuality: entry.receivedQuality,
-              location: entry.location,
-            ).toJson()..['ballInPlayEventId'] = battedBall
-                ? localRef(bipKey)
-                : pitchEventId,
+            payload:
+                FielderTouch(
+                    ballInPlayEventId: '',
+                    position: entry.position,
+                    touchType: entry.touchType,
+                    ordinaryEffort:
+                        entry.ordinaryEffort ??
+                        defaultOrdinaryEffort(entry.touchType),
+                    receivedQuality: entry.receivedQuality,
+                    location: entry.location,
+                  ).toJson()
+                  ..['ballInPlayEventId'] = battedBall
+                      ? localRef(bipKey)
+                      : pitchEventId,
           ),
           LegEntry() => PendingEvent(
             type: 'RunnerAdvance',
