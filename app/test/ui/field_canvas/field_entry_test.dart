@@ -1619,6 +1619,40 @@ void main() {
           'opp-1');
     });
 
+    testWidgets('a pickoff: the throw over, and she does not get back', (
+      tester,
+    ) async {
+      // "Picked off" has been on the OUT menu since DIA-008d and had **zero**
+      // test coverage — untested rather than unbuilt, which is the worse of
+      // the two to not know about.
+      //
+      // Consequence-free attempts are deliberately out of scope (Mark,
+      // 2026-08-27): a throw over that the runner dives back into safely
+      // records nothing, which is why `PickoffAttempt` was never needed.
+      await runnerOnFirstThenField(tester);
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[3]!,
+      );
+      await dragToken(tester, 1, 1, target: 'out', originFrom: 1);
+      await tapKey(tester, outChipKey('picked_off'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final out = events
+          .where((e) => e.type == 'RunnerOut')
+          .map((e) => RunnerOut.fromJson(e.payload))
+          .single;
+      expect(out.how, How.PICKED_OFF);
+      expect(out.runnerId, 'opp-1');
+      expect(container.read(gameControllerProvider).value!.outs, 1);
+      expect(
+        container.read(gameControllerProvider).value!.bases.first,
+        isNull,
+        reason: 'she is off the base she was picked off',
+      );
+    });
+
     testWidgets('caught stealing carries the throw: 2-6 putout and assist', (
       tester,
     ) async {
