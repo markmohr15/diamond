@@ -2,6 +2,7 @@ import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -20,6 +21,11 @@ const Key callScreenPitchThrownKey = Key('callScreenPitchThrown');
 ///
 /// §10.3 wants it at 120pt+; `height: 1` on the style makes the line box that
 /// tall exactly, so the constant and the font size move together.
+// Deliberately not a slot on the type scale (§23.5). The code is the one
+// thing the pitcher reads from across the circle, and 120 is a purpose-built
+// size for that job rather than a step in a ladder — the scale tops out at 44,
+// which is a headline, not a signal. `_codeSlotHeight` derives from it, so it
+// is load-bearing for layout too.
 const double _codeFontSize = 120;
 const double _codeSlotHeight = _codeFontSize;
 
@@ -290,17 +296,17 @@ class _PitchTypeRow extends StatelessWidget {
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
-                      vertical: 12,
+                      vertical: BrandMetrics.spaceMd,
                     ),
                     child: Text(
                       type.name,
-                      style: TextStyle(
-                        color: type.id == selected
-                            ? scheme.onPrimary
-                            : scheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: type.id == selected
+                                ? scheme.onPrimary
+                                : scheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ),
                 ),

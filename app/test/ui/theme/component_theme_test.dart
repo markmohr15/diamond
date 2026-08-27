@@ -155,6 +155,48 @@ void main() {
       }
     });
 
+    test('the role ladder holds its order in both themes', () {
+      // Ground -> Card -> Raised is the one ordering that survives the theme
+      // flip. Lightness does not: in light the page is tinted and a card is
+      // bleached toward Chalk, in dark the page is the blackest thing and
+      // everything stacks upward from it. Components ask for the role.
+      double lum(Color c) => c.r + c.g + c.b;
+
+      const light = BrandBaseline.light;
+      expect(lum(light.card), greaterThan(lum(light.raised)));
+      expect(lum(light.raised), greaterThan(lum(light.ground)));
+
+      const dark = BrandBaseline.dark;
+      expect(lum(dark.raised), greaterThan(lum(dark.card)));
+      expect(lum(dark.card), greaterThan(lum(dark.ground)));
+    });
+
+    test('no role collides with another in either theme', () {
+      // Two roles resolving to one value is a ladder with a missing rung: the
+      // card would be invisible against whatever it sits on.
+      for (final b in [BrandBaseline.light, BrandBaseline.dark]) {
+        final roles = {b.ground, b.card, b.raised};
+        expect(roles, hasLength(3), reason: '${b.brightness}');
+      }
+    });
+
+    test('purity would not have worked, which is why roles exist', () {
+      // Pinned as an explanation, not a preference. The purest surface — the
+      // one nearest the theme's extreme — is the Card in light and the Ground
+      // in dark, so a name based on purity would hand a component a card in
+      // one theme and the page in the other.
+      expect(
+        BrandBaseline.light.card,
+        BrandBaseline.light.surfaceBright,
+        reason: 'in light the purest surface is the card',
+      );
+      expect(
+        BrandBaseline.dark.ground,
+        BrandBaseline.dark.surfaceContainerLowest,
+        reason: 'in dark the purest surface is the page',
+      );
+    });
+
     test('dialogs and cards take their radii from the token set', () {
       final t = _theme(Brightness.light);
       RoundedRectangleBorder shape(ShapeBorder? s) =>

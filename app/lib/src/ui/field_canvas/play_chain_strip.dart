@@ -5,6 +5,7 @@ import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/official_scoring.dart'
     show defaultOrdinaryEffort;
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -110,7 +111,10 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       children: [
         if (_reattributingLegKey != null)
           Padding(
-            padding: const EdgeInsets.only(left: 16, bottom: 2),
+            padding: const EdgeInsets.only(
+              left: BrandMetrics.spaceLg,
+              bottom: 2,
+            ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

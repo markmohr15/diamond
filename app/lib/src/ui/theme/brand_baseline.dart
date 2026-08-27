@@ -145,6 +145,37 @@ class BrandBaseline {
   /// gap rather than a tint.
   static const Color sheetShadow = Color(0xFF000000);
 
+  /// The design's own surface ladder: **Ground** is the page, **Card** sits on
+  /// Ground, **Raised** sits on Card.
+  ///
+  /// These exist because that ordering is the only one that holds in both
+  /// themes. Material's container ladder is consistent in *emphasis* but
+  /// inverted in *lightness* — its own baseline schemes run
+  /// `surfaceContainerLowest` from `#FFFFFF` in light to `#0F0D13` in dark —
+  /// and 1A follows suit: in light the page is tinted and a card is bleached
+  /// toward Chalk, while in dark the page is the blackest thing and everything
+  /// stacks upward from it.
+  ///
+  /// The consequence is that **no single Material slot means "card" in both
+  /// themes**, so a component picking one by hand gets a card in light and the
+  /// page in dark — a dialog invisible against the page behind it. Naming by
+  /// lightness or by "purity" would describe that honestly and still not fix
+  /// it, because purity and role genuinely disagree: the purest surface is the
+  /// Card in light and the Ground in dark. Role is the axis that does not
+  /// move, so role is what components ask for.
+  ///
+  /// Material's slots are left exactly as they are — Flutter's own widgets
+  /// read them, and they are correct on their own terms.
+  Color get ground => surface;
+
+  Color get card => brightness == Brightness.light
+      ? surfaceContainerLowest
+      : surfaceContainerLow;
+
+  Color get raised => brightness == Brightness.light
+      ? surfaceContainerLow
+      : surfaceContainerHigh;
+
   static const BrandBaseline light = BrandBaseline(
     brightness: Brightness.light,
     surface: Color(0xFFE7E5DE),
