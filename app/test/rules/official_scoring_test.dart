@@ -897,20 +897,49 @@ void main() {
       expect(scoring.passedBalls, 0);
     });
 
-    test('a misplay she could not have held is a wild pitch, not a PB', () {
+    test('the label decides, not the physics (§13.2 v0.49)', () {
+      // Labelled a passed ball with no catcher touch behind it. This used to
+      // score a **wild pitch** — the derivation read the absence of a touch as
+      // meaning, and overruled the scorer who had just said otherwise.
+      //
+      // The evidence is optional to enter, which is what makes reading its
+      // absence wrong: a `missed_catch` touch on a pitch nobody fielded is an
+      // extra tap, so the old rule charged the pitcher whenever the scorer was
+      // busy. Asking is cheaper than inferring from evidence that may not
+      // exist.
+      final scoring = foldOfficialScoring(getaway());
+      expect(scoring.passedBalls, 1);
+      expect(scoring.wildPitchesByPitcher, isEmpty);
+      expect(
+        scoring.pitchGetaways.single.position,
+        isNull,
+        reason: 'nobody was named, and it is still a passed ball',
+      );
+    });
+
+    test('an explicit wild_pitch stays one even with a catcher touch', () {
+      // The mirror of the case above, and the reason this is a rule rather
+      // than a convenience: the label wins in both directions. A touch that
+      // happens to exist does not promote a wild pitch into a passed ball.
       final scoring = foldOfficialScoring(
-        getaway(catcherTouch: TouchType.MISSED_CATCH, ordinaryEffort: false),
+        getaway(
+          reason: RunnerAdvanceReason.WILD_PITCH,
+          catcherTouch: TouchType.MISSED_CATCH,
+        ),
       );
       expect(scoring.wildPitchesByPitcher, {'pit': 1});
       expect(scoring.passedBalls, 0);
     });
 
-    test('physics decides, not the advance label', () {
-      // Labeled a passed ball with no catcher touch behind it: the ball
-      // getting away was the pitcher's doing whatever the chip said.
-      final scoring = foldOfficialScoring(getaway());
-      expect(scoring.passedBalls, 0);
-      expect(scoring.wildPitchesByPitcher, {'pit': 1});
+    test('ordinaryEffort still governs the error, never the WP/PB split', () {
+      // A catcher misplay she could not have held with ordinary effort is not
+      // an error. That judgment is untouched — it simply no longer decides
+      // *which* getaway this was, which is the scorer's call now.
+      final scoring = foldOfficialScoring(
+        getaway(catcherTouch: TouchType.MISSED_CATCH, ordinaryEffort: false),
+      );
+      expect(scoring.passedBalls, 1, reason: 'the chip said passed ball');
+      expect(scoring.errors, isEmpty, reason: 'not ordinary effort, no error');
     });
 
     test('nobody moved: a blocked pitch is charged to no one', () {

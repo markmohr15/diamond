@@ -607,22 +607,44 @@ OfficialScoring foldOfficialScoring(
 /// Advances that mean the pitch itself got away (§4.3). The dropped third
 /// strike is one of them: the batter reaching on an uncaught strike three
 /// is charged as a wild pitch or a passed ball like any other advance.
+/// The reasons that say a pitch got away.
+///
+/// `wild_pitch` and `passed_ball` say it directly, and under §13.2 v0.49 the
+/// scorer's label is the answer. `dropped_third_strike` is here for a
+/// different reason and is the **one remaining inference in this file**: it
+/// names the batter's *entitlement to run*, not what happened to the ball, and
+/// the stream carries no other field that could say which getaway it was.
+/// Rule 9.13 still charges one — the batter reaching on an uncaught third
+/// strike counts the same as a runner advancing — so it cannot simply be
+/// dropped. See `_pitchGetaways` for what decides it and why that is not the
+/// failure v0.49 set out to fix.
 const _getawayReasons = {
   RunnerAdvanceReason.WILD_PITCH,
   RunnerAdvanceReason.PASSED_BALL,
   RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
 };
 
-/// §13.2's WP/PB derivation, charged per rule 9.13's consequence test: a
-/// pitch that gets away counts only when it lets somebody move, and counts
-/// once however many runners move on it.
+/// §13.2's WP/PB charge, per rule 9.13's consequence test: a pitch that gets
+/// away counts only when it lets somebody move, and counts once however many
+/// runners move on it.
 ///
-/// Which of the two it is comes from physics, never from the advance's
-/// label — an ordinary-effort catcher misplay against the pitch makes it a
-/// passed ball, and the absence of one makes it the pitcher's wild pitch.
-/// A `passed_ball`-labeled advance with no such touch is therefore scored
-/// a wild pitch; §15.6's entry path always emits the touch alongside the
-/// chip, so the two only diverge in hand-authored streams.
+/// **Which of the two it is comes from the scorer (§13.2 v0.49), and there is
+/// no logic here for choosing.** This function reads the advance's reason and
+/// does not second-guess it.
+///
+/// It used to take the answer from physics — an ordinary-effort catcher
+/// misplay made it a passed ball, its absence made it a wild pitch — so a
+/// `passed_ball`-labelled advance with no such touch was scored a **wild
+/// pitch**, overruling the scorer who had just said otherwise. That is wrong
+/// for a specific reason: the evidence is *optional to enter*. A
+/// `missed_catch` touch on a pitch nobody fielded is an extra tap, and reading
+/// its absence as meaning charged the pitcher whenever the scorer was busy,
+/// which rules on the scorer's workload rather than on the play.
+///
+/// The catcher's misplay touch is still read, and still attributed on a passed
+/// ball — but as **corroboration, never the decider**. Nothing reconciles the
+/// label against it, and a disagreement between the two is not an error
+/// condition.
 List<PitchGetaway> _pitchGetaways({
   required List<_TouchRecord> touches,
   required List<_AdvanceRecord> advances,
@@ -646,19 +668,18 @@ List<PitchGetaway> _pitchGetaways({
   // its own pitch; a wild pitch has none, so it falls back to whichever
   // pitch was in the air.
   final movedOn = <String, List<String>>{};
+  final kindOnPitch = <String, PitchGetawayKind>{};
   for (final advance in advances) {
-    if (!_getawayReasons.contains(advance.payload.reason)) continue;
+    final reason = advance.payload.reason;
+    if (!_getawayReasons.contains(reason)) continue;
     final linked = touchById[advance.payload.enabledByTouchId];
 
-    // `dropped_third_strike` names the batter's *entitlement to run*, not
-    // what happened to the ball, so it is the one getaway reason that can
-    // be false. A reach claimed by some other misplay — the catcher blocks
-    // strike three, keeps it in front of her, then throws it away — is a
-    // reach on that error, not on a ball that got away: no WP, no PB, and
-    // never both an error and a passed ball for the same advance. Only a
-    // reach linked to a *receiving* misplay (a passed ball) or to nothing
-    // at all (a wild pitch) means the pitch itself got past her.
-    if (advance.payload.reason == RunnerAdvanceReason.DROPPED_THIRD_STRIKE &&
+    // `dropped_third_strike` is the one getaway reason that can be false. A
+    // reach claimed by some other misplay — the catcher blocks strike three,
+    // keeps it in front of her, then throws it away — is a reach on that
+    // error, not on a ball that got away: no WP, no PB, and never both an
+    // error and a passed ball for the same advance.
+    if (reason == RunnerAdvanceReason.DROPPED_THIRD_STRIKE &&
         linked != null &&
         !pitchReceivingTouchTypes.contains(linked.payload.touchType)) {
       continue;
@@ -671,26 +692,53 @@ List<PitchGetaway> _pitchGetaways({
         : advance.pitchAtTime;
     if (pitchId == null) continue;
     movedOn.putIfAbsent(pitchId, () => []).add(advance.eventId);
+    // One charge per pitch (rule 9.13), so the first labelled advance on it
+    // settles the kind. Two advances on one pitch disagreeing about which it
+    // was is a contradiction the scorer authored, not one to adjudicate here.
+    kindOnPitch.putIfAbsent(pitchId, () {
+      // The scorer said so: read it and stop.
+      if (reason == RunnerAdvanceReason.WILD_PITCH) {
+        return PitchGetawayKind.wildPitch;
+      }
+      if (reason == RunnerAdvanceReason.PASSED_BALL) {
+        return PitchGetawayKind.passedBall;
+      }
+      // A `dropped_third_strike` reach, where nothing in the stream says
+      // which. The catcher's misplay touch decides, which is the inference
+      // v0.49 removes everywhere it can — and it survives here only because
+      // there is no field to read instead.
+      //
+      // It is also the least harmful place for it: v0.49's objection is that
+      // the evidence is *optional to enter*, and on this path it is not. The
+      // D3K resolution mints the `missed_catch` touch itself when the scorer
+      // taps "Safe (passed ball)" and mints nothing when she taps "Safe (wild
+      // pitch)", so the touch is a faithful record of which button she chose
+      // rather than a guess from an incomplete entry. Closing it properly
+      // needs somewhere to put the answer — see DIA-015 Part 4.
+      return misplayOnPitch.containsKey(pitchId)
+          ? PitchGetawayKind.passedBall
+          : PitchGetawayKind.wildPitch;
+    });
   }
 
   return [
     for (final MapEntry(key: pitchId, value: advanceIds) in movedOn.entries)
       if (pitcherOfPitch[pitchId] case final pitcherId?)
-        if (misplayOnPitch[pitchId] case final touch?)
+        if (kindOnPitch[pitchId] case final kind?)
           PitchGetaway(
             pitchEventId: pitchId,
-            kind: PitchGetawayKind.passedBall,
+            kind: kind,
             pitcherId: pitcherId,
             advanceEventIds: advanceIds,
-            touchEventId: touch.eventId,
-            position: touch.payload.position,
-          )
-        else
-          PitchGetaway(
-            pitchEventId: pitchId,
-            kind: PitchGetawayKind.wildPitch,
-            pitcherId: pitcherId,
-            advanceEventIds: advanceIds,
+            // Attribution, not adjudication: name the catcher when the scorer
+            // recorded her misplay, and leave it null when she did not. A
+            // passed ball with nobody named is still a passed ball.
+            touchEventId: kind == PitchGetawayKind.passedBall
+                ? misplayOnPitch[pitchId]?.eventId
+                : null,
+            position: kind == PitchGetawayKind.passedBall
+                ? misplayOnPitch[pitchId]?.payload.position
+                : null,
           ),
   ];
 }
