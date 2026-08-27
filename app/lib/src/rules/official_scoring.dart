@@ -243,17 +243,50 @@ class OfficialScoring {
   }
 }
 
+/// One plate appearance: a batter, and **the slice of the stream that
+/// happened while she stood at the plate**.
+///
+/// The unit of official scoring is the plate appearance, not the batter
+/// (§13). Before this existed, `_batterOutcome` was handed the whole game's
+/// advances and outs plus a `batterId` and had to re-establish its own scope
+/// at every read — six reads across two functions using three different
+/// rules, three of which did no time scoping at all. A guard repeated at
+/// every read site is a bug waiting for the site somebody forgets, and three
+/// of the six had already forgotten.
+///
+/// Carrying the slice removes the question rather than answering it
+/// repeatedly: out-of-scope events are not filtered out, they are *absent*,
+/// and no call site can omit a guard it never has to write. `batterId`
+/// becomes what it should always have been — a label for attributing the
+/// finished line, and a way to tell the batter from the runners already
+/// aboard — never a key for searching game-wide collections.
+class _PlateAppearance {
+  _PlateAppearance(this.batterId);
+
+  final String batterId;
+
+  /// Everything that happened while she was up, **by any runner** — a
+  /// teammate's steal belongs to this PA as surely as her own single does,
+  /// which is what makes RBI scoping fall out for free.
+  final List<_AdvanceRecord> advances = [];
+  final List<_OutRecord> outs = [];
+
+  /// Her batted ball, if she put one in play, and the outs when she hit it.
+  String? battedBallId;
+  int? outsAtContact;
+}
+
 class _AdvanceRecord {
-  _AdvanceRecord(
-    this.eventId,
-    this.payload,
-    this.batterAtTime,
-    this.pitchAtTime,
-  );
+  _AdvanceRecord(this.eventId, this.payload, this.pitchAtTime);
 
   final String eventId;
   final RunnerAdvance payload;
-  final String? batterAtTime;
+
+  // No `batterAtTime` here, deliberately. It existed so that reads over the
+  // whole game's advances could ask "did this happen in my plate
+  // appearance" — the scope filter the partition removes. Deleting the field
+  // is what keeps it removed: re-introducing that question means putting the
+  // field back, which is a visible change rather than a quiet `continue`.
 
   /// The pitch this advance happened on, for §13.2's WP/PB derivation: a
   /// wild pitch has no touch to link back to, so the ball that got away
@@ -306,10 +339,15 @@ OfficialScoring foldOfficialScoring(
   // (§4.1 v0.43): the award follows its call in the stream.
   String? latestCatcherInterferenceCallId;
   final callsById = <String, RuleCall>{};
-  final outsAtContact = <String, int>{};
-  final battedBallOf = <String, String>{};
-  final batterOrder = <String>[];
   final strikeouts = <String, int>{};
+
+  // The partition. A new plate appearance opens when the batter changes, and
+  // an inning boundary closes whichever is open — without that second rule a
+  // batter interrupted by a third out made on the bases would continue her
+  // old PA next inning, when by rule she starts a fresh one and the
+  // interrupted one was never a plate appearance at all.
+  final plateAppearances = <_PlateAppearance>[];
+  _PlateAppearance? openPa;
 
   var state = startingFrom;
   var batterOfRecord = startingFrom.currentBatterId;
@@ -323,8 +361,9 @@ OfficialScoring foldOfficialScoring(
         pitchOfRecord = event.id;
         pitcherOfPitch[event.id] = pitch.pitcherId;
         batterOfRecord = pitch.batterId;
-        if (batterOrder.isEmpty || batterOrder.last != pitch.batterId) {
-          batterOrder.add(pitch.batterId);
+        if (openPa == null || openPa.batterId != pitch.batterId) {
+          openPa = _PlateAppearance(pitch.batterId);
+          plateAppearances.add(openPa);
         }
         if (pitch.outcome != Outcome.UNKNOWN &&
             pitch.outcome != Outcome.NO_PITCH) {
@@ -341,8 +380,9 @@ OfficialScoring foldOfficialScoring(
         }
       case 'BallInPlay':
         ballInPlayById[event.id] = BallInPlay.fromJson(event.payload);
-        outsAtContact[event.id] = state.outs;
-        battedBallOf[batterOfRecord ?? ''] = event.id;
+        openPa
+          ?..battedBallId = event.id
+          ..outsAtContact = state.outs;
       case 'FielderTouch':
         touches.add(
           _TouchRecord(
@@ -352,16 +392,23 @@ OfficialScoring foldOfficialScoring(
           ),
         );
       case 'RunnerAdvance':
-        advances.add(
-          _AdvanceRecord(
-            event.id,
-            RunnerAdvance.fromJson(event.payload),
-            batterOfRecord,
-            pitchOfRecord,
-          ),
+        final advance = _AdvanceRecord(
+          event.id,
+          RunnerAdvance.fromJson(event.payload),
+          pitchOfRecord,
         );
+        advances.add(advance);
+        openPa?.advances.add(advance);
       case 'RunnerOut':
-        outs.add(_OutRecord(event.id, RunnerOut.fromJson(event.payload)));
+        final out = _OutRecord(event.id, RunnerOut.fromJson(event.payload));
+        outs.add(out);
+        openPa?.outs.add(out);
+      case 'InningHalfStart':
+      case 'InningHalfEnd':
+        // Close the open PA. See the partition note above: the batter who was
+        // up when the side was retired starts a new plate appearance, not a
+        // continuation of the one that never finished.
+        openPa = null;
       case 'RuleCall':
         final call = RuleCall.fromJson(event.payload);
         if (call.callType == CallType.INTERFERENCE_CATCHER) {
@@ -465,20 +512,15 @@ OfficialScoring foldOfficialScoring(
   // Pass C: batter outcomes, RBIs, putouts/assists, unearned conditions —
   // everything that needs to know which errors were actually charged.
   final batterOutcomes = <BatterOutcome>[
-    for (final batterId in batterOrder)
+    for (final pa in plateAppearances)
       _batterOutcome(
-        batterId,
-        advances,
-        outs,
+        pa,
         chargedTouchIds,
         sacrifice: _sacrificeFor(
-          batterId,
-          battedBall: battedBallOf[batterId] == null
+          pa,
+          battedBall: pa.battedBallId == null
               ? null
-              : ballInPlayById[battedBallOf[batterId]],
-          outsAtContact: outsAtContact[battedBallOf[batterId]],
-          advances: advances,
-          outs: outs,
+              : ballInPlayById[pa.battedBallId],
           anyChargedError: errors.isNotEmpty,
         ),
       ),
@@ -731,16 +773,15 @@ const _nonAtBatReachReasons = {
 /// not the sacrifice's doing. An explicit flag overrides the derivation
 /// either way.
 String? _sacrificeFor(
-  String batterId, {
+  _PlateAppearance pa, {
   required BallInPlay? battedBall,
-  required int? outsAtContact,
-  required List<_AdvanceRecord> advances,
-  required List<_OutRecord> outs,
   required bool anyChargedError,
 }) {
   if (battedBall == null) return null;
   final bunt = battedBall.trajectory == Trajectory.BUNT;
-  final wasOut = outs.any((o) => o.payload.runnerId == batterId);
+  // Scoped by construction: `pa.outs` holds only what happened while she was
+  // up, so this can no longer report a batter retired three innings ago.
+  final wasOut = pa.outs.any((o) => o.payload.runnerId == pa.batterId);
 
   final judged = battedBall.sacrifice;
   if (judged ?? false) return bunt ? 'sacrifice_bunt' : 'sacrifice_fly';
@@ -757,12 +798,11 @@ String? _sacrificeFor(
       battedBall.trajectory == Trajectory.LINE;
   if (!airborne || !battedBall.landingIsCaught) return null;
   if (!wasOut || anyChargedError) return null;
-  if ((outsAtContact ?? 0) >= 2) return null;
+  if ((pa.outsAtContact ?? 0) >= 2) return null;
 
-  final scoredFromThird = advances.any(
+  final scoredFromThird = pa.advances.any(
     (a) =>
-        a.batterAtTime == batterId &&
-        a.payload.runnerId != batterId &&
+        a.payload.runnerId != pa.batterId &&
         a.payload.from == 3 &&
         a.payload.to == 4 &&
         a.payload.reason == RunnerAdvanceReason.BATTED_BALL,
@@ -771,14 +811,17 @@ String? _sacrificeFor(
 }
 
 BatterOutcome _batterOutcome(
-  String batterId,
-  List<_AdvanceRecord> advances,
-  List<_OutRecord> outs,
+  _PlateAppearance pa,
   Set<String> chargedTouchIds, {
   String? sacrifice,
 }) {
+  final batterId = pa.batterId;
+  // A who-filter, not a scope-filter: it asks which of *this* PA's advances
+  // are the batter's own, which is a real question about the play. The
+  // when-filters this function used to carry are gone — the slice answers
+  // them.
   final own = [
-    for (final a in advances)
+    for (final a in pa.advances)
       if (a.payload.runnerId == batterId) a,
   ];
   final reach = own.where((a) => a.payload.from == 0).firstOrNull;
@@ -788,15 +831,14 @@ BatterOutcome _batterOutcome(
   // `ground_rule` counts too (v0.43): a ground-rule double that scores a
   // runner drove her in as surely as any other two-base hit.
   var rbi = 0;
-  for (final a in advances) {
-    if (a.batterAtTime != batterId) continue;
+  for (final a in pa.advances) {
     if (a.payload.to != 4) continue;
     if (chargedTouchIds.contains(a.payload.enabledByTouchId)) continue;
     if (_rbiReasons.contains(a.payload.reason)) rbi++;
   }
 
   if (reach == null) {
-    final wasOut = outs.any((o) => o.payload.runnerId == batterId);
+    final wasOut = pa.outs.any((o) => o.payload.runnerId == batterId);
     return BatterOutcome(
       batterId: batterId,
       scoring: sacrifice ?? (wasOut ? 'out' : 'batting'),
