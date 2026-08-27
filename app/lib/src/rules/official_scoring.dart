@@ -475,8 +475,21 @@ OfficialScoring foldOfficialScoring(
     // the battery as a WP/PB; only a play on a *batted or thrown* ball can
     // become an E. The misplay above still stands: the physical record is
     // layer 1 and does not depend on what official scoring makes of it.
+    // Anchored to a pitch is not enough. §15.6 v0.45 hangs *every*
+    // between-pitch entry off the pitch that already exists, so a rundown's
+    // dropped exchange and a steal's muffed tag carry a pitch anchor too — and
+    // this exemption used to swallow them, silently un-charging an error on
+    // any play that happened between pitches.
+    //
+    // Receiving the *pitch* means nothing touched the ball before you on it.
+    // A fourth touch in a 3-6-3-4 rundown is receiving a throw.
+    final anchor = t.ballInPlayEventId;
+    final firstOnAnchor = !touches
+        .takeWhile((earlier) => earlier.eventId != touch.eventId)
+        .any((earlier) => earlier.payload.ballInPlayEventId == anchor);
     if (pitchReceivingTouchTypes.contains(t.touchType) &&
-        pitchEventIds.contains(t.ballInPlayEventId)) {
+        pitchEventIds.contains(anchor) &&
+        firstOnAnchor) {
       continue;
     }
 
