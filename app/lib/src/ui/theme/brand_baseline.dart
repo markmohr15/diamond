@@ -99,13 +99,14 @@ class BrandBaseline {
   final Color uncertainty;
   final Color onUncertainty;
 
-  /// §23.2: misplay — physical, fault not yet adjudicated (§13, §15.3). The
-  /// same amber as [uncertainty] deliberately: both mean "this needs your
-  /// judgement later," which is one idea. Kept as its own field because the two
-  /// meanings are separate and either may need to diverge; call sites should
-  /// name the one they mean.
+  /// §23.2: misplay — physical, fault not yet adjudicated (§13, §15.3).
+  ///
+  /// **Rosin amber, and no longer the same value as [uncertainty]** (v0.47).
+  /// The two were one color on the reasoning that both mean "this needs your
+  /// judgment later." They do not ask the coach for the same thing: one says
+  /// *I do not know what happened*, the other says *I know exactly what
+  /// happened and someone muffed it*. Call sites name the one they mean.
   final Color misplay;
-
 
   /// §23.2: error state / invalid input.
   final Color error;
@@ -125,6 +126,24 @@ class BrandBaseline {
   /// Grass and Clay disappear against Ink.
   static const Color grassLit = Color(0xFF5FA97A);
   static const Color clayLit = Color(0xFFD07E4E);
+
+  /// The shadow cast by a raised surface — Ink, at low alpha. **One value for
+  /// both themes**, which is what the design panels do: 6A reuses 5A's shadow
+  /// unchanged (§23.3, v0.48).
+  ///
+  /// It behaves differently in each theme, and that is the intent rather than
+  /// an oversight. Over the light ground it darkens, as a shadow should. Over
+  /// the dark ground it composites *lighter* than the surface, and over a dark
+  /// card it lands on its own value and disappears entirely — so in dark the
+  /// separation is carried by the surface ladder (ground → card → raised) and
+  /// the shadow does nothing. Both facts are true at once: one shadow is
+  /// defined, and no shadow reads in dark.
+  static const Color shadow = Color(0xFF16211C);
+
+  /// The upward shadow under a sheet lifting off the bottom edge. Black rather
+  /// than Ink: a sheet occludes the whole page behind it, and the cast is a
+  /// gap rather than a tint.
+  static const Color sheetShadow = Color(0xFF000000);
 
   static const BrandBaseline light = BrandBaseline(
     brightness: Brightness.light,

@@ -1,11 +1,16 @@
 import 'package:diamond/src/field/field_profile.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:flutter/material.dart';
 
 /// Every question the field surface asks (§15.1 v0.43): a centered dialog,
-/// only as big as its content — and sized for a coach standing in a dugout
-/// with the sun on the screen, not for a mouse. The chip and button themes
-/// are scaled here rather than at each call site so one decision governs
-/// every popup: trajectory, what-happened, SAFE/OUT, the ⚖ menus.
+/// only as big as its content.
+///
+/// It used to scale its own chip, button and list-tile themes here, because
+/// there was nothing shared to reach for — which meant every popup on the
+/// field surface inherited its sizing from this one function by accident of
+/// history, and nothing outside the field got it at all. DIA-016d moved those
+/// decisions onto the theme (`buildTheme`), so what is left here is the only
+/// part that was ever specific to this dialog: **its layout**.
 Future<T?> showFieldDialog<T>(
   BuildContext context, {
   required String title,
@@ -13,50 +18,26 @@ Future<T?> showFieldDialog<T>(
   CrossAxisAlignment alignment = CrossAxisAlignment.center,
 }) {
   final theme = Theme.of(context);
-  const chipPadding = EdgeInsets.symmetric(horizontal: 16, vertical: 16);
-  const buttonPadding = EdgeInsets.symmetric(horizontal: 36, vertical: 22);
 
   return showDialog<T>(
     context: context,
-    builder: (context) => Theme(
-      data: theme.copyWith(
-        chipTheme: theme.chipTheme.copyWith(
-          labelStyle: theme.textTheme.titleMedium,
-          padding: chipPadding,
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            textStyle: theme.textTheme.titleMedium,
-            padding: buttonPadding,
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            textStyle: theme.textTheme.titleMedium,
-            padding: buttonPadding,
-          ),
-        ),
-        listTileTheme: theme.listTileTheme.copyWith(
-          titleTextStyle: theme.textTheme.titleMedium,
-          minVerticalPadding: 12,
-        ),
-      ),
-      child: Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: alignment,
-              children: [
-                Text(title, style: theme.textTheme.headlineSmall),
-                const SizedBox(height: 20),
-                // Built against the dialog's own context: anything that
-                // pops with a result must pop *this* route.
-                ...children(context),
-              ],
-            ),
+    builder: (context) => Dialog(
+      child: ConstrainedBox(
+        // A measure, not a breakpoint: past this the eye loses the start of
+        // the next line, and these are read at a glance.
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: Padding(
+          padding: const EdgeInsets.all(BrandMetrics.space3xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: alignment,
+            children: [
+              Text(title, style: theme.textTheme.headlineSmall),
+              const SizedBox(height: BrandMetrics.spaceXl),
+              // Built against the dialog's own context: anything that
+              // pops with a result must pop *this* route.
+              ...children(context),
+            ],
           ),
         ),
       ),
