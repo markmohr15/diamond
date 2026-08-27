@@ -1,4 +1,5 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
+import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/material.dart';
@@ -96,6 +97,7 @@ Color _resolveAccent(Color seed, BrandBaseline baseline) => seed;
 /// [DiamondSemantics] extension. The only place a [ThemeData] is constructed.
 ThemeData buildTheme(ColorScheme scheme) {
   final baseline = BrandBaseline.of(scheme.brightness);
+  const theme = BrandType.textTheme;
   return ThemeData(
     colorScheme: scheme,
     // Tier 1, and brightness-independent: the same scale in both themes
@@ -110,6 +112,69 @@ ThemeData buildTheme(ColorScheme scheme) {
       foregroundColor: baseline.onChrome,
     ),
     scaffoldBackgroundColor: scheme.surface,
+
+    // The component vocabulary (§23.1.4, DIA-016d). Sized for a coach
+    // standing in a dugout with the sun on the screen, and stated once here
+    // rather than at each call site — which is how `field_dialog.dart` ended
+    // up scaling its own chips, buttons and list tiles, and why every popup on
+    // the field surface inherited from that one function by accident.
+    //
+    // `minimumSize` is the touch floor doing its work: Material's own default
+    // is smaller than BrandMetrics.minTouchTarget, so leaving these unset is
+    // what would let a 32px control ship.
+    filledButtonTheme: FilledButtonThemeData(style: _buttonStyle(theme)),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle(theme)),
+    textButtonTheme: TextButtonThemeData(style: _buttonStyle(theme)),
+    chipTheme: ChipThemeData(
+      labelStyle: theme.titleMedium,
+      // Vertical padding rather than a minimumSize: a Chip sizes to its label,
+      // and padding is the only lever that reaches both axes.
+      padding: const EdgeInsets.symmetric(
+        horizontal: BrandMetrics.spaceLg,
+        vertical: BrandMetrics.spaceLg,
+      ),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(BrandMetrics.radiusSm)),
+      ),
+    ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: scheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(BrandMetrics.radiusXl)),
+      ),
+    ),
+    cardTheme: CardThemeData(
+      color: scheme.surfaceContainerLow,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(BrandMetrics.radiusLg)),
+      ),
+    ),
+    listTileTheme: ListTileThemeData(
+      titleTextStyle: theme.titleMedium,
+      minVerticalPadding: BrandMetrics.spaceMd,
+    ),
     extensions: [DiamondSemantics.fromBaseline(baseline)],
   );
 }
+
+/// One shape for all three button kinds. They differ in *fill* — which is
+/// Material's job and the accent's — never in size, because a filled button
+/// and an outlined one sitting in the same row that disagree about their
+/// height is the kind of thing §18.7 calls serviceable.
+ButtonStyle _buttonStyle(TextTheme text) => ButtonStyle(
+  textStyle: WidgetStatePropertyAll(text.titleMedium),
+  minimumSize: const WidgetStatePropertyAll(
+    Size(BrandMetrics.minTouchTarget, BrandMetrics.minTouchTarget),
+  ),
+  padding: const WidgetStatePropertyAll(
+    EdgeInsets.symmetric(
+      horizontal: BrandMetrics.space3xl,
+      vertical: BrandMetrics.spaceXl,
+    ),
+  ),
+  shape: const WidgetStatePropertyAll(
+    RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(BrandMetrics.radiusMd)),
+    ),
+  ),
+);
