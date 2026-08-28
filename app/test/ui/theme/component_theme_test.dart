@@ -49,6 +49,51 @@ void main() {
     });
   });
 
+  group('legibility', () {
+    /// WCAG relative-luminance contrast — the measure the 4.5:1 threshold is
+    /// actually defined against.
+    double contrast(Color a, Color b) {
+      final l1 = a.computeLuminance() + 0.05;
+      final l2 = b.computeLuminance() + 0.05;
+      return l1 > l2 ? l1 / l2 : l2 / l1;
+    }
+
+    test('a filled button is readable in both themes', () {
+      // This failed at **1.73:1 in dark** until DIA-014a's golden rendered one
+      // at size. `deriveScheme` sets `primary` to the seed itself rather than
+      // a tonal approximation, so Material's `onPrimary` — derived *for* the
+      // tonal one — assumed a light primary in dark and returned a dark green
+      // on Grass. Every primary on the outcome sheet was illegible, in an
+      // accent no team can change.
+      for (final brightness in Brightness.values) {
+        final scheme = deriveScheme(
+          accentSeed: BrandBaseline.grass,
+          brightness: brightness,
+        );
+        expect(
+          contrast(scheme.primary, scheme.onPrimary),
+          greaterThan(4.5),
+          reason: '$brightness',
+        );
+      }
+    });
+
+    test('it holds for a light accent too, not just Grass', () {
+      // The guardrail picks the on-color by contrast rather than by theme,
+      // because the accent belongs to a team (§23.3) and may be light or dark
+      // in either. A yellow team is the case that breaks a brightness rule.
+      const yellow = Color(0xFFF2D024);
+      for (final brightness in Brightness.values) {
+        final scheme = deriveScheme(accentSeed: yellow, brightness: brightness);
+        expect(
+          contrast(scheme.primary, scheme.onPrimary),
+          greaterThan(4.5),
+          reason: '$brightness',
+        );
+      }
+    });
+  });
+
   group('the button vocabulary', () {
     test('the three kinds differ in fill, never in size or shape', () {
       // A filled button and an outlined one in the same row that disagree

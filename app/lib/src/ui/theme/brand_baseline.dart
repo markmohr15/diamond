@@ -127,6 +127,27 @@ class BrandBaseline {
   static const Color grassLit = Color(0xFF5FA97A);
   static const Color clayLit = Color(0xFFD07E4E);
 
+  /// Label text sitting **on a brand fill** — the near-white the design uses
+  /// on Grass and Clay buttons, in both themes.
+  ///
+  /// §23.3's rule is that Grass and Clay keep their light values wherever they
+  /// are a *fill* with Chalk on top, so a `#2E5E3E` button is the same button
+  /// after dark — which means its label has to be the same too. Material's
+  /// tonal `onPrimary` cannot know that: in a dark scheme it derives an
+  /// on-color for a *light* primary and hands back a dark green, which on
+  /// Grass measured 1.73:1.
+  static const Color onBrandFill = Color(0xFFFFFEF9);
+
+  /// Its opposite, for a fill light enough that near-white would vanish on it
+  /// — a team whose color is yellow or gold (§23.3's Open Question #10).
+  ///
+  /// Fixed rather than `baseline.ink`, and that distinction is the whole
+  /// point: `ink` is *text on the page*, so it flips to near-white after dark.
+  /// A light fill does not flip, so its label must not either — taking `ink`
+  /// here put white on yellow at **1.36:1**, which is how the first version of
+  /// this guardrail failed.
+  static const Color onLightFill = Color(0xFF16211C);
+
   /// The shadow cast by a raised surface — Ink, at low alpha. **One value for
   /// both themes**, which is what the design panels do: 6A reuses 5A's shadow
   /// unchanged (§23.3, v0.48).

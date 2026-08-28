@@ -3,6 +3,35 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.51
+
+**§11.1's outcome sheet ranks by frequency, and the location suggestion is deleted (§11.1, §4.1).**
+
+The sheet had ranked by Diamond's suggestion, and the suggestion could not do the job. `suggestOutcome`
+returned only `ball` or `called_strike` — location knows nothing about whether the batter swung — so
+its most confident case was its worst one: a pitch *in* the zone is more often swung at than taken, and
+it promoted `called_strike` there. It was promoting the wrong button and calling it help.
+
+Five primaries at fixed positions, in frequency order: **Ball · Called strike · Swinging · Foul · In
+play**, with `dropped_third_strike` as a sixth when the rules let her run — an outcome that opens a
+surface, like In play, not a note on a strikeout. Everything else is a wrapped chip row under an
+"everything else" rule rather than a judgment about each one. Nothing consults the pitch's location, so
+the sheet looks identical whatever was captured, which is what makes the positions learnable.
+
+**Two outcomes join it.** `ball_intentional`, because four intentional balls is a different story from
+four missed spots for the pitcher's line and for scouting, and it had no writer anywhere. And
+`strike_unspecified`, which is not a near-duplicate of `unknown` but its opposite where it counts:
+`unknown` advances nothing and turns the HUD amber (§12.5), while `strike_unspecified` says *a strike
+happened and I missed which kind* and the count stays exact. Without it a scorer must either invent a
+fact or discard one she had.
+
+**`no_pitch` is removed.** Nothing ever wrote it, so no recorded stream can contain it — unlike
+`swinging_strike_blocked`, whose removal made existing streams unparseable. It existed only as three
+*exclusions*: a no-op in the count effect, a guard keeping it out of the pitcher's total, and a guard
+keeping it out of strikeouts. Deleting it makes "every recorded pitch counts" unconditional. A balk
+needs its own home on the runner surface and is ruleset-gated (DIA-017); a step-off or a granted
+timeout is not something a scorer records.
+
 ## v0.50
 
 **`RunnerAdvance` gains `cause`, and `ballInPlayEventId` becomes `anchorEventId` (§13.2, §4.2, §4.3).**
