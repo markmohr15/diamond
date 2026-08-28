@@ -897,6 +897,55 @@ void main() {
       expect(scoring.passedBalls, 0);
     });
 
+    test('the passed-ball exemption is the catcher on a pitch, and nothing '
+        'else', () {
+      // §13.2: a passed ball is not an error — they are separate statistics.
+      // But the exemption kept widening past its own rule, because every
+      // condition short of the full one lets something through.
+      //
+      // Anchored to a pitch was the first try, and §15.6 anchors *every*
+      // between-pitch entry to the pitch, so a rundown's dropped exchange went
+      // uncharged. Adding "first touch on that anchor" fixed the rundown and
+      // not the pickoff: a throw over to first *is* the first touch on its
+      // anchor.
+      List<GameEvent> missedCatchBy(int position) {
+        final b = EventBuilder();
+        return [
+          b.pitch(
+            id: 'p',
+            batterId: 'b1',
+            pitcherId: 'pit',
+            outcome: Outcome.BALL,
+          ),
+          b.fielderTouch(
+            id: 'miss',
+            anchorEventId: 'p',
+            position: position,
+            touchType: TouchType.MISSED_CATCH,
+            ordinaryEffort: true,
+          ),
+          b.runnerAdvance(
+            id: 'adv',
+            runnerId: 'r1',
+            from: 1,
+            to: 2,
+            reason: RunnerAdvanceReason.ERROR,
+            enabledByTouchId: 'miss',
+          ),
+        ];
+      }
+
+      // The first baseman missing a pickoff throw has muffed a *throw*.
+      expect(
+        foldOfficialScoring(missedCatchBy(3)).errors,
+        isNotEmpty,
+        reason: 'E3 — nobody pitched to the first baseman',
+      );
+
+      // The catcher missing the pitch is the one exemption.
+      expect(foldOfficialScoring(missedCatchBy(2)).errors, isEmpty);
+    });
+
     test('a D3K says which getaway it was, or says none (§13.2 v0.50)', () {
       // `reason` and `cause` answer different questions, and on a dropped
       // third strike they come apart: she is entitled to run because strike
