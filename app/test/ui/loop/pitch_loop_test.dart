@@ -238,9 +238,7 @@ void main() {
 
     testWidgets('the strikeout and its pitch are one undo unit (§11.3) — '
         'which is what a real D3K is reversed with until the resolution '
-        'flow lands', (
-      tester,
-    ) async {
+        'flow lands', (tester) async {
       await pumpLoop(tester);
       await skipToOutcome(tester);
       await tapText(tester, 'Called strike');
@@ -263,9 +261,7 @@ void main() {
   });
 
   group('unknown and the uncertain count (§12.5)', () {
-    testWidgets('an unknown outcome tints the HUD and says so', (
-      tester,
-    ) async {
+    testWidgets('an unknown outcome tints the HUD and says so', (tester) async {
       await pumpLoop(tester);
 
       await tapText(tester, 'Skip call');
@@ -843,8 +839,9 @@ void main() {
       expect(scoring.strikeoutsByPitcher.values.single, 1);
     });
 
-    testWidgets('the strike kind is kept: a called third strike stays called',
-        (tester) async {
+    testWidgets('the strike kind is kept: a called third strike stays called', (
+      tester,
+    ) async {
       await pumpLoop(tester);
       await toThirdStrikeSheet(tester);
       await tapKey(tester, outcomeD3kKey);

@@ -140,6 +140,13 @@ class GameEvent {
 ///Batted ball incl. fouls with coordinates (spec §4.2, §3.2).
 class BallInPlay {
     final ContactQuality? contactQuality;
+    
+    ///where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+    ///where it landed, which is every home run and every ball fielded on the spot. No fielder
+    ///is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+    ///near the ball. When a fielder does reach it, her touch carries the location and this is
+    ///the record from before she was named.
+    final FieldCoord? endedAt;
     final bool fair;
     
     ///first contact: where it landed, hit the wall, or met a glove (§15.1)
@@ -150,10 +157,6 @@ class BallInPlay {
     final bool? offWall;
     final String pitchEventId;
     
-    ///where a fielder finally gained possession, when meaningfully different from landing
-    ///(§15.1). Absent = same as landing.
-    final FieldCoord? retrieved;
-    
     ///scorer judgment (§13, v0.43): this batted ball was a sacrifice. Required for a sac bunt —
     ///no physical record distinguishes bunting to advance a runner from bunting for a hit — and
     ///optional for a sac fly, which derives (§13.6) and which this overrides when present.
@@ -163,36 +166,36 @@ class BallInPlay {
 
     BallInPlay({
         this.contactQuality,
+        this.endedAt,
         required this.fair,
         required this.landing,
         required this.landingIsCaught,
         this.offWall,
         required this.pitchEventId,
-        this.retrieved,
         this.sacrifice,
         required this.trajectory,
     });
 
     factory BallInPlay.fromJson(Map<String, dynamic> json) => BallInPlay(
         contactQuality: contactQualityValues.map[json["contactQuality"]],
+        endedAt: json["endedAt"] == null ? null : FieldCoord.fromJson(json["endedAt"]),
         fair: json["fair"],
         landing: FieldCoord.fromJson(json["landing"]),
         landingIsCaught: json["landingIsCaught"],
         offWall: json["offWall"],
         pitchEventId: json["pitchEventId"],
-        retrieved: json["retrieved"] == null ? null : FieldCoord.fromJson(json["retrieved"]),
         sacrifice: json["sacrifice"],
         trajectory: trajectoryValues.map[json["trajectory"]]!,
     );
 
     Map<String, dynamic> toJson() => {
         "contactQuality": contactQualityValues.reverse[contactQuality],
+        "endedAt": endedAt?.toJson(),
         "fair": fair,
         "landing": landing.toJson(),
         "landingIsCaught": landingIsCaught,
         "offWall": offWall,
         "pitchEventId": pitchEventId,
-        "retrieved": retrieved?.toJson(),
         "sacrifice": sacrifice,
         "trajectory": trajectoryValues.reverse[trajectory],
     };
@@ -211,14 +214,17 @@ final contactQualityValues = EnumValues({
 });
 
 
-///first contact: where it landed, hit the wall, or met a glove (§15.1)
+///where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+///where it landed, which is every home run and every ball fielded on the spot. No fielder
+///is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+///near the ball. When a fielder does reach it, her touch carries the location and this is
+///the record from before she was named.
 ///
 ///Field coordinate in absolute FEET (spec §3.2). Home plate = (0,0); +y toward second
 ///base/CF; bearing theta = atan2(x, y), negative = third-base side; |theta| > 45deg is foul
 ///territory (never clamp).
 ///
-///where a fielder finally gained possession, when meaningfully different from landing
-///(§15.1). Absent = same as landing.
+///first contact: where it landed, hit the wall, or met a glove (§15.1)
 class FieldCoord {
     final double x;
     final double y;

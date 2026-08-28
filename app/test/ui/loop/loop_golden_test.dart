@@ -45,9 +45,7 @@ void main() {
                     brightness: Brightness.light,
                   ),
                 ),
-                home: const Scaffold(
-                  body: CallScreen(onPitchThrown: _noop),
-                ),
+                home: const Scaffold(body: CallScreen(onPitchThrown: _noop)),
               ),
             ),
           ),
