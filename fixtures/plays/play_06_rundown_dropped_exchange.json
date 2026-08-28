@@ -1,90 +1,21 @@
 {
   "id": "play-06",
   "title": "Pickoff rundown 3-6-3-4; last exchange dropped; runner safe back at 1st",
-  "specRef": "\u00a714 Play #6",
-  "setup": {
-    "outs": 1,
-    "count": {
-      "balls": 0,
-      "strikes": 0
-    },
-    "runners": {
-      "1": "r1"
-    }
-  },
+  "specRef": "§14 Play #6",
+  "setup": { "outs": 1, "count": { "balls": 0, "strikes": 0 }, "runners": { "1": "r1" } },
   "events": [
-    {
-      "id": "e0",
-      "type": "PitchThrown",
-      "payload": {
-        "pitcherId": "pit",
-        "batterId": "b1",
-        "outcome": "called_strike",
-        "batterSide": "R"
-      }
-    },
-    {
-      "id": "e1",
-      "type": "FielderTouch",
-      "payload": {
-        "anchorEventId": "e0",
-        "position": 3,
-        "touchType": "received_throw"
-      }
-    },
-    {
-      "id": "e2",
-      "type": "FielderTouch",
-      "payload": {
-        "anchorEventId": "e0",
-        "position": 6,
-        "touchType": "received_throw"
-      }
-    },
-    {
-      "id": "e3",
-      "type": "FielderTouch",
-      "payload": {
-        "anchorEventId": "e0",
-        "position": 3,
-        "touchType": "received_throw"
-      }
-    },
-    {
-      "id": "e4",
-      "type": "FielderTouch",
-      "payload": {
-        "anchorEventId": "e0",
-        "position": 4,
-        "touchType": "missed_catch",
-        "ordinaryEffort": true
-      }
-    },
-    {
-      "id": "e5",
-      "type": "RunnerAdvance",
-      "payload": {
-        "runnerId": "r1",
-        "from": 1,
-        "to": 1,
-        "reason": "error",
-        "enabledByTouchId": "e4"
-      }
-    }
+    { "id": "e0", "type": "PitchThrown", "payload": { "pitcherId": "pit", "batterId": "b1", "batterSide": "R", "outcome": "called_strike" } },
+    { "id": "e1", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 3, "touchType": "received_throw" } },
+    { "id": "e2", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 6, "touchType": "received_throw" } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 3, "touchType": "received_throw" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 4, "touchType": "missed_catch", "ordinaryEffort": true } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 1, "reason": "error", "enabledByTouchId": "e4" } }
   ],
   "expect": {
     "outs": 1,
     "runs": 0,
-    "officialErrors": [
-      {
-        "position": 4,
-        "kind": "catching",
-        "basis": "runner_survived"
-      }
-    ],
-    "runnerBases": {
-      "r1": 1
-    },
-    "note": "from==to advance records surviving the rundown, attributed to the misplay. Anchored to the pitch (e0), which is what \u00a715.6 v0.45 writes: a between-pitch entry hangs its touches off the pitch that already exists. It previously anchored to the literal string 'pickoff' and asked for a PickoffAttempt event to be formalized \u2014 that event is not coming (DIA-008d solved anchoring generally), and the string resolved to nothing, so this play was validating a shape the app cannot produce."
+    "officialErrors": [ { "position": 4, "kind": "catching", "basis": "runner_survived" } ],
+    "runnerBases": { "r1": 1 },
+    "note": "from==to advance records surviving the rundown, attributed to the misplay. Anchored to the pitch (e0), which is what §15.6 v0.45 writes: a between-pitch entry hangs its touches off the pitch that already exists. It previously anchored to the literal string 'pickoff' and asked for a PickoffAttempt event to be formalized — that event is not coming (DIA-008d solved anchoring generally), and the string resolved to nothing, so this play was validating a shape the app cannot produce."
   }
 }

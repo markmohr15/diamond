@@ -1,99 +1,22 @@
 {
   "id": "play-05",
   "title": "D3K, wild throw to first; batter to 2nd, R1 to 3rd; a strikeout with no out",
-  "specRef": "\u00a714 Play #5",
-  "setup": {
-    "outs": 2,
-    "count": {
-      "balls": 1,
-      "strikes": 2
-    },
-    "runners": {
-      "1": "r1"
-    }
-  },
+  "specRef": "§14 Play #5",
+  "setup": { "outs": 2, "count": { "balls": 1, "strikes": 2 }, "runners": { "1": "r1" } },
   "events": [
-    {
-      "id": "e1",
-      "type": "PitchThrown",
-      "payload": {
-        "pitcherId": "p1",
-        "batterId": "b1",
-        "batterSide": "R",
-        "bounceLocation": {
-          "x": 0.1,
-          "depth": -0.4
-        },
-        "outcome": "swinging_strike"
-      }
-    },
-    {
-      "id": "e2",
-      "type": "RunnerAdvance",
-      "payload": {
-        "runnerId": "b1",
-        "from": 0,
-        "to": 1,
-        "reason": "dropped_third_strike",
-        "cause": "wild_pitch"
-      }
-    },
-    {
-      "id": "e3",
-      "type": "FielderTouch",
-      "payload": {
-        "anchorEventId": "e1",
-        "position": 2,
-        "touchType": "wild_throw",
-        "ordinaryEffort": true
-      }
-    },
-    {
-      "id": "e4",
-      "type": "RunnerAdvance",
-      "payload": {
-        "runnerId": "b1",
-        "from": 1,
-        "to": 2,
-        "reason": "wild_throw",
-        "enabledByTouchId": "e3"
-      }
-    },
-    {
-      "id": "e5",
-      "type": "RunnerAdvance",
-      "payload": {
-        "runnerId": "r1",
-        "from": 1,
-        "to": 3,
-        "reason": "wild_throw",
-        "enabledByTouchId": "e3"
-      }
-    }
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "bounceLocation": { "x": 0.1, "depth": -0.4 }, "outcome": "swinging_strike" } },
+    { "id": "e2", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "dropped_third_strike", "cause": "wild_pitch" } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e1", "position": 2, "touchType": "wild_throw", "ordinaryEffort": true } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "wild_throw", "enabledByTouchId": "e3" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 3, "reason": "wild_throw", "enabledByTouchId": "e3" } }
   ],
   "expect": {
     "outs": 2,
     "runs": 0,
-    "pitcherStrikeouts": {
-      "p1": "+1"
-    },
-    "officialErrors": [
-      {
-        "position": 2,
-        "kind": "throwing"
-      }
-    ],
-    "runnerBases": {
-      "b1": 2,
-      "r1": 3
-    },
-    "pitchGetaways": [
-      {
-        "kind": "wild_pitch",
-        "pitcherId": "p1",
-        "advances": 1
-      }
-    ],
-    "note": "K credited, no out recorded. The reach carries reason=dropped_third_strike (why she was entitled to run) and cause=wild_pitch (what happened to the ball) \u2014 two facts that shared one field until v0.50, which is why this used to be inferred from the absence of a catcher touch. bounceLocation corroborates and decides nothing."
+    "pitcherStrikeouts": { "p1": "+1" },
+    "officialErrors": [ { "position": 2, "kind": "throwing" } ],
+    "runnerBases": { "b1": 2, "r1": 3 },
+    "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 1 } ],
+    "note": "K credited, no out recorded. The reach carries reason=dropped_third_strike (why she was entitled to run) and cause=wild_pitch (what happened to the ball) — two facts that shared one field until v0.50, which is why this used to be inferred from the absence of a catcher touch. bounceLocation corroborates and decides nothing."
   }
 }
