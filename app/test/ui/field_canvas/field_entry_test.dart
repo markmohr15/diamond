@@ -251,8 +251,8 @@ void main() {
       );
       expect(ball.landing.x, closeTo(-60, 2));
       expect(ball.landing.y, closeTo(140, 2));
-      expect(ball.retrieved!.x, closeTo(-75, 2));
-      expect(ball.retrieved!.y, closeTo(165, 2));
+      expect(ball.endedAt!.x, closeTo(-75, 2));
+      expect(ball.endedAt!.y, closeTo(165, 2));
       expect(ball.trajectory, Trajectory.GROUND);
     });
 
@@ -1254,6 +1254,43 @@ void main() {
     });
   });
 
+  group('the ball and the fielder are one fact (§15.1)', () {
+    testWidgets('tapping a fielder puts her on the ball, not at her post', (
+      tester,
+    ) async {
+      // Trace a ball into the left-field corner, then tap the left fielder.
+      // She fielded it *there* — her touch used to record her standing spot,
+      // a place the ball had never been, and that location is the one
+      // official scoring reads.
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.LINE));
+      await tapWorld(tester, FieldCoord(x: -60, y: 120));
+      await tapWorld(tester, FieldCoord(x: -110, y: 150));
+
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[7]!,
+      );
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touch = events
+          .map(
+            (e) => e.type == 'FielderTouch'
+                ? FielderTouch.fromJson(e.payload)
+                : null,
+          )
+          .whereType<FielderTouch>()
+          .single;
+      expect(touch.position, 7);
+      expect(touch.location, isNotNull);
+      expect(touch.location!.x, closeTo(-110, 2));
+      expect(touch.location!.y, closeTo(150, 2));
+    });
+  });
+
   group('the sacrifice judgment (§13.6 v0.43)', () {
     testWidgets('a bunt that moves a runner offers the judgment; a bunt that '
         'moves nobody does not', (tester) async {
@@ -1309,7 +1346,6 @@ void main() {
       await tapWorld(tester, FieldCoord(x: 0, y: 180));
       expect(find.byKey(sacrificeChipKey), findsNothing);
     });
-
   });
 
   group('the locked path and the reset (§15.1 v0.43)', () {
@@ -1615,8 +1651,10 @@ void main() {
       expect(steal.runnerId, 'opp-1');
       expect((steal.from, steal.to), (1, 2));
       expect(steal.reason, RunnerAdvanceReason.STOLEN_BASE);
-      expect(container.read(gameControllerProvider).value!.bases.second,
-          'opp-1');
+      expect(
+        container.read(gameControllerProvider).value!.bases.second,
+        'opp-1',
+      );
     });
 
     testWidgets('a pickoff: the throw over, and she does not get back', (
@@ -1806,8 +1844,10 @@ void main() {
       // A muffed tag is a fielding error (§13.2 v0.43) once it has a
       // consequence, and the consequence is that she is standing on third.
       expect(scoring.errors.single.position, 5);
-      expect(container.read(gameControllerProvider).value!.bases.third,
-          'opp-1');
+      expect(
+        container.read(gameControllerProvider).value!.bases.third,
+        'opp-1',
+      );
       expect(container.read(gameControllerProvider).value!.outs, 0);
     });
 
@@ -1815,8 +1855,9 @@ void main() {
       tester,
     ) async {
       await runnerOnFirstThenField(tester);
-      final touchesBefore =
-          (await stream()).where((e) => e.type == 'FielderTouch').length;
+      final touchesBefore = (await stream())
+          .where((e) => e.type == 'FielderTouch')
+          .length;
 
       await dragToken(tester, 1, 2, target: 'base');
       await tapKey(tester, safeChipKey('wild_pitch'));
@@ -1859,8 +1900,10 @@ void main() {
       expect(after.length, before, reason: 'exactly the steal came off');
       // The walk that put her on first is untouched: still on first, and
       // the four pitches still stand.
-      expect(container.read(gameControllerProvider).value!.bases.first,
-          'opp-1');
+      expect(
+        container.read(gameControllerProvider).value!.bases.first,
+        'opp-1',
+      );
       expect(after.where((e) => e.type == 'PitchThrown'), hasLength(4));
     });
   });

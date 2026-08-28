@@ -263,7 +263,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     accent: scheme.primary,
                     surface: scheme.surface,
                     landing: draft.landing,
-                    retrieved: draft.retrieved,
+                    rollEnd: draft.rollEnd,
                     tokens: tokens,
                     dragPosition: _drag?.current,
                     dragTokenId: _drag?.runnerId,
@@ -275,8 +275,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
                     route: [
-                      if (draft.landing != null)
-                        draft.retrieved ?? draft.landing!,
+                      if (draft.landing != null) draft.ballAt ?? draft.landing!,
                       for (final entry in draft.entries)
                         if (entry is TouchEntry && entry.location != null)
                           entry.location!,
@@ -519,7 +518,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         // on this field today. It *landed* out there — home run?
         if (beyondFence) _showHomeRunDialog();
       } else {
-        controller.setRetrieved(point);
+        controller.setEndedAt(point);
         // It landed in the park and ended up over the fence: the bounced-
         // over ball, which is a ground-rule double.
         if (beyondFence && geometry.fenceDepthFt(landing) >= 0) {
@@ -578,10 +577,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           return;
         }
       }
-      // Loose or untouched ball: she made a play on it — where she was
-      // dropped (or stands, for a tap) is where it happened; the popup
-      // says what happened there.
-      _showFielderPlaySheet(position, spot);
+      // Loose or untouched ball: she made a play on **the ball**, so she goes
+      // where the ball is rather than where the finger landed. Tapping the
+      // left fielder after tracing a ball into the corner used to record her
+      // touch at her standing spot — a place the ball had never been — and
+      // that location is the one official scoring reads.
+      //
+      // A drag still wins: dropping her somewhere explicit is the scorer
+      // saying where the play happened. Only a tap needs the snap, because a
+      // tap says *who*, not *where*.
+      _showFielderPlaySheet(position, moved ? spot : (_draft.ballAt ?? spot));
       return;
     }
 
@@ -859,8 +864,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // ground, whatever it was off the bat, so the fielder who comes over is
     // fielding it rather than catching it.
     final touches = _draft.entries.whereType<TouchEntry>();
+    // A traced roll is proof the ball reached the ground: the scorer said it
+    // travelled after landing, so nobody is catching it any more. Without
+    // this, tracing a ball into the corner and then tapping the left fielder
+    // still offered "Caught".
     final inFlight =
-        touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED;
+        (touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED) &&
+        _draft.rollEnd == null;
     final choices = <(String, String, TouchType?)>[
       // §15.6: no batted ball, so the batted-ball verbs do not apply. A
       // catcher cannot *boot* a pitch — booting is a ground ball off the bat
@@ -1032,9 +1042,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       return 'Tap the ball path — or drag the fielder who played it';
     }
     final at = FieldGeometry.distanceFt(landing);
-    final retrieved = draft.retrieved;
-    if (retrieved == null) return '${at.round()} ft';
-    final rolled = FieldGeometry.distanceFt(retrieved).round();
+    final rollEnd = draft.rollEnd;
+    if (rollEnd == null) return '${at.round()} ft';
+    final rolled = FieldGeometry.distanceFt(rollEnd).round();
     return '${at.round()} ft → $rolled ft';
   }
 

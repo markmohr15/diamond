@@ -64,7 +64,15 @@ export interface GameEvent {
  */
 export interface BallInPlay {
     contactQuality?: ContactQuality;
-    fair:            boolean;
+    /**
+     * where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+     * where it landed, which is every home run and every ball fielded on the spot. No fielder
+     * is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+     * near the ball. When a fielder does reach it, her touch carries the location and this is
+     * the record from before she was named.
+     */
+    endedAt?: FieldCoord;
+    fair:     boolean;
     /**
      * first contact: where it landed, hit the wall, or met a glove (§15.1)
      */
@@ -75,11 +83,6 @@ export interface BallInPlay {
      */
     offWall?:     boolean;
     pitchEventId: string;
-    /**
-     * where a fielder finally gained possession, when meaningfully different from landing
-     * (§15.1). Absent = same as landing.
-     */
-    retrieved?: FieldCoord;
     /**
      * scorer judgment (§13, v0.43): this batted ball was a sacrifice. Required for a sac bunt —
      * no physical record distinguishes bunting to advance a runner from bunting for a hit — and
@@ -93,14 +96,17 @@ export interface BallInPlay {
 export type ContactQuality = "weak" | "average" | "hard";
 
 /**
- * first contact: where it landed, hit the wall, or met a glove (§15.1)
+ * where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+ * where it landed, which is every home run and every ball fielded on the spot. No fielder
+ * is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+ * near the ball. When a fielder does reach it, her touch carries the location and this is
+ * the record from before she was named.
  *
  * Field coordinate in absolute FEET (spec §3.2). Home plate = (0,0); +y toward second
  * base/CF; bearing theta = atan2(x, y), negative = third-base side; |theta| > 45deg is foul
  * territory (never clamp).
  *
- * where a fielder finally gained possession, when meaningfully different from landing
- * (§15.1). Absent = same as landing.
+ * first contact: where it landed, hit the wall, or met a glove (§15.1)
  */
 export interface FieldCoord {
     x: number;
@@ -645,12 +651,12 @@ const typeMap: any = {
     ], false),
     "BallInPlay": o([
         { json: "contactQuality", js: "contactQuality", typ: u(undefined, r("ContactQuality")) },
+        { json: "endedAt", js: "endedAt", typ: u(undefined, r("FieldCoord")) },
         { json: "fair", js: "fair", typ: true },
         { json: "landing", js: "landing", typ: r("FieldCoord") },
         { json: "landingIsCaught", js: "landingIsCaught", typ: true },
         { json: "offWall", js: "offWall", typ: u(undefined, true) },
         { json: "pitchEventId", js: "pitchEventId", typ: "" },
-        { json: "retrieved", js: "retrieved", typ: u(undefined, r("FieldCoord")) },
         { json: "sacrifice", js: "sacrifice", typ: u(undefined, true) },
         { json: "trajectory", js: "trajectory", typ: r("Trajectory") },
     ], false),
