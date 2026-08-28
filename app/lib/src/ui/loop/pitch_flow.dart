@@ -127,20 +127,6 @@ List<RunnerAdvance> forcedAdvances(
   ];
 }
 
-/// Diamond's suggested outcome for the confirm button (§11.1), or null when
-/// there is nothing to suggest from.
-///
-/// Suggestion ≠ auto-commit: the ump's call is the truth, not the location,
-/// so one tap is always required and the override row always shows.
-Outcome? suggestOutcome({ZoneCoord? actual, BounceCoord? bounce}) {
-  // Bounced before the plate: never a strike by location.
-  if (bounce != null) return Outcome.BALL;
-  if (actual == null) return null;
-  final inZone =
-      actual.x >= -1 && actual.x <= 1 && actual.y >= 0 && actual.y <= 1;
-  return inZone ? Outcome.CALLED_STRIKE : Outcome.BALL;
-}
-
 /// §11.1's state machine: call → actual → outcome → commit → back to call.
 ///
 /// **Outcome is its own step with its own surface, never entangled with

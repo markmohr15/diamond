@@ -400,8 +400,7 @@ OfficialScoring foldOfficialScoring(
           openPa = _PlateAppearance(pitch.batterId);
           plateAppearances.add(openPa);
         }
-        if (pitch.outcome != Outcome.UNKNOWN &&
-            pitch.outcome != Outcome.NO_PITCH) {
+        if (pitch.outcome != Outcome.UNKNOWN) {
           // Count context comes from the running GameState fold, so this
           // stays correct across CountCorrection checkpoints.
           final effect = applyPitchCountEffect(
