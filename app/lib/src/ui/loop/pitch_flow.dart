@@ -66,6 +66,7 @@ class PitchFlowState {
     this.actual,
     this.bounce,
     this.lastPitchOffer,
+    this.getawayOffer,
     this.droppedThirdStrike,
   });
 
@@ -88,11 +89,39 @@ class PitchFlowState {
   /// standing over an already-recorded strikeout. Nothing has been written
   /// for the batter yet, so there is nothing to void or dismiss.
   final DroppedThirdStrike? droppedThirdStrike;
+
+  /// Set when the scorer marked a getaway and there are runners it could have
+  /// moved (§13.2). The advance is a prompt, never automatic — see
+  /// [PitchGetawayOffer].
+  final PitchGetawayOffer? getawayOffer;
 }
 
 /// A dropped third strike the scorer has declared, waiting on its ending.
 /// Carries what the resolution needs: the pitch its touches anchor to —
 /// there is no `BallInPlay`, nothing was hit — and who is running.
+/// A pitch the scorer said got away, with runners aboard to be moved by it.
+///
+/// §11.3's rule is automatic where the rules leave no doubt and a prompt where
+/// they don't, and this is squarely the second: a runner on third often holds
+/// on a ball that only trickled away. So the advance is **one tap, not zero** —
+/// and the correction is action-scoped undo rather than a confirmation dialog,
+/// because confirming every common case costs more taps over a game than
+/// undoing the rare wrong one.
+class PitchGetawayOffer {
+  const PitchGetawayOffer({
+    required this.pitchEventId,
+    required this.cause,
+    required this.occupied,
+  });
+
+  final String pitchEventId;
+  final Cause cause;
+
+  /// Occupied bases, lead runner first — the order the advances must be
+  /// written in so no runner is ever momentarily on an occupied bag.
+  final List<(int, String)> occupied;
+}
+
 class DroppedThirdStrike {
   const DroppedThirdStrike({
     required this.pitchEventId,
@@ -218,6 +247,8 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   Future<void> commitOutcome(
     Outcome outcome, {
     bool uncaughtThirdStrike = false,
+    BatterAction? batterAction,
+    Cause? getaway,
   }) async {
     final game = ref.read(gameControllerProvider.notifier);
     final gs = ref.read(gameControllerProvider).valueOrNull;
@@ -248,7 +279,16 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       actualLocation: state.actual,
       bounceLocation: state.bounce,
       outcome: outcome,
+      // §4.1: what she was doing, orthogonal to what the pitch did. Absent is
+      // the conventional posture and is the overwhelming majority.
+      batterAction: batterAction,
     ).toJson();
+    // Lead runner first, so the batch never puts a runner on an occupied bag.
+    final occupied = <(int, String)>[
+      if (gs.bases.third case final r?) (3, r),
+      if (gs.bases.second case final r?) (2, r),
+      if (gs.bases.first case final r?) (1, r),
+    ];
     final event = await game.append(type: 'PitchThrown', payload: payload);
 
     // The call draft clears on every path out of here — the pitch happened,
@@ -277,10 +317,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       // never written, so there is nothing to void and no phantom out in
       // the stream.
       if (struckOut && uncaughtThirdStrike) {
-        d3k = DroppedThirdStrike(
-          pitchEventId: event.id,
-          batterId: batterId,
-        );
+        d3k = DroppedThirdStrike(pitchEventId: event.id, batterId: batterId);
       } else if (struckOut) {
         await game.append(
           type: 'RunnerOut',
@@ -346,7 +383,69 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           ? RecordLastPitchOffer(eventId: event.id, payload: payload)
           : null,
       droppedThirdStrike: d3k,
+      // Only when somebody could have moved: rule 9.13 charges a getaway on
+      // its consequence, so with the bases empty there is nothing to offer.
+      getawayOffer: (getaway != null && d3k == null && occupied.isNotEmpty)
+          ? PitchGetawayOffer(
+              pitchEventId: event.id,
+              cause: getaway,
+              occupied: occupied,
+            )
+          : null,
     );
+  }
+
+  /// The whole play, the overwhelming majority of the time: everybody up one.
+  ///
+  /// Written lead runner first so no runner is ever momentarily standing on an
+  /// occupied bag, and as one batch so a single action-scoped undo takes the
+  /// advances off without touching the pitch beneath them. A passed ball also
+  /// mints the catcher's misplay touch and links every advance to it — §13.2's
+  /// pair, the same shape the D3K resolution writes.
+  Future<void> getawayAdvanceAll() async {
+    final offer = state.getawayOffer;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+
+    final passedBall = offer.cause == Cause.PASSED_BALL;
+    final reason = passedBall ? 'passed_ball' : 'wild_pitch';
+    await ref.read(gameControllerProvider.notifier).appendAllPending([
+      if (passedBall)
+        PendingEvent(
+          type: 'FielderTouch',
+          localKey: 'pb',
+          payload: FielderTouch(
+            anchorEventId: offer.pitchEventId,
+            position: 2,
+            touchType: TouchType.MISSED_CATCH,
+            ordinaryEffort: true,
+          ).toJson(),
+        ),
+      for (final (base, runnerId) in offer.occupied)
+        PendingEvent(
+          type: 'RunnerAdvance',
+          payload: {
+            'runnerId': runnerId,
+            'from': base,
+            'to': base + 1,
+            'reason': reason,
+            if (passedBall) 'enabledByTouchId': localRef('pb'),
+          },
+        ),
+    ]);
+  }
+
+  /// Anything else — she held, or somebody was thrown out. Opens §15.6's
+  /// surface with the ball **loose**: a wild pitch's physics is the *absence*
+  /// of a touch (§13.2), so there is nothing on the pitch to read and seeding
+  /// the catcher would assert something that did not happen.
+  Future<void> getawayToField() async {
+    final offer = state.getawayOffer;
+    if (offer == null) return;
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
+    await ref
+        .read(playDraftProvider.notifier)
+        .startBetweenPitches(pitchEventId: offer.pitchEventId, heldBy: null);
   }
 
   /// §11.3's D3K resolution, written as one batch and one undo unit.

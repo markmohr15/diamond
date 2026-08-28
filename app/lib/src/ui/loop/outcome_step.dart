@@ -11,6 +11,11 @@ const Key outcomeD3kKey = Key('outcomeD3k');
 @visibleForTesting
 Key outcomeKey(Outcome outcome) =>
     Key('outcome-${outcomeValues.reverse[outcome]}');
+@visibleForTesting
+Key batterActionKey(BatterAction action) =>
+    Key('batterAction-${batterActionValues.reverse[action]}');
+@visibleForTesting
+Key getawayKey(Cause cause) => Key('getaway-${causeValues.reverse[cause]}');
 
 /// The five outcomes that account for nearly every pitch, in frequency order
 /// (Claude Design panel 5A).
@@ -55,6 +60,27 @@ const _rareOutcomes = <Outcome, String>{
   Outcome.UNKNOWN: 'Unknown',
 };
 
+/// What she was doing at the plate (§4.1), orthogonal to what the pitch did.
+///
+/// **`slap` is offered in both sports for M1** and should be gated to fastpitch
+/// by `RuleSet` — DIA-017. Offering it to a baseball scorer is a wrong option
+/// in a list; blocking this on a config refactor that touches every
+/// sport-dependent rule is worse, and the gate has one obvious home when it
+/// exists.
+const _batterActions = <BatterAction, String>{
+  BatterAction.BUNT: 'Bunt',
+  BatterAction.SLAP: 'Slap',
+  BatterAction.SLASH: 'Slash',
+};
+
+/// The ball got away, and which (§13.2). Offered only with a runner aboard:
+/// rule 9.13 charges a wild pitch or passed ball on its *consequence*, so with
+/// the bases empty there is nothing to charge and nothing to ask.
+const _getaways = <Cause, String>{
+  Cause.WILD_PITCH: 'Wild pitch',
+  Cause.PASSED_BALL: 'Passed ball',
+};
+
 /// §11.1's outcome step: five primaries at fixed positions, then everything
 /// else.
 ///
@@ -65,14 +91,23 @@ const _rareOutcomes = <Outcome, String>{
 /// This surface belongs to the **scorer's** duty bundle (§12.2, v0.39). Under
 /// the M2 split it renders on the primary only; the caller's device never
 /// shows these buttons.
-class OutcomeStep extends StatelessWidget {
+class OutcomeStep extends StatefulWidget {
   const OutcomeStep({
     required this.onChosen,
+    this.runnersAboard = false,
     this.onDroppedThirdStrike,
     super.key,
   });
 
-  final ValueChanged<Outcome> onChosen;
+  /// The outcome, and the two modifiers that describe the same pitch. One
+  /// callback rather than three, because they are facts about one event — a
+  /// separate "modifier committed" path would let them disagree about which
+  /// pitch they described.
+  final void Function(Outcome outcome, BatterAction? action, Cause? getaway)
+  onChosen;
+
+  /// Whether anybody is on base. Gates the getaway chips: see [_getaways].
+  final bool runnersAboard;
 
   /// Set only at two strikes with the batter entitled to run (§11.3). A
   /// dropped third strike is not a note on a strikeout — it is an outcome
@@ -80,6 +115,17 @@ class OutcomeStep extends StatelessWidget {
   /// belongs where the scorer looks for it rather than in a prompt after
   /// the fact.
   final VoidCallback? onDroppedThirdStrike;
+
+  @override
+  State<OutcomeStep> createState() => _OutcomeStepState();
+}
+
+class _OutcomeStepState extends State<OutcomeStep> {
+  /// Sticky across the outcome tap, and deliberately not sticky across
+  /// pitches: posture is a per-pitch observation, and carrying it forward
+  /// would record a bunt she did not show.
+  BatterAction? _action;
+  Cause? _getaway;
 
   Widget _primary(
     BuildContext context, {
@@ -110,6 +156,43 @@ class OutcomeStep extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 5A's "AND THEN" tier. Above the primaries rather than below,
+          // because it is context the outcome is read *in*: "bunt, foul" is
+          // one observation, and choosing the posture after committing the
+          // outcome would mean two taps describing one pitch in the wrong
+          // order.
+          Wrap(
+            spacing: BrandMetrics.spaceSm,
+            alignment: WrapAlignment.center,
+            children: [
+              for (final entry in _batterActions.entries)
+                FilterChip(
+                  key: batterActionKey(entry.key),
+                  label: Text(entry.value),
+                  selected: _action == entry.key,
+                  // Toggling off matters: a mis-tap is corrected here rather
+                  // than by committing the pitch and undoing it.
+                  onSelected: (on) =>
+                      setState(() => _action = on ? entry.key : null),
+                ),
+            ],
+          ),
+          if (widget.runnersAboard)
+            Wrap(
+              spacing: BrandMetrics.spaceSm,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final entry in _getaways.entries)
+                  FilterChip(
+                    key: getawayKey(entry.key),
+                    label: Text(entry.value),
+                    selected: _getaway == entry.key,
+                    onSelected: (on) =>
+                        setState(() => _getaway = on ? entry.key : null),
+                  ),
+              ],
+            ),
+          const SizedBox(height: BrandMetrics.spaceLg),
           for (final entry in _primaryOutcomes.entries) ...[
             _primary(
               context,
@@ -119,7 +202,7 @@ class OutcomeStep extends StatelessWidget {
                   ? outcomeInPlayKey
                   : outcomeKey(entry.key),
               label: entry.value,
-              onPressed: () => onChosen(entry.key),
+              onPressed: () => widget.onChosen(entry.key, _action, _getaway),
             ),
             const SizedBox(height: BrandMetrics.spaceMd),
           ],
@@ -128,12 +211,12 @@ class OutcomeStep extends StatelessWidget {
           // when the rules let her run. "Dropped" rather than the more
           // correct "uncaught" because it is what scorers say — and it is
           // already the wire word (§4.3's `dropped_third_strike`).
-          if (onDroppedThirdStrike != null) ...[
+          if (widget.onDroppedThirdStrike != null) ...[
             _primary(
               context,
               key: outcomeD3kKey,
               label: 'Dropped 3rd strike',
-              onPressed: onDroppedThirdStrike!,
+              onPressed: widget.onDroppedThirdStrike!,
             ),
             const SizedBox(height: BrandMetrics.spaceMd),
           ],
@@ -147,7 +230,8 @@ class OutcomeStep extends StatelessWidget {
               for (final entry in _rareOutcomes.entries)
                 OutlinedButton(
                   key: outcomeKey(entry.key),
-                  onPressed: () => onChosen(entry.key),
+                  onPressed: () =>
+                      widget.onChosen(entry.key, _action, _getaway),
                   child: Text(entry.value),
                 ),
             ],

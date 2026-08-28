@@ -52,15 +52,20 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// entitled to run, so the surface opens with her walked up to first and
   /// the forced chain cascading, exactly as a batted ball does. Everywhere
   /// else between pitches there is no batter-runner and it stays null.
+  /// [heldBy] seeds who has the ball. The catcher by default — she has it
+  /// between pitches — but **null when the pitch got away** (§13.2): a wild
+  /// pitch's physics is the *absence* of a touch, so seeding her would assert
+  /// something that did not happen, and the scorer would have to un-say it.
   Future<void> startBetweenPitches({
     required String pitchEventId,
     String? batterId,
+    int? heldBy = 2,
   }) async {
     var draft = PlayDraft(
       pitchEventId: pitchEventId,
       batterId: batterId ?? '',
       battedBall: false,
-      heldBy: 2,
+      heldBy: heldBy,
     );
     if (batterId != null) {
       final slots = _origins(batterId);

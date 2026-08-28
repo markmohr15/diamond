@@ -26,6 +26,10 @@ const Key openIdleFieldKey = Key('openIdleField');
 @visibleForTesting
 const Key d3kCalledKey = Key('d3kCalled');
 @visibleForTesting
+const Key getawayAdvanceAllKey = Key('getawayAdvanceAll');
+@visibleForTesting
+const Key getawayToFieldKey = Key('getawayToField');
+@visibleForTesting
 const Key d3kSwingingKey = Key('d3kSwinging');
 @visibleForTesting
 const Key d3kOutThrowKey = Key('d3kOutThrow');
@@ -63,6 +67,12 @@ class PitchLoopPage extends ConsumerWidget {
       if (next.step == PitchStep.outcome &&
           previous?.step != PitchStep.outcome) {
         _showOutcomeSheet(context, ref, next);
+      }
+      // §13.2's getaway prompt, raised the same way the outcome sheet is —
+      // off the state rather than off the callback that produced it, so the
+      // dialog is never opened against a context that has already been popped.
+      if (next.getawayOffer != null && previous?.getawayOffer == null) {
+        unawaited(_offerGetaway(context, ref));
       }
     });
 
@@ -226,6 +236,48 @@ class PitchLoopPage extends ConsumerWidget {
   /// which strike it was — the swing data matters most on exactly the
   /// pitches likeliest to have been offered at, so `strike_unspecified`
   /// would be a poor trade for one tap — and then what happened to her.
+  bool _runnersAboard(WidgetRef ref) {
+    final bases = ref.read(gameControllerProvider).valueOrNull?.bases;
+    return bases != null &&
+        (bases.first != null || bases.second != null || bases.third != null);
+  }
+
+  /// §13.2's one-tap consequence. Two answers, because the whole play is
+  /// "everybody up one" the overwhelming majority of the time and should not
+  /// cost a trip to the field — but a runner on third often holds on a ball
+  /// that only trickled away, so it cannot apply itself (§11.3).
+  Future<void> _offerGetaway(BuildContext context, WidgetRef ref) async {
+    final offer = ref.read(pitchFlowProvider).getawayOffer;
+    if (offer == null || !context.mounted) return;
+    final controller = ref.read(pitchFlowProvider.notifier);
+
+    await showFieldDialog<void>(
+      context,
+      title: offer.cause == Cause.PASSED_BALL
+          ? 'Passed ball — what did the runners do?'
+          : 'Wild pitch — what did the runners do?',
+      children: (dialogContext) => [
+        FilledButton(
+          key: getawayAdvanceAllKey,
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            unawaited(controller.getawayAdvanceAll());
+          },
+          child: const Text('All runners up one'),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton(
+          key: getawayToFieldKey,
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            unawaited(controller.getawayToField());
+          },
+          child: const Text('Go to the field'),
+        ),
+      ],
+    );
+  }
+
   Future<void> _droppedThirdStrike(BuildContext context, WidgetRef ref) async {
     final controller = ref.read(pitchFlowProvider.notifier);
     final kind = await showFieldDialog<Outcome>(
@@ -310,9 +362,18 @@ class PitchLoopPage extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 620),
           child: OutcomeStep(
-            onChosen: (outcome) {
+            runnersAboard: _runnersAboard(ref),
+            onChosen: (outcome, action, getaway) {
               Navigator.pop(dialogContext, true);
-              ref.read(pitchFlowProvider.notifier).commitOutcome(outcome);
+              unawaited(
+                ref
+                    .read(pitchFlowProvider.notifier)
+                    .commitOutcome(
+                      outcome,
+                      batterAction: action,
+                      getaway: getaway,
+                    ),
+              );
             },
             onDroppedThirdStrike: _mayRunOnThirdStrike(ref)
                 ? () {
