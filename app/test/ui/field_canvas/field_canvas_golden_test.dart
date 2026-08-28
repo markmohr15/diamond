@@ -23,7 +23,7 @@ void main() {
 
   Widget canvas({
     FieldCoord? landing,
-    FieldCoord? retrieved,
+    FieldCoord? endedAt,
     List<RunnerToken> tokens = const [],
   }) {
     return ColoredBox(
@@ -39,7 +39,7 @@ void main() {
           accent: scheme.primary,
           surface: scheme.surface,
           landing: landing,
-          retrieved: retrieved,
+          rollEnd: endedAt,
           tokens: tokens,
         ),
       ),
@@ -80,7 +80,7 @@ void main() {
           constraints: BoxConstraints.tight(_canvasSize),
           child: canvas(
             landing: FieldCoord(x: -70, y: 150),
-            retrieved: FieldCoord(x: -95, y: 175),
+            endedAt: FieldCoord(x: -95, y: 175),
             tokens: const [
               RunnerToken(runnerId: 'b1', label: 'B', base: 2),
               RunnerToken(runnerId: 'r1', label: '1', base: 4),

@@ -6,7 +6,7 @@
   "events": [
     { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.7 }, "outcome": "in_play" } },
     { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "fly", "landing": { "x": 15, "y": 240 }, "landingIsCaught": true } },
-    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 8, "touchType": "caught" } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 8, "touchType": "caught" } },
     { "id": "e4", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "fly_out", "putoutTouchId": "e3" } },
     { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r3", "from": 3, "to": 4, "reason": "batted_ball" } }
   ],

@@ -93,7 +93,6 @@ PitchCountEffect applyPitchCountEffect(
         strikesAdvanced: false,
       );
 
-    case Outcome.NO_PITCH:
     case Outcome.UNKNOWN:
       return PitchCountEffect(
         balls: balls,

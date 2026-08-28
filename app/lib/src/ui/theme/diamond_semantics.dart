@@ -117,11 +117,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       onUncertainty: Color.lerp(onUncertainty, other.onUncertainty, t)!,
       misplay: Color.lerp(misplay, other.misplay, t)!,
       callable: Color.lerp(callable, other.callable, t)!,
-      callableOutline: Color.lerp(
-        callableOutline,
-        other.callableOutline,
-        t,
-      )!,
+      callableOutline: Color.lerp(callableOutline, other.callableOutline, t)!,
       grassLine: Color.lerp(grassLine, other.grassLine, t)!,
       clayLine: Color.lerp(clayLine, other.clayLine, t)!,
     );

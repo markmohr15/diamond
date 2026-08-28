@@ -88,8 +88,12 @@ void main() {
     });
   });
 
-  test('no_pitch is a total no-op', () {
-    final effect = applyPitchCountEffect(1, 1, Outcome.NO_PITCH);
+  test('unknown is a total no-op — the count refuses to guess (§12.5)', () {
+    // `no_pitch` used to share this case and is gone (v0.51). `unknown` is
+    // the one that remains, and it is not the same idea: it says the scorer
+    // did not see what happened, which is why the HUD goes amber rather than
+    // the count simply standing still.
+    final effect = applyPitchCountEffect(1, 1, Outcome.UNKNOWN);
     expect(effect.balls, 1);
     expect(effect.strikes, 1);
     expect(effect.endsPlateAppearance, isFalse);

@@ -119,11 +119,11 @@ void main() {
       expect(find.text('Skip location'), findsOneWidget);
       await placeActualAt(tester, ZoneCoord(x: 0.4, y: 0.3));
 
-      // OUTCOME: in-zone location suggests a called strike (§11.1) — but the
-      // full override row is present, because the ump's call is the truth.
-      expect(find.byKey(outcomeConfirmKey), findsOneWidget);
+      // OUTCOME: five primaries at fixed positions, whatever the location
+      // was (§11.1 v0.51). Nothing here consults it.
+      expect(find.byKey(outcomeKey(Outcome.CALLED_STRIKE)), findsOneWidget);
       expect(find.text('In play'), findsOneWidget);
-      await tester.tap(find.byKey(outcomeConfirmKey));
+      await tester.tap(find.byKey(outcomeKey(Outcome.CALLED_STRIKE)));
       await tester.pumpAndSettle();
 
       // Back on CALL with the whole arsenal, count advanced, one event.
@@ -187,16 +187,17 @@ void main() {
   });
 
   group('skipping (§11.2, per-pitch ladder)', () {
-    testWidgets('skip call → skip location → outcome with no suggestion: '
-        'the pitch records with no intent and no location', (tester) async {
+    testWidgets('skip call → skip location → outcome: the pitch records with '
+        'no intent and no location', (tester) async {
       await pumpLoop(tester);
 
       await tapText(tester, 'Skip call');
       expect(find.text('Skip location'), findsOneWidget);
       await tapText(tester, 'Skip location');
 
-      // Nothing to suggest from — the row alone.
-      expect(find.byKey(outcomeConfirmKey), findsNothing);
+      // The same five primaries as always: with nothing captured, the sheet
+      // is identical, which is the point of ranking by frequency.
+      expect(find.byKey(outcomeKey(Outcome.BALL)), findsOneWidget);
       await tapText(tester, 'Ball');
 
       final pitch = await lastPitch();
@@ -238,9 +239,7 @@ void main() {
 
     testWidgets('the strikeout and its pitch are one undo unit (§11.3) — '
         'which is what a real D3K is reversed with until the resolution '
-        'flow lands', (
-      tester,
-    ) async {
+        'flow lands', (tester) async {
       await pumpLoop(tester);
       await skipToOutcome(tester);
       await tapText(tester, 'Called strike');
@@ -263,9 +262,7 @@ void main() {
   });
 
   group('unknown and the uncertain count (§12.5)', () {
-    testWidgets('an unknown outcome tints the HUD and says so', (
-      tester,
-    ) async {
+    testWidgets('an unknown outcome tints the HUD and says so', (tester) async {
       await pumpLoop(tester);
 
       await tapText(tester, 'Skip call');
@@ -485,71 +482,51 @@ void main() {
   });
 
   group('the outcome sheet', () {
-    testWidgets('the suggestion leads and In play always closes it — same '
-        'weight, its own row, every time', (tester) async {
+    testWidgets('the five primaries are in the same places whatever the '
+        'location was', (tester) async {
       await pumpLoop(tester);
       await tapText(tester, 'Skip call');
 
-      // In the zone: the suggestion is the strike.
+      // In the zone. The sheet used to promote "Called strike" to a confirm
+      // button here — its most confident case and its worst one, since a
+      // pitch *in* the zone is more often swung at than taken.
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.5));
+      final inZone = [
+        for (final outcome in [
+          Outcome.BALL,
+          Outcome.CALLED_STRIKE,
+          Outcome.SWINGING_STRIKE,
+          Outcome.FOUL,
+        ])
+          tester.getCenter(find.byKey(outcomeKey(outcome))).dy,
+      ];
+      // In play is the fifth primary and sits below the other four (5A).
+      final inPlay = tester.getCenter(find.byKey(outcomeInPlayKey)).dy;
+      expect(inPlay, greaterThan(inZone.last));
       expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byKey(outcomeConfirmKey),
-                matching: find.byType(Text),
-              ),
-            )
-            .data,
-        'Called strike',
-      );
-      // In play carries the suggestion's weight and sits below everything.
-      final inPlay = find.byKey(outcomeInPlayKey);
-      expect(inPlay, findsOneWidget);
-      expect(find.text('In play'), findsOneWidget);
-      expect(
-        tester.getCenter(inPlay).dy,
-        greaterThan(tester.getCenter(find.byKey(outcomeConfirmKey)).dy),
-      );
-      expect(
-        tester.getSize(inPlay).height,
-        tester.getSize(find.byKey(outcomeConfirmKey)).height,
+        tester.getSize(find.byKey(outcomeInPlayKey)).height,
+        tester.getSize(find.byKey(outcomeKey(Outcome.BALL))).height,
+        reason: 'equal prominence — no primary outranks another',
       );
 
-      // Out of the zone: the suggestion flips to the ball, In play stays.
-      await tester.tapAt(const Offset(20, 20)); // dismiss
+      // Out of the zone: byte-for-byte the same layout.
+      await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       await placeActualAt(tester, ZoneCoord(x: 1.7, y: 0.5));
-      expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byKey(outcomeConfirmKey),
-                matching: find.byType(Text),
-              ),
-            )
-            .data,
-        'Ball',
-      );
-      expect(find.byKey(outcomeInPlayKey), findsOneWidget);
+      final outOfZone = [
+        for (final outcome in [
+          Outcome.BALL,
+          Outcome.CALLED_STRIKE,
+          Outcome.SWINGING_STRIKE,
+          Outcome.FOUL,
+        ])
+          tester.getCenter(find.byKey(outcomeKey(outcome))).dy,
+      ];
+      expect(outOfZone, inZone, reason: 'location does not reorder the sheet');
 
       await tester.tap(find.byKey(outcomeInPlayKey));
       await tester.pumpAndSettle();
       expect((await lastPitch()).outcome, Outcome.IN_PLAY);
-    });
-
-    testWidgets('with no location there is no suggestion, and In play is '
-        'still the last row', (tester) async {
-      await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
-      await tapText(tester, 'Skip location');
-
-      expect(find.byKey(outcomeConfirmKey), findsNothing);
-      expect(find.byKey(outcomeInPlayKey), findsOneWidget);
-      expect(
-        tester.getCenter(find.byKey(outcomeInPlayKey)).dy,
-        greaterThan(tester.getCenter(find.text('Ball')).dy),
-      );
     });
 
     testWidgets('dismissing it returns to the location step with nothing '
@@ -557,13 +534,13 @@ void main() {
       await pumpLoop(tester);
       await tapText(tester, 'Skip call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
-      expect(find.byKey(outcomeConfirmKey), findsOneWidget);
+      expect(find.byKey(outcomeInPlayKey), findsOneWidget);
 
       // Tap the scrim above the sheet.
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(outcomeConfirmKey), findsNothing);
+      expect(find.byKey(outcomeInPlayKey), findsNothing);
       expect(find.text('Skip location'), findsOneWidget);
       expect(
         await stream(),
@@ -734,35 +711,6 @@ void main() {
     });
   });
 
-  group('suggestOutcome', () {
-    test('in the zone — edges included — suggests a called strike', () {
-      expect(
-        suggestOutcome(actual: ZoneCoord(x: 0, y: 0.5)),
-        Outcome.CALLED_STRIKE,
-      );
-      expect(
-        suggestOutcome(actual: ZoneCoord(x: 1, y: 0)),
-        Outcome.CALLED_STRIKE,
-      );
-    });
-
-    test('off the plate suggests a ball', () {
-      expect(suggestOutcome(actual: ZoneCoord(x: 1.4, y: 0.5)), Outcome.BALL);
-      expect(suggestOutcome(actual: ZoneCoord(x: 0, y: -0.2)), Outcome.BALL);
-    });
-
-    test('a bounce is never a strike by location', () {
-      expect(
-        suggestOutcome(bounce: BounceCoord(x: 0, depth: 1.5)),
-        Outcome.BALL,
-      );
-    });
-
-    test('nothing captured, nothing suggested', () {
-      expect(suggestOutcome(), isNull);
-    });
-  });
-
   group('the dropped third strike (§11.3 v0.46)', () {
     /// Two called strikes, then open the outcome sheet on the third pitch.
     Future<void> toThirdStrikeSheet(WidgetTester tester) async {
@@ -843,8 +791,9 @@ void main() {
       expect(scoring.strikeoutsByPitcher.values.single, 1);
     });
 
-    testWidgets('the strike kind is kept: a called third strike stays called',
-        (tester) async {
+    testWidgets('the strike kind is kept: a called third strike stays called', (
+      tester,
+    ) async {
       await pumpLoop(tester);
       await toThirdStrikeSheet(tester);
       await tapKey(tester, outcomeD3kKey);

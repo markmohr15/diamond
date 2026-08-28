@@ -140,10 +140,7 @@ void main() {
           .readRawStream(session.gameId);
       // Bootstrap only — no VoidEvent was appended.
       expect(raw.map((e) => e.type), ['LineupSet', 'InningHalfStart']);
-      expect(
-        c.read(gameControllerProvider).requireValue.battingTeamId,
-        'opp',
-      );
+      expect(c.read(gameControllerProvider).requireValue.battingTeamId, 'opp');
     });
   });
 }

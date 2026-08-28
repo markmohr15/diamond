@@ -3,6 +3,65 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.51
+
+**§11.1's outcome sheet ranks by frequency, and the location suggestion is deleted (§11.1, §4.1).**
+
+The sheet had ranked by Diamond's suggestion, and the suggestion could not do the job. `suggestOutcome`
+returned only `ball` or `called_strike` — location knows nothing about whether the batter swung — so
+its most confident case was its worst one: a pitch *in* the zone is more often swung at than taken, and
+it promoted `called_strike` there. It was promoting the wrong button and calling it help.
+
+Five primaries at fixed positions, in frequency order: **Ball · Called strike · Swinging · Foul · In
+play**, with `dropped_third_strike` as a sixth when the rules let her run — an outcome that opens a
+surface, like In play, not a note on a strikeout. Everything else is a wrapped chip row under an
+"everything else" rule rather than a judgment about each one. Nothing consults the pitch's location, so
+the sheet looks identical whatever was captured, which is what makes the positions learnable.
+
+**Two outcomes join it.** `ball_intentional`, because four intentional balls is a different story from
+four missed spots for the pitcher's line and for scouting, and it had no writer anywhere. And
+`strike_unspecified`, which is not a near-duplicate of `unknown` but its opposite where it counts:
+`unknown` advances nothing and turns the HUD amber (§12.5), while `strike_unspecified` says *a strike
+happened and I missed which kind* and the count stays exact. Without it a scorer must either invent a
+fact or discard one she had.
+
+**`no_pitch` is removed.** Nothing ever wrote it, so no recorded stream can contain it — unlike
+`swinging_strike_blocked`, whose removal made existing streams unparseable. It existed only as three
+*exclusions*: a no-op in the count effect, a guard keeping it out of the pitcher's total, and a guard
+keeping it out of strikeouts. Deleting it makes "every recorded pitch counts" unconditional. A balk
+needs its own home on the runner surface and is ruleset-gated (DIA-017); a step-off or a granted
+timeout is not something a scorer records.
+
+## v0.50
+
+**`RunnerAdvance` gains `cause`, and `ballInPlayEventId` becomes `anchorEventId` (§13.2, §4.2, §4.3).**
+
+`reason` had been answering two questions at once: *why was this runner entitled to move* and *what
+happened to the ball*. On a runner's advance they are one fact — `wild_pitch` says both, which is why
+nobody noticed they were different questions. On a batter reaching an uncaught third strike they come
+apart. Her entitlement is `dropped_third_strike` and has to stay so: it is what makes her line a
+strikeout *and* a reach rather than a hit, and relabelling it sends the derivation into the hit logic
+and scores a single. Meanwhile the ball's story is separately a wild pitch, a passed ball, or neither.
+
+So `cause` (`wild_pitch` | `passed_ball`) carries the second, and the projection reads `cause` when
+present and `reason` when the reason *is* the getaway. Mark, deciding the shape: *"D3K should be the
+reason and WP/PB/Error/Nothing are a secondary cause."*
+
+**Absent `cause` is an answer, not silence** — she reached on an **error**, or she **beat the throw**.
+v0.49 had removed the WP/PB inference everywhere the stream could express the answer, and this was the
+one place it could not: the engine read that absence as a wild pitch, charging the pitcher for a
+batter's speed. It was the last inference in the path.
+
+**Error stays on the link rather than joining the enum.** It is already recorded twice — as
+`enabledByTouchId` and as the charged error — and a third home could disagree with both, which is the
+same duplication §15.1's `retrieved` had just been cured of.
+
+**`ballInPlayEventId` → `anchorEventId`.** Since §15.6 a between-pitch entry anchors its touches to the
+**pitch** that already exists, so the field holds either a `BallInPlay` id or a `PitchThrown` id and the
+old name asserted a type it no longer carried. Not cosmetic: the passed-ball error exemption had been
+written as "`missed_catch` anchored to a pitch" and silently un-charged errors on every between-pitch
+play, because nobody reading `ballInPlayEventId` expected a pitch id in it.
+
 ## v0.49
 
 **Wild pitch vs. passed ball is the scorer's call, always (§13.2)** — the one place §13 does not

@@ -140,6 +140,13 @@ class GameEvent {
 ///Batted ball incl. fouls with coordinates (spec §4.2, §3.2).
 class BallInPlay {
     final ContactQuality? contactQuality;
+    
+    ///where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+    ///where it landed, which is every home run and every ball fielded on the spot. No fielder
+    ///is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+    ///near the ball. When a fielder does reach it, her touch carries the location and this is
+    ///the record from before she was named.
+    final FieldCoord? endedAt;
     final bool fair;
     
     ///first contact: where it landed, hit the wall, or met a glove (§15.1)
@@ -150,10 +157,6 @@ class BallInPlay {
     final bool? offWall;
     final String pitchEventId;
     
-    ///where a fielder finally gained possession, when meaningfully different from landing
-    ///(§15.1). Absent = same as landing.
-    final FieldCoord? retrieved;
-    
     ///scorer judgment (§13, v0.43): this batted ball was a sacrifice. Required for a sac bunt —
     ///no physical record distinguishes bunting to advance a runner from bunting for a hit — and
     ///optional for a sac fly, which derives (§13.6) and which this overrides when present.
@@ -163,36 +166,36 @@ class BallInPlay {
 
     BallInPlay({
         this.contactQuality,
+        this.endedAt,
         required this.fair,
         required this.landing,
         required this.landingIsCaught,
         this.offWall,
         required this.pitchEventId,
-        this.retrieved,
         this.sacrifice,
         required this.trajectory,
     });
 
     factory BallInPlay.fromJson(Map<String, dynamic> json) => BallInPlay(
         contactQuality: contactQualityValues.map[json["contactQuality"]],
+        endedAt: json["endedAt"] == null ? null : FieldCoord.fromJson(json["endedAt"]),
         fair: json["fair"],
         landing: FieldCoord.fromJson(json["landing"]),
         landingIsCaught: json["landingIsCaught"],
         offWall: json["offWall"],
         pitchEventId: json["pitchEventId"],
-        retrieved: json["retrieved"] == null ? null : FieldCoord.fromJson(json["retrieved"]),
         sacrifice: json["sacrifice"],
         trajectory: trajectoryValues.map[json["trajectory"]]!,
     );
 
     Map<String, dynamic> toJson() => {
         "contactQuality": contactQualityValues.reverse[contactQuality],
+        "endedAt": endedAt?.toJson(),
         "fair": fair,
         "landing": landing.toJson(),
         "landingIsCaught": landingIsCaught,
         "offWall": offWall,
         "pitchEventId": pitchEventId,
-        "retrieved": retrieved?.toJson(),
         "sacrifice": sacrifice,
         "trajectory": trajectoryValues.reverse[trajectory],
     };
@@ -211,14 +214,17 @@ final contactQualityValues = EnumValues({
 });
 
 
-///first contact: where it landed, hit the wall, or met a glove (§15.1)
+///where the ball came to rest, when it moved after landing (§15.1). Absent = it stopped
+///where it landed, which is every home run and every ball fielded on the spot. No fielder
+///is implied: a walk-off nobody chases and a ground rule double both end here with nobody
+///near the ball. When a fielder does reach it, her touch carries the location and this is
+///the record from before she was named.
 ///
 ///Field coordinate in absolute FEET (spec §3.2). Home plate = (0,0); +y toward second
 ///base/CF; bearing theta = atan2(x, y), negative = third-base side; |theta| > 45deg is foul
 ///territory (never clamp).
 ///
-///where a fielder finally gained possession, when meaningfully different from landing
-///(§15.1). Absent = same as landing.
+///first contact: where it landed, hit the wall, or met a glove (§15.1)
 class FieldCoord {
     final double x;
     final double y;
@@ -282,7 +288,11 @@ class CountCorrection {
 ///Physical touch vocabulary — never official-scoring language (spec §4.2, §13). Official
 ///errors are DERIVED.
 class FielderTouch {
-    final String ballInPlayEventId;
+    
+    ///the play this touch belongs to: the BallInPlay it was hit on, or — for a between-pitch
+    ///entry (§15.6) — the PitchThrown it hangs off. A grouping key; the engine does not require
+    ///it to resolve.
+    final String anchorEventId;
     
     ///optional for opponents
     final String? fielderId;
@@ -298,7 +308,7 @@ class FielderTouch {
     final TouchType touchType;
 
     FielderTouch({
-        required this.ballInPlayEventId,
+        required this.anchorEventId,
         this.fielderId,
         this.location,
         this.ordinaryEffort,
@@ -308,7 +318,7 @@ class FielderTouch {
     });
 
     factory FielderTouch.fromJson(Map<String, dynamic> json) => FielderTouch(
-        ballInPlayEventId: json["ballInPlayEventId"],
+        anchorEventId: json["anchorEventId"],
         fielderId: json["fielderId"],
         location: json["location"] == null ? null : FieldCoord.fromJson(json["location"]),
         ordinaryEffort: json["ordinaryEffort"],
@@ -318,7 +328,7 @@ class FielderTouch {
     );
 
     Map<String, dynamic> toJson() => {
-        "ballInPlayEventId": ballInPlayEventId,
+        "anchorEventId": anchorEventId,
         "fielderId": fielderId,
         "location": location?.toJson(),
         "ordinaryEffort": ordinaryEffort,
@@ -732,7 +742,6 @@ enum Outcome {
     HIT_BY_PITCH,
     ILLEGAL_PITCH,
     IN_PLAY,
-    NO_PITCH,
     STRIKE_UNSPECIFIED,
     SWINGING_STRIKE,
     UNKNOWN
@@ -749,7 +758,6 @@ final outcomeValues = EnumValues({
     "hit_by_pitch": Outcome.HIT_BY_PITCH,
     "illegal_pitch": Outcome.ILLEGAL_PITCH,
     "in_play": Outcome.IN_PLAY,
-    "no_pitch": Outcome.NO_PITCH,
     "strike_unspecified": Outcome.STRIKE_UNSPECIFIED,
     "swinging_strike": Outcome.SWINGING_STRIKE,
     "unknown": Outcome.UNKNOWN
@@ -822,6 +830,13 @@ final callTypeValues = EnumValues({
 ///rundown) attributed to a misplay.
 class RunnerAdvance {
     
+    ///what happened to the *ball*, when `reason` says only why the runner was entitled to move
+    ///(§13.2). The case that needs it is the dropped third strike: `reason` must stay
+    ///`dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+    ///Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+    ///or simply beat the throw. Never inferred: the scorer says which, always.
+    final Cause? cause;
+    
     ///RuleCall that awarded this advance (§4.5)
     final String? enabledByCallId;
     
@@ -833,6 +848,7 @@ class RunnerAdvance {
     final int to;
 
     RunnerAdvance({
+        this.cause,
         this.enabledByCallId,
         this.enabledByTouchId,
         required this.from,
@@ -842,6 +858,7 @@ class RunnerAdvance {
     });
 
     factory RunnerAdvance.fromJson(Map<String, dynamic> json) => RunnerAdvance(
+        cause: causeValues.map[json["cause"]],
         enabledByCallId: json["enabledByCallId"],
         enabledByTouchId: json["enabledByTouchId"],
         from: json["from"],
@@ -851,6 +868,7 @@ class RunnerAdvance {
     );
 
     Map<String, dynamic> toJson() => {
+        "cause": causeValues.reverse[cause],
         "enabledByCallId": enabledByCallId,
         "enabledByTouchId": enabledByTouchId,
         "from": from,
@@ -859,6 +877,22 @@ class RunnerAdvance {
         "to": to,
     };
 }
+
+
+///what happened to the *ball*, when `reason` says only why the runner was entitled to move
+///(§13.2). The case that needs it is the dropped third strike: `reason` must stay
+///`dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+///Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+///or simply beat the throw. Never inferred: the scorer says which, always.
+enum Cause {
+    PASSED_BALL,
+    WILD_PITCH
+}
+
+final causeValues = EnumValues({
+    "passed_ball": Cause.PASSED_BALL,
+    "wild_pitch": Cause.WILD_PITCH
+});
 
 enum RunnerAdvanceReason {
     AWARDED,
