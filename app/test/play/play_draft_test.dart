@@ -523,7 +523,7 @@ void main() {
       expect(events[0].payload['landingIsCaught'], isFalse);
       expect(events[1].payload['touchType'], 'dropped');
       expect(events[1].payload['ordinaryEffort'], isTrue); // §13.2 default
-      expect(events[1].payload['ballInPlayEventId'], localRef('bip'));
+      expect(events[1].payload['anchorEventId'], localRef('bip'));
       expect(events[2].payload['ordinaryEffort'], isNull); // clean touch
       expect(events[4].payload['how'], 'force');
       expect(events[4].payload['putoutTouchId'], localRef('e2'));

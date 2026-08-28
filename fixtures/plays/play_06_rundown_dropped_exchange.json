@@ -27,7 +27,7 @@
       "id": "e1",
       "type": "FielderTouch",
       "payload": {
-        "ballInPlayEventId": "e0",
+        "anchorEventId": "e0",
         "position": 3,
         "touchType": "received_throw"
       }
@@ -36,7 +36,7 @@
       "id": "e2",
       "type": "FielderTouch",
       "payload": {
-        "ballInPlayEventId": "e0",
+        "anchorEventId": "e0",
         "position": 6,
         "touchType": "received_throw"
       }
@@ -45,7 +45,7 @@
       "id": "e3",
       "type": "FielderTouch",
       "payload": {
-        "ballInPlayEventId": "e0",
+        "anchorEventId": "e0",
         "position": 3,
         "touchType": "received_throw"
       }
@@ -54,7 +54,7 @@
       "id": "e4",
       "type": "FielderTouch",
       "payload": {
-        "ballInPlayEventId": "e0",
+        "anchorEventId": "e0",
         "position": 4,
         "touchType": "missed_catch",
         "ordinaryEffort": true

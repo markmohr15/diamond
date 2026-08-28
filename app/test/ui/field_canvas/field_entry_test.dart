@@ -783,7 +783,7 @@ void main() {
       expect(tail[1].payload['touchType'], 'dropped');
       expect(tail[1].payload['position'], 6);
       expect(tail[1].payload['ordinaryEffort'], isTrue);
-      expect(tail[1].payload['ballInPlayEventId'], tail[0].id);
+      expect(tail[1].payload['anchorEventId'], tail[0].id);
       expect(tail[2].payload['touchType'], 'fielded');
       expect(tail[3].payload['touchType'], 'received_throw');
       expect(tail[3].payload['position'], 3);
@@ -1759,7 +1759,7 @@ void main() {
       expect(payload.ordinaryEffort, isTrue);
       // Anchored to the pitch, not a BallInPlay — there is no batted ball.
       final lastPitch = events.lastWhere((e) => e.type == 'PitchThrown');
-      expect(payload.ballInPlayEventId, lastPitch.id);
+      expect(payload.anchorEventId, lastPitch.id);
 
       final advance = RunnerAdvance.fromJson(
         events.lastWhere((e) => e.type == 'RunnerAdvance').payload,

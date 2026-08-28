@@ -897,6 +897,66 @@ void main() {
       expect(scoring.passedBalls, 0);
     });
 
+    test('a D3K says which getaway it was, or says none (§13.2 v0.50)', () {
+      // `reason` and `cause` answer different questions, and on a dropped
+      // third strike they come apart: she is entitled to run because strike
+      // three was not caught, while what happened to the ball is a separate
+      // fact. They shared one field until v0.50, so the engine inferred the
+      // second from whether a catcher touch existed.
+      List<GameEvent> d3k({Cause? cause, bool blockedThenThrewItAway = false}) {
+        final b = EventBuilder();
+        return [
+          b.pitch(
+            id: 'p',
+            batterId: 'b1',
+            pitcherId: 'pit',
+            outcome: Outcome.SWINGING_STRIKE,
+          ),
+          if (blockedThenThrewItAway)
+            b.fielderTouch(
+              id: 'wild',
+              anchorEventId: 'p',
+              position: 2,
+              touchType: TouchType.WILD_THROW,
+              ordinaryEffort: true,
+            ),
+          b.runnerAdvance(
+            id: 'reach',
+            runnerId: 'b1',
+            from: 0,
+            to: 1,
+            reason: RunnerAdvanceReason.DROPPED_THIRD_STRIKE,
+            cause: cause,
+            enabledByTouchId: blockedThenThrewItAway ? 'wild' : null,
+          ),
+        ];
+      }
+
+      // She says it got past the catcher.
+      expect(foldOfficialScoring(d3k(cause: Cause.PASSED_BALL)).passedBalls, 1);
+
+      // She says the pitcher threw it away.
+      expect(
+        foldOfficialScoring(d3k(cause: Cause.WILD_PITCH)).wildPitchesByPitcher,
+        {'pit': 1},
+      );
+
+      // Blocked, kept in front of her, then thrown away: she reached on the
+      // **error**, and no getaway is charged. Never both an error and a passed
+      // ball for the same advance.
+      final onError = foldOfficialScoring(d3k(blockedThenThrewItAway: true));
+      expect(onError.pitchGetaways, isEmpty);
+      expect(onError.errors, isNotEmpty);
+
+      // Nothing said and nothing linked: the catcher smothered it, retrieved
+      // it cleanly, threw on time, and a fast batter simply beat it. Nobody is
+      // charged anything — which the old derivation could not express, because
+      // silence meant wild pitch.
+      final beatTheThrow = foldOfficialScoring(d3k());
+      expect(beatTheThrow.pitchGetaways, isEmpty);
+      expect(beatTheThrow.errors, isEmpty);
+    });
+
     test('the label decides, not the physics (§13.2 v0.49)', () {
       // Labelled a passed ball with no catcher touch behind it. This used to
       // score a **wild pitch** — the derivation read the absence of a touch as

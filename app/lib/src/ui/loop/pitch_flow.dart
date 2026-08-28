@@ -391,7 +391,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'c',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.FIELDED,
         ).toJson(),
@@ -400,7 +400,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'f',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 3,
           touchType: TouchType.RECEIVED_THROW,
         ).toJson(),
@@ -424,7 +424,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'c',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.TAG_APPLIED,
         ).toJson(),
@@ -441,8 +441,13 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     ],
   );
 
-  /// Safe, and the ball was the pitcher's doing: the advance alone. The
-  /// absence of a catcher touch is what makes it a wild pitch (§13.2).
+  /// Safe, and the ball was the pitcher's doing.
+  ///
+  /// `reason` stays `dropped_third_strike` — that is why she was *entitled* to
+  /// run, and the batting line reads it — while `cause` says what happened to
+  /// the ball (§13.2 v0.50). The two used to be one field, so this said only
+  /// the first and the projection inferred the second from whether a touch
+  /// existed.
   Future<void> d3kSafeWildPitch() => _resolveD3k(
     (offer) => [
       PendingEvent(
@@ -452,6 +457,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           'from': 0,
           'to': 1,
           'reason': 'dropped_third_strike',
+          'cause': 'wild_pitch',
         },
       ),
     ],
@@ -464,7 +470,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'pb',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.MISSED_CATCH,
           ordinaryEffort: true,
@@ -477,6 +483,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           'from': 0,
           'to': 1,
           'reason': 'dropped_third_strike',
+          'cause': 'passed_ball',
           'enabledByTouchId': localRef('pb'),
         },
       ),

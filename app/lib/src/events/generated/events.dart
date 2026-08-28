@@ -288,7 +288,11 @@ class CountCorrection {
 ///Physical touch vocabulary — never official-scoring language (spec §4.2, §13). Official
 ///errors are DERIVED.
 class FielderTouch {
-    final String ballInPlayEventId;
+    
+    ///the play this touch belongs to: the BallInPlay it was hit on, or — for a between-pitch
+    ///entry (§15.6) — the PitchThrown it hangs off. A grouping key; the engine does not require
+    ///it to resolve.
+    final String anchorEventId;
     
     ///optional for opponents
     final String? fielderId;
@@ -304,7 +308,7 @@ class FielderTouch {
     final TouchType touchType;
 
     FielderTouch({
-        required this.ballInPlayEventId,
+        required this.anchorEventId,
         this.fielderId,
         this.location,
         this.ordinaryEffort,
@@ -314,7 +318,7 @@ class FielderTouch {
     });
 
     factory FielderTouch.fromJson(Map<String, dynamic> json) => FielderTouch(
-        ballInPlayEventId: json["ballInPlayEventId"],
+        anchorEventId: json["anchorEventId"],
         fielderId: json["fielderId"],
         location: json["location"] == null ? null : FieldCoord.fromJson(json["location"]),
         ordinaryEffort: json["ordinaryEffort"],
@@ -324,7 +328,7 @@ class FielderTouch {
     );
 
     Map<String, dynamic> toJson() => {
-        "ballInPlayEventId": ballInPlayEventId,
+        "anchorEventId": anchorEventId,
         "fielderId": fielderId,
         "location": location?.toJson(),
         "ordinaryEffort": ordinaryEffort,
@@ -828,6 +832,13 @@ final callTypeValues = EnumValues({
 ///rundown) attributed to a misplay.
 class RunnerAdvance {
     
+    ///what happened to the *ball*, when `reason` says only why the runner was entitled to move
+    ///(§13.2). The case that needs it is the dropped third strike: `reason` must stay
+    ///`dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+    ///Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+    ///or simply beat the throw. Never inferred: the scorer says which, always.
+    final Cause? cause;
+    
     ///RuleCall that awarded this advance (§4.5)
     final String? enabledByCallId;
     
@@ -839,6 +850,7 @@ class RunnerAdvance {
     final int to;
 
     RunnerAdvance({
+        this.cause,
         this.enabledByCallId,
         this.enabledByTouchId,
         required this.from,
@@ -848,6 +860,7 @@ class RunnerAdvance {
     });
 
     factory RunnerAdvance.fromJson(Map<String, dynamic> json) => RunnerAdvance(
+        cause: causeValues.map[json["cause"]],
         enabledByCallId: json["enabledByCallId"],
         enabledByTouchId: json["enabledByTouchId"],
         from: json["from"],
@@ -857,6 +870,7 @@ class RunnerAdvance {
     );
 
     Map<String, dynamic> toJson() => {
+        "cause": causeValues.reverse[cause],
         "enabledByCallId": enabledByCallId,
         "enabledByTouchId": enabledByTouchId,
         "from": from,
@@ -865,6 +879,22 @@ class RunnerAdvance {
         "to": to,
     };
 }
+
+
+///what happened to the *ball*, when `reason` says only why the runner was entitled to move
+///(§13.2). The case that needs it is the dropped third strike: `reason` must stay
+///`dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+///Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+///or simply beat the throw. Never inferred: the scorer says which, always.
+enum Cause {
+    PASSED_BALL,
+    WILD_PITCH
+}
+
+final causeValues = EnumValues({
+    "passed_ball": Cause.PASSED_BALL,
+    "wild_pitch": Cause.WILD_PITCH
+});
 
 enum RunnerAdvanceReason {
     AWARDED,

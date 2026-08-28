@@ -3,6 +3,36 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.50
+
+**`RunnerAdvance` gains `cause`, and `ballInPlayEventId` becomes `anchorEventId` (§13.2, §4.2, §4.3).**
+
+`reason` had been answering two questions at once: *why was this runner entitled to move* and *what
+happened to the ball*. On a runner's advance they are one fact — `wild_pitch` says both, which is why
+nobody noticed they were different questions. On a batter reaching an uncaught third strike they come
+apart. Her entitlement is `dropped_third_strike` and has to stay so: it is what makes her line a
+strikeout *and* a reach rather than a hit, and relabelling it sends the derivation into the hit logic
+and scores a single. Meanwhile the ball's story is separately a wild pitch, a passed ball, or neither.
+
+So `cause` (`wild_pitch` | `passed_ball`) carries the second, and the projection reads `cause` when
+present and `reason` when the reason *is* the getaway. Mark, deciding the shape: *"D3K should be the
+reason and WP/PB/Error/Nothing are a secondary cause."*
+
+**Absent `cause` is an answer, not silence** — she reached on an **error**, or she **beat the throw**.
+v0.49 had removed the WP/PB inference everywhere the stream could express the answer, and this was the
+one place it could not: the engine read that absence as a wild pitch, charging the pitcher for a
+batter's speed. It was the last inference in the path.
+
+**Error stays on the link rather than joining the enum.** It is already recorded twice — as
+`enabledByTouchId` and as the charged error — and a third home could disagree with both, which is the
+same duplication §15.1's `retrieved` had just been cured of.
+
+**`ballInPlayEventId` → `anchorEventId`.** Since §15.6 a between-pitch entry anchors its touches to the
+**pitch** that already exists, so the field holds either a `BallInPlay` id or a `PitchThrown` id and the
+old name asserted a type it no longer carried. Not cosmetic: the passed-ball error exemption had been
+written as "`missed_catch` anchored to a pitch" and silently un-charged errors on every between-pitch
+play, because nobody reading `ballInPlayEventId` expected a pitch id in it.
+
 ## v0.49
 
 **Wild pitch vs. passed ball is the scorer's call, always (§13.2)** — the one place §13 does not
