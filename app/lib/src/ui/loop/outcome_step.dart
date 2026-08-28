@@ -95,7 +95,11 @@ class OutcomeStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Scrollable because the sheet can be tall: six primaries when she may run
+    // on strike three, plus eight rare chips. A `Dialog` sizes to its content
+    // and does not scroll, so without this the bottom clips on a short screen
+    // — and the app is phone-capable (§21). Costs nothing when it fits.
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(BrandMetrics.spaceLg),
       child: Column(
         // Sized to content: this renders inside a centered dialog (v0.43's
