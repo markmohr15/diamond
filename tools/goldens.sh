@@ -30,6 +30,18 @@ if [[ "${1:-}" != "-n" ]]; then
   NAME_FILTER=""
 fi
 
+# `flutter pub get` inside the container rewrites .dart_tool/package_config.json
+# with container paths, so the host toolchain can no longer resolve packages.
+# Restored on EXIT rather than after the docker run: with `set -e`, a failing
+# golden aborts the script, and putting the restore at the end meant exactly
+# the runs that fail — the ones where you then want to read the diff and edit
+# code — left the host unable to analyze or format anything.
+restore_host() {
+  echo "==> restoring host package config"
+  (cd "${REPO}/app" && flutter pub get >/dev/null 2>&1) || true
+}
+trap restore_host EXIT
+
 if ! docker info >/dev/null 2>&1; then
   echo "docker is not running — start it and retry" >&2
   exit 1
@@ -52,12 +64,7 @@ docker run --rm \
             flutter test --tags golden --run-skipped --update-goldens \
               ${NAME_FILTER:+--plain-name "$NAME_FILTER"}'
 
-# `flutter pub get` inside the container rewrote .dart_tool/package_config.json
-# with container paths, so the host toolchain can no longer resolve packages.
-# Put it back, or the next local `flutter test` fails for a reason that has
-# nothing to do with the code.
-echo "==> restoring host package config"
-(cd "${REPO}/app" && flutter pub get >/dev/null)
+# Restored on the way out *however* we leave — see the trap above.
 
 echo "==> done. Review the diff before committing:"
 echo "    git status --short -- '*.png'"

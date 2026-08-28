@@ -263,7 +263,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     accent: scheme.primary,
                     surface: scheme.surface,
                     landing: draft.landing,
-                    retrieved: draft.retrieved,
+                    rollEnd: draft.rollEnd,
                     tokens: tokens,
                     dragPosition: _drag?.current,
                     dragTokenId: _drag?.runnerId,
@@ -275,8 +275,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
                     route: [
-                      if (draft.landing != null)
-                        draft.retrieved ?? draft.landing!,
+                      if (draft.landing != null) draft.ballAt ?? draft.landing!,
                       for (final entry in draft.entries)
                         if (entry is TouchEntry && entry.location != null)
                           entry.location!,
@@ -519,7 +518,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         // on this field today. It *landed* out there — home run?
         if (beyondFence) _showHomeRunDialog();
       } else {
-        controller.setRetrieved(point);
+        controller.setEndedAt(point);
         // It landed in the park and ended up over the fence: the bounced-
         // over ball, which is a ground-rule double.
         if (beyondFence && geometry.fenceDepthFt(landing) >= 0) {
@@ -578,10 +577,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           return;
         }
       }
-      // Loose or untouched ball: she made a play on it — where she was
-      // dropped (or stands, for a tap) is where it happened; the popup
-      // says what happened there.
-      _showFielderPlaySheet(position, spot);
+      // Loose or untouched ball: she made a play on **the ball**, so she goes
+      // where the ball is rather than where the finger landed. Tapping the
+      // left fielder after tracing a ball into the corner used to record her
+      // touch at her standing spot — a place the ball had never been — and
+      // that location is the one official scoring reads.
+      //
+      // A drag still wins: dropping her somewhere explicit is the scorer
+      // saying where the play happened. Only a tap needs the snap, because a
+      // tap says *who*, not *where*.
+      _showFielderPlaySheet(position, moved ? spot : (_draft.ballAt ?? spot));
       return;
     }
 
@@ -859,10 +864,27 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // ground, whatever it was off the bat, so the fielder who comes over is
     // fielding it rather than catching it.
     final touches = _draft.entries.whereType<TouchEntry>();
+    // A traced roll is proof the ball reached the ground: the scorer said it
+    // travelled after landing, so nobody is catching it any more. Without
+    // this, tracing a ball into the corner and then tapping the left fielder
+    // still offered "Caught".
     final inFlight =
-        touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED;
+        (touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED) &&
+        _draft.rollEnd == null;
     final choices = <(String, String, TouchType?)>[
-      if (airborne && inFlight) ...[
+      // §15.6: no batted ball, so the batted-ball verbs do not apply. A
+      // catcher cannot *boot* a pitch — booting is a ground ball off the bat
+      // played with the foot — and nothing caromed off anybody, so there is
+      // no deflection either. What is left is the honest set: she picked it
+      // up, she fumbled picking it up, or she never got to it.
+      if (!_draft.battedBall) ...[
+        ('fielded', 'Fielded', TouchType.FIELDED),
+        // `bobbled` rather than `dropped`: she never had it to drop. A muffed
+        // pickup is still chargeable (§13.2), which is why it is offered at
+        // all.
+        ('bobbled', 'Bobbled it', TouchType.BOBBLED),
+        ('missed', 'Missed it', null),
+      ] else if (airborne && inFlight) ...[
         ('caught', 'Caught', TouchType.CAUGHT),
         ('dropped', 'Dropped', TouchType.DROPPED),
         // Only a liner caroms. A pop-up one fielder touches and another
@@ -932,6 +954,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final isBatter = origin == 0;
     final forced =
         !caught && atBase == origin + 1 && _forceChainLive(origin, bases);
+    // Order is load-bearing: `_inferredHow` takes `.first` as the preselected
+    // chip, so moving an entry changes what the scorer is offered by default.
+    // That is invisible from reading the list, hence this note.
     // §15.6: between pitches she was running on her own, so the play's
     // vocabulary does not apply — no force without a batter, no fly out
     // without a batted ball.
@@ -945,7 +970,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     return [
       if (caught && isBatter) ('fly_out', 'Fly out', How.FLY_OUT),
       if (forced) ('force', 'Force', How.FORCE),
-      ('tag', 'Tag', How.TAG),
+      // No tag on the batter when the ball was caught: she is out *by the
+      // catch*, and there is no tag to apply. Every other entry here was
+      // already gated; this one was not.
+      if (!caught || !isBatter) ('tag', 'Tag', How.TAG),
       if (caught && !isBatter) ('appeal', "Didn't tag up", How.APPEAL),
     ];
   }
@@ -955,16 +983,39 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   How _inferredHow(String runnerId, int atBase, BaseState bases) =>
       _possibleHows(runnerId, atBase, bases).first.$3;
 
+  /// Whether every base behind [origin] is still occupied by a runner who has
+  /// to move — which is what keeps a force alive.
+  ///
+  /// **Outs already recorded on this play count.** A force is removed when the
+  /// runner behind is retired: grounder to the first baseman, she steps on the
+  /// bag, then throws to second — that runner has to be **tagged**, and this
+  /// used to still offer "Force", preselected. Pre-pitch occupancy alone
+  /// cannot see that, because the out happened after the pitch.
   bool _forceChainLive(int origin, BaseState bases) {
+    final retired = {
+      for (final entry in _draft.entries)
+        if (entry is OutEntry) entry.runnerId,
+    };
+
+    String? runnerOn(int base) => switch (base) {
+      1 => bases.first,
+      2 => bases.second,
+      3 => bases.third,
+      // Not a base. The old `_` arm silently read third here, so an
+      // out-of-range value answered a question about a base that does not
+      // exist.
+      _ => null,
+    };
+
     for (var base = origin - 1; base >= 1; base--) {
-      final occupied = switch (base) {
-        1 => bases.first != null,
-        2 => bases.second != null,
-        _ => bases.third != null,
-      };
-      if (!occupied) return false;
+      final runner = runnerOn(base);
+      if (runner == null || retired.contains(runner)) return false;
     }
-    return true; // batter's box always pushes: in_play means she's running
+
+    // The batter's box pushes only while she is still live: `in_play` means
+    // she is running, but not once she has been retired on this same play.
+    final batterId = _draft.batterId;
+    return origin == 0 || !retired.contains(batterId);
   }
 
   bool _nearFence(FieldCoord landing) {
@@ -991,9 +1042,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       return 'Tap the ball path — or drag the fielder who played it';
     }
     final at = FieldGeometry.distanceFt(landing);
-    final retrieved = draft.retrieved;
-    if (retrieved == null) return '${at.round()} ft';
-    final rolled = FieldGeometry.distanceFt(retrieved).round();
+    final rollEnd = draft.rollEnd;
+    if (rollEnd == null) return '${at.round()} ft';
+    final rolled = FieldGeometry.distanceFt(rollEnd).round();
     return '${at.round()} ft → $rolled ft';
   }
 

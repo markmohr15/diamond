@@ -329,7 +329,7 @@ class PlayDraft {
     required this.pitchEventId,
     required this.batterId,
     this.landing,
-    this.retrieved,
+    this.endedAt,
     this.trajectory,
     this.offWall = false,
     this.sacrifice = false,
@@ -347,9 +347,9 @@ class PlayDraft {
     landing: json['landing'] == null
         ? null
         : FieldCoord.fromJson(json['landing'] as Map<String, dynamic>),
-    retrieved: json['retrieved'] == null
+    endedAt: json['endedAt'] == null
         ? null
-        : FieldCoord.fromJson(json['retrieved'] as Map<String, dynamic>),
+        : FieldCoord.fromJson(json['endedAt'] as Map<String, dynamic>),
     trajectory: trajectoryValues.map[json['trajectory']],
     offWall: json['offWall'] as bool? ?? false,
     sacrifice: json['sacrifice'] as bool? ?? false,
@@ -380,7 +380,7 @@ class PlayDraft {
   final FieldCoord? landing;
 
   /// §15.1's tap-and-drag second grip; null ⇒ same as landing.
-  final FieldCoord? retrieved;
+  final FieldCoord? endedAt;
 
   /// Whether a ball was hit (§15.5) or this is a **between-pitch** entry
   /// (§15.6) — a steal, a runner taking a base on a passed ball, a D3K
@@ -397,6 +397,35 @@ class PlayDraft {
   /// ball is loose — the pitch got past her. Ignored once a touch secures
   /// it, which is why [holderPosition] prefers [securedTouch].
   final int? heldBy;
+
+  /// **Where the ball is** — the one answer, so nothing has to guess twice.
+  ///
+  /// A fielder placed on a loose ball snaps here, and the painter draws the
+  /// roll segment to here, which is what stops the streak and the fielder from
+  /// disagreeing about the same fact.
+  ///
+  /// In order: where the scorer said it ended up; else wherever the last touch
+  /// left it, since a boot drops the ball at the booter's feet and the next
+  /// fielder over goes to *that* spot rather than back to the landing; else the
+  /// landing, which is where a ball stays when nothing moved it.
+  FieldCoord? get ballAt {
+    if (endedAt != null) return endedAt;
+    final lastTouch = entries.whereType<TouchEntry>().lastOrNull;
+    return lastTouch?.location ?? landing;
+  }
+
+  /// The roll segment's far end, or null when the ball never moved after
+  /// landing — a home run, or anything fielded on the spot.
+  ///
+  /// Generated types carry no value equality, so this compares coordinates
+  /// rather than instances: `ballAt` falls back to `landing` and would
+  /// otherwise draw a zero-length streak on every play that has one.
+  FieldCoord? get rollEnd {
+    final at = ballAt;
+    final from = landing;
+    if (at == null || from == null) return null;
+    return (at.x == from.x && at.y == from.y) ? null : at;
+  }
 
   /// Who has the ball right now, seed included.
   int? get holderPosition => securedTouch?.position ?? heldBy;
@@ -573,7 +602,7 @@ class PlayDraft {
 
   PlayDraft copyWith({
     FieldCoord? landing,
-    Object? retrieved = _unset,
+    Object? endedAt = _unset,
     Trajectory? trajectory,
     bool? offWall,
     bool? sacrifice,
@@ -587,9 +616,7 @@ class PlayDraft {
       pitchEventId: pitchEventId,
       batterId: batterId,
       landing: landing ?? this.landing,
-      retrieved: retrieved == _unset
-          ? this.retrieved
-          : retrieved as FieldCoord?,
+      endedAt: endedAt == _unset ? this.endedAt : endedAt as FieldCoord?,
       trajectory: trajectory ?? this.trajectory,
       offWall: offWall ?? this.offWall,
       sacrifice: sacrifice ?? this.sacrifice,
@@ -1068,7 +1095,7 @@ class PlayDraft {
     'pitchEventId': pitchEventId,
     'batterId': batterId,
     'landing': landing?.toJson(),
-    'retrieved': retrieved?.toJson(),
+    'endedAt': endedAt?.toJson(),
     'trajectory': trajectoryValues.reverse[trajectory],
     'offWall': offWall,
     'sacrifice': sacrifice,
@@ -1118,7 +1145,7 @@ class PlayDraft {
             fair: true,
             trajectory: trajectory!,
             landing: landing!,
-            retrieved: retrieved,
+            endedAt: endedAt,
             landingIsCaught: landingIsCaught,
             offWall: offWall ? true : null,
             sacrifice: sacrifice ? true : null,
@@ -1131,7 +1158,7 @@ class PlayDraft {
             localKey: entryKey(entry.key),
             payload:
                 FielderTouch(
-                    ballInPlayEventId: '',
+                    anchorEventId: '',
                     position: entry.position,
                     touchType: entry.touchType,
                     ordinaryEffort:
@@ -1140,7 +1167,7 @@ class PlayDraft {
                     receivedQuality: entry.receivedQuality,
                     location: entry.location,
                   ).toJson()
-                  ..['ballInPlayEventId'] = battedBall
+                  ..['anchorEventId'] = battedBall
                       ? localRef(bipKey)
                       : pitchEventId,
           ),

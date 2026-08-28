@@ -310,10 +310,6 @@ class PitchLoopPage extends ConsumerWidget {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 620),
           child: OutcomeStep(
-            suggestion: suggestOutcome(
-              actual: flow.actual,
-              bounce: flow.bounce,
-            ),
             onChosen: (outcome) {
               Navigator.pop(dialogContext, true);
               ref.read(pitchFlowProvider.notifier).commitOutcome(outcome);

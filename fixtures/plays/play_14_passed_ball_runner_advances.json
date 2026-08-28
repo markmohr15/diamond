@@ -5,7 +5,7 @@
   "setup": { "outs": 1, "count": { "balls": 1, "strikes": 1 }, "runners": { "2": "r2" } },
   "events": [
     { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.4, "y": -0.5 }, "outcome": "ball" } },
-    { "id": "e2", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e1", "position": 2, "touchType": "missed_catch", "ordinaryEffort": true } },
+    { "id": "e2", "type": "FielderTouch", "payload": { "anchorEventId": "e1", "position": 2, "touchType": "missed_catch", "ordinaryEffort": true } },
     { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 2, "to": 3, "reason": "passed_ball", "enabledByTouchId": "e2" } }
   ],
   "expect": {

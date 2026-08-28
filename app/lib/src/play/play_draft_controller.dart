@@ -153,15 +153,15 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
 
   /// §15.1 v0.43's drawn path, first tap: where the ball first hit ground
   /// or glove. Re-tapping restarts the streak — the old end is stale.
-  Future<void> setLanding(FieldCoord landing, {FieldCoord? retrieved}) {
+  Future<void> setLanding(FieldCoord landing, {FieldCoord? endedAt}) {
     return _mutate(
-      (draft) => draft.copyWith(landing: landing, retrieved: retrieved),
+      (draft) => draft.copyWith(landing: landing, endedAt: endedAt),
     );
   }
 
   /// The streak's second tap: where the ball ended up. Further taps adjust.
-  Future<void> setRetrieved(FieldCoord retrieved) {
-    return _mutate((draft) => draft.copyWith(retrieved: retrieved));
+  Future<void> setEndedAt(FieldCoord endedAt) {
+    return _mutate((draft) => draft.copyWith(endedAt: endedAt));
   }
 
   /// §15.1 v0.43's fielder drag, popup answered: she stands at [spot], the

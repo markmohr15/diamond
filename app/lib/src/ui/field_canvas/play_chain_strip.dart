@@ -31,7 +31,7 @@ const _misplayLabels = <TouchType, String>{
   TouchType.DEFLECTED: 'Deflected',
   TouchType.WILD_THROW: 'Wild throw',
   TouchType.MISSED_CATCH: 'Missed catch',
-  TouchType.TAG_MISSED: 'Tag missed',
+  TouchType.TAG_MISSED: 'Missed tag',
 };
 
 const _arrivalLabels = <ReceivedQuality, String>{
@@ -46,8 +46,9 @@ const _howLabels = <How, String>{
   How.FLY_OUT: 'Fly out',
 };
 
-/// Touch types that receive a ball from elsewhere — the ones whose node
-/// also offers arrival quality (§15.3).
+/// Touch types that *can* be a reception. Necessary but not sufficient — the
+/// node also has to have received the ball from somebody (see the strip's
+/// `_offersArrivalQuality`).
 const _receivingTypes = {
   TouchType.RECEIVED_THROW,
   TouchType.MISSED_CATCH,
@@ -286,6 +287,44 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     );
   }
 
+  /// Whether this node should ask **how the throw arrived**.
+  ///
+  /// Gated on provenance, not on the touch type alone. `dropped` and
+  /// `missed_catch` describe muffing a **throw** *or* muffing a ball off the
+  /// bat, and the type cannot tell them apart — so dropping a routine fly used
+  /// to ask how the throw arrived, for a ball nobody threw.
+  ///
+  /// The question is only meaningful if somebody earlier in the chain had the
+  /// ball and sent it here.
+  bool _offersArrivalQuality(TouchEntry touch) {
+    if (!_receivingTypes.contains(touch.touchType)) return false;
+
+    final entries = widget.draft.entries;
+    final index = entries.indexWhere((e) => e.key == touch.key);
+    if (index <= 0) return false;
+
+    // Someone else touched it first: the ball came from a fielder rather than
+    // off the bat.
+    return entries
+        .take(index)
+        .whereType<TouchEntry>()
+        .any((earlier) => earlier.position != touch.position);
+  }
+
+  /// The touch that sent the ball to [touch], if any — the fielder whose throw
+  /// this node received, and therefore the one a wild throw belongs to.
+  TouchEntry? _throwerInto(TouchEntry touch) {
+    if (!_receivingTypes.contains(touch.touchType)) return null;
+    final entries = widget.draft.entries;
+    final index = entries.indexWhere((e) => e.key == touch.key);
+    if (index <= 0) return null;
+    return entries
+        .take(index)
+        .whereType<TouchEntry>()
+        .where((earlier) => earlier.position != touch.position)
+        .lastOrNull;
+  }
+
   /// §15.3's chip menu on a touch node: the misplay set, arrival quality on
   /// receiving nodes, the §13.2 judgment on misplays, and removal.
   void _showTouchSheet(BuildContext context, TouchEntry touch) {
@@ -307,7 +346,26 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
             ),
         ],
       ),
-      if (_receivingTypes.contains(touch.touchType)) ...[
+      // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
+      // the grammar is right — but the throw **arrives** badly, and the
+      // receiver's node is the one that just appeared, so that is where the
+      // finger goes. Confirmed in the field: a catcher's throw to first
+      // recorded `wild_throw` on position 3, which charges E3 instead of E2.
+      //
+      // So the receiving node offers the question in the direction the scorer
+      // is actually looking, and it retypes the *thrower*.
+      if (_throwerInto(touch) case final thrower?) ...[
+        const SizedBox(height: 8),
+        ActionChip(
+          key: chainChipKey('throw_was_wild'),
+          label: const Text('The throw was wild'),
+          onPressed: () {
+            controller.setTouchType(thrower.key, TouchType.WILD_THROW);
+            Navigator.pop(context);
+          },
+        ),
+      ],
+      if (_offersArrivalQuality(touch)) ...[
         const SizedBox(height: 8),
         Wrap(
           spacing: 6,

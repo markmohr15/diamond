@@ -6,9 +6,9 @@
   "events": [
     { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.2, "y": 0.5 }, "outcome": "in_play" } },
     { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": -45, "y": 120 }, "landingIsCaught": false } },
-    { "id": "e3", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "dropped", "ordinaryEffort": true } },
-    { "id": "e4", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 6, "touchType": "fielded" } },
-    { "id": "e5", "type": "FielderTouch", "payload": { "ballInPlayEventId": "e2", "position": 3, "touchType": "received_throw" } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "dropped", "ordinaryEffort": true } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "fielded" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 3, "touchType": "received_throw" } },
     { "id": "e6", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "force", "putoutTouchId": "e5" } }
   ],
   "expect": {

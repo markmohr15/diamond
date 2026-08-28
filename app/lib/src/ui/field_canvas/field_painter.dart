@@ -39,7 +39,7 @@ class RunnerToken {
 
 /// The field, §18.7-style: line work in ink, the play's data in accent, no
 /// scenery. Fence from the spline, foul lines to the poles, basepath
-/// diamond, circle, fielder spots — the stage; landing/retrieved/runners —
+/// diamond, circle, fielder spots — the stage; landing/roll end/runners —
 /// the datum, which is where the accent goes.
 class FieldPainter extends CustomPainter {
   FieldPainter({
@@ -48,7 +48,7 @@ class FieldPainter extends CustomPainter {
     required this.accent,
     required this.surface,
     this.landing,
-    this.retrieved,
+    this.rollEnd,
     this.tokens = const [],
     this.dragPosition,
     this.dragTokenId,
@@ -73,7 +73,7 @@ class FieldPainter extends CustomPainter {
   final Color surface;
 
   final FieldCoord? landing;
-  final FieldCoord? retrieved;
+  final FieldCoord? rollEnd;
   final List<RunnerToken> tokens;
 
   /// Live gesture state: where the active drag currently is, and — when the
@@ -349,18 +349,18 @@ class FieldPainter extends CustomPainter {
 
     // The streak (§15.1 v0.43): first bounce → where it ended up, drawn in
     // accent so the ball's path reads at a glance.
-    final rollEnd = retrieved == null ? null : geometry.toPx(retrieved!);
-    if (rollEnd != null) {
+    final rollEndPx = rollEnd == null ? null : geometry.toPx(rollEnd!);
+    if (rollEndPx != null) {
       canvas
         ..drawLine(
           landingPx,
-          rollEnd,
+          rollEndPx,
           Paint()
             ..strokeWidth = 3.5
             ..strokeCap = StrokeCap.round
             ..color = accent.withValues(alpha: 0.6),
         )
-        ..drawCircle(rollEnd, 5, Paint()..color = accent);
+        ..drawCircle(rollEndPx, 5, Paint()..color = accent);
     }
 
     // The landing itself: the spray-chart point, the datum of the play.
@@ -452,7 +452,7 @@ class FieldPainter extends CustomPainter {
   @override
   bool shouldRepaint(FieldPainter oldDelegate) {
     return oldDelegate.landing != landing ||
-        oldDelegate.retrieved != retrieved ||
+        oldDelegate.rollEnd != rollEnd ||
         oldDelegate.tokens != tokens ||
         oldDelegate.dragPosition != dragPosition ||
         oldDelegate.dragTokenId != dragTokenId ||
