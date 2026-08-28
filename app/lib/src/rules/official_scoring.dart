@@ -39,6 +39,11 @@ const Set<TouchType> misplayTouchTypes = {
 /// failure to receive.
 const Set<TouchType> pitchReceivingTouchTypes = {TouchType.MISSED_CATCH};
 
+/// The only fielder who receives a *pitch*. Anyone else holding a
+/// `missed_catch` is receiving something somebody threw, and muffing a throw
+/// is an error like any other.
+const int _catcher = 2;
+
 /// Official-scoring category of a charged error, derived from the physical
 /// touch type — never entered by the scorer (spec §13.1).
 enum OfficialErrorKind {
@@ -475,19 +480,22 @@ OfficialScoring foldOfficialScoring(
     // the battery as a WP/PB; only a play on a *batted or thrown* ball can
     // become an E. The misplay above still stands: the physical record is
     // layer 1 and does not depend on what official scoring makes of it.
-    // Anchored to a pitch is not enough. §15.6 v0.45 hangs *every*
-    // between-pitch entry off the pitch that already exists, so a rundown's
-    // dropped exchange and a steal's muffed tag carry a pitch anchor too — and
-    // this exemption used to swallow them, silently un-charging an error on
-    // any play that happened between pitches.
+    // The exemption is **the catcher, on a pitch**, and nothing else.
     //
-    // Receiving the *pitch* means nothing touched the ball before you on it.
-    // A fourth touch in a 3-6-3-4 rundown is receiving a throw.
+    // Three conditions, each load-bearing. Anchored to a pitch is not enough:
+    // §15.6 hangs *every* between-pitch entry off the pitch that already
+    // exists, so a rundown's dropped exchange carries a pitch anchor too.
+    // First-on-the-anchor is not enough either — a pickoff throw *is* the
+    // first touch on its anchor, and a first baseman who misses one has
+    // muffed a **throw**, which charges. And the catcher is the only fielder
+    // who receives a pitch, so anyone else holding this touch type is
+    // receiving something somebody threw.
     final anchor = t.anchorEventId;
     final firstOnAnchor = !touches
         .takeWhile((earlier) => earlier.eventId != touch.eventId)
         .any((earlier) => earlier.payload.anchorEventId == anchor);
     if (pitchReceivingTouchTypes.contains(t.touchType) &&
+        t.position == _catcher &&
         pitchEventIds.contains(anchor) &&
         firstOnAnchor) {
       continue;
