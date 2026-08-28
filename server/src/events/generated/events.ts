@@ -129,7 +129,12 @@ export interface CountCorrection {
  * errors are DERIVED.
  */
 export interface FielderTouch {
-    ballInPlayEventId: string;
+    /**
+     * the play this touch belongs to: the BallInPlay it was hit on, or — for a between-pitch
+     * entry (§15.6) — the PitchThrown it hangs off. A grouping key; the engine does not require
+     * it to resolve.
+     */
+    anchorEventId: string;
     /**
      * optional for opponents
      */
@@ -345,6 +350,14 @@ export type CallType = "interference_batter" | "interference_runner" | "interfer
  */
 export interface RunnerAdvance {
     /**
+     * what happened to the *ball*, when `reason` says only why the runner was entitled to move
+     * (§13.2). The case that needs it is the dropped third strike: `reason` must stay
+     * `dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+     * Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+     * or simply beat the throw. Never inferred: the scorer says which, always.
+     */
+    cause?: Cause;
+    /**
      * RuleCall that awarded this advance (§4.5)
      */
     enabledByCallId?: string;
@@ -357,6 +370,15 @@ export interface RunnerAdvance {
     runnerId:          string;
     to:                number;
 }
+
+/**
+ * what happened to the *ball*, when `reason` says only why the runner was entitled to move
+ * (§13.2). The case that needs it is the dropped third strike: `reason` must stay
+ * `dropped_third_strike` for the batting line, so the getaway has nowhere else to live.
+ * Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`)
+ * or simply beat the throw. Never inferred: the scorer says which, always.
+ */
+export type Cause = "wild_pitch" | "passed_ball";
 
 export type RunnerAdvanceReason = "batted_ball" | "walk" | "hbp" | "stolen_base" | "wild_pitch" | "passed_ball" | "balk" | "illegal_pitch" | "error" | "fielders_choice" | "defensive_indifference" | "dropped_third_strike" | "catcher_interference" | "obstruction" | "wild_throw" | "ground_rule" | "awarded";
 
@@ -669,7 +691,7 @@ const typeMap: any = {
         { json: "strikes", js: "strikes", typ: 0 },
     ], false),
     "FielderTouch": o([
-        { json: "ballInPlayEventId", js: "ballInPlayEventId", typ: "" },
+        { json: "anchorEventId", js: "anchorEventId", typ: "" },
         { json: "fielderId", js: "fielderId", typ: u(undefined, "") },
         { json: "location", js: "location", typ: u(undefined, r("FieldCoord")) },
         { json: "ordinaryEffort", js: "ordinaryEffort", typ: u(undefined, true) },
@@ -726,6 +748,7 @@ const typeMap: any = {
         { json: "runnerId", js: "runnerId", typ: u(undefined, "") },
     ], false),
     "RunnerAdvance": o([
+        { json: "cause", js: "cause", typ: u(undefined, r("Cause")) },
         { json: "enabledByCallId", js: "enabledByCallId", typ: u(undefined, "") },
         { json: "enabledByTouchId", js: "enabledByTouchId", typ: u(undefined, "") },
         { json: "from", js: "from", typ: 0 },
@@ -831,6 +854,10 @@ const typeMap: any = {
         "look_back_violation",
         "obstruction",
         "umpire_reversal",
+    ],
+    "Cause": [
+        "passed_ball",
+        "wild_pitch",
     ],
     "RunnerAdvanceReason": [
         "awarded",

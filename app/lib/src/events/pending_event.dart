@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 /// nothing upstream — a play draft, a fixture loader — can invent them.
 ///
 /// **Intra-batch references:** events committed together may need each
-/// other's ids before those ids exist (`FielderTouch.ballInPlayEventId`,
+/// other's ids before those ids exist (`FielderTouch.anchorEventId`,
 /// `RunnerAdvance.enabledByTouchId`, `RunnerOut.putoutTouchId`, §4.2–4.3).
 /// An event that others reference declares a [localKey]; a payload value of
 /// the form `{"$local": <key>}` (see [localRef]) is replaced with that

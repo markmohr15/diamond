@@ -1158,7 +1158,7 @@ class PlayDraft {
             localKey: entryKey(entry.key),
             payload:
                 FielderTouch(
-                    ballInPlayEventId: '',
+                    anchorEventId: '',
                     position: entry.position,
                     touchType: entry.touchType,
                     ordinaryEffort:
@@ -1167,7 +1167,7 @@ class PlayDraft {
                     receivedQuality: entry.receivedQuality,
                     location: entry.location,
                   ).toJson()
-                  ..['ballInPlayEventId'] = battedBall
+                  ..['anchorEventId'] = battedBall
                       ? localRef(bipKey)
                       : pitchEventId,
           ),

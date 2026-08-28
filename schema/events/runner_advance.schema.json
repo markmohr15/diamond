@@ -14,6 +14,10 @@
                "dropped_third_strike", "catcher_interference", "obstruction", "wild_throw",
                "ground_rule", "awarded"]
     },
+    "cause": {
+      "enum": ["wild_pitch", "passed_ball"],
+      "description": "what happened to the *ball*, when `reason` says only why the runner was entitled to move (§13.2). The case that needs it is the dropped third strike: `reason` must stay `dropped_third_strike` for the batting line, so the getaway has nowhere else to live. Absent means the ball did not get away — she reached on an error (see `enabledByTouchId`) or simply beat the throw. Never inferred: the scorer says which, always."
+    },
     "enabledByTouchId": { "type": "string", "description": "FielderTouch that enabled this advance (§13.1)" },
     "enabledByCallId":  { "type": "string", "description": "RuleCall that awarded this advance (§4.5)" }
   },
