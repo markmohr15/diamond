@@ -90,6 +90,12 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 
 - NEVER commit directly to `main`. Every ticket gets a branch: `dia-NNN-short-slug`
   (e.g., `dia-002-codegen`). One ticket = one branch = one PR.
+- **Every PR targets `main`. Never open one with `--base <another branch>`.** A PR's base is where
+  GitHub merges it, so a stacked PR silently lands its work on a branch instead of `main` — and it
+  still reports "Merged". This cost three separate recovery PRs on 2026-08-28 before the cause was
+  found, because nothing about the merge looks wrong until you notice `main` never changed. If a slice
+  depends on unmerged work, either wait for the parent to land or accept that the diff includes the
+  parent's commits. That cost is small; this one is not.
 - Open the PR with `gh pr create` when work begins (draft) or completes. PR title:
   `DIA-NNN: <ticket title>`. Body: plan summary, spec sections consulted, how to test,
   and anything that deviates from the ticket (flagged prominently).
