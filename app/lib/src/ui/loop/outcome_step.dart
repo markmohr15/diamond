@@ -24,7 +24,10 @@ Key outcomeKey(Outcome outcome) =>
 const _primaryOutcomes = <Outcome, String>{
   Outcome.BALL: 'Ball',
   Outcome.CALLED_STRIKE: 'Called strike',
-  Outcome.SWINGING_STRIKE: 'Swinging',
+  // "Swinging" alone does not say *strike* — it reads as a description of the
+  // swing rather than the call. Paired with "Called strike" above it, the two
+  // read as the set they are (Mark, 2026-08-28).
+  Outcome.SWINGING_STRIKE: 'Swinging strike',
   Outcome.FOUL: 'Foul',
   Outcome.IN_PLAY: 'In play',
 };

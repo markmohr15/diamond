@@ -218,7 +218,7 @@ void main() {
         'outs up, next batter due', (tester) async {
       await pumpLoop(tester);
 
-      for (final outcome in ['Called strike', 'Swinging', 'Foul tip']) {
+      for (final outcome in ['Called strike', 'Swinging strike', 'Foul tip']) {
         await skipToOutcome(tester);
         await tapText(tester, outcome);
       }
@@ -244,9 +244,9 @@ void main() {
       await skipToOutcome(tester);
       await tapText(tester, 'Called strike');
       await skipToOutcome(tester);
-      await tapText(tester, 'Swinging');
+      await tapText(tester, 'Swinging strike');
       await skipToOutcome(tester);
-      await tapText(tester, 'Swinging');
+      await tapText(tester, 'Swinging strike');
 
       final events = await stream();
       final out = RunnerOut.fromJson(events.last.payload);
@@ -710,7 +710,6 @@ void main() {
       expect(pitch.intendedLocation!.y, closeTo(0.5, 1e-9));
     });
   });
-
 
   group('the dropped third strike (§11.3 v0.46)', () {
     /// Two called strikes, then open the outcome sheet on the third pitch.
