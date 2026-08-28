@@ -742,7 +742,6 @@ enum Outcome {
     HIT_BY_PITCH,
     ILLEGAL_PITCH,
     IN_PLAY,
-    NO_PITCH,
     STRIKE_UNSPECIFIED,
     SWINGING_STRIKE,
     UNKNOWN
@@ -759,7 +758,6 @@ final outcomeValues = EnumValues({
     "hit_by_pitch": Outcome.HIT_BY_PITCH,
     "illegal_pitch": Outcome.ILLEGAL_PITCH,
     "in_play": Outcome.IN_PLAY,
-    "no_pitch": Outcome.NO_PITCH,
     "strike_unspecified": Outcome.STRIKE_UNSPECIFIED,
     "swinging_strike": Outcome.SWINGING_STRIKE,
     "unknown": Outcome.UNKNOWN
