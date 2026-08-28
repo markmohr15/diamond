@@ -237,7 +237,12 @@ export interface PitchThrown {
     actualType?:     string;
     /**
      * observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent =
-     * conventional AB posture.
+     * conventional AB posture. Narrowed from five values in v0.52: showed_bunt/pulled_bunt and
+     * slap/fake_slap each conflated *what she intended* with *whether she offered*, and the
+     * second derives from the outcome — squared with ball/called_strike means she did not
+     * offer, foul_bunt/in_play means she did. `slash` stays explicit even though bunt posture
+     * plus a non-bunt trajectory nearly implies it, because that only works when she makes
+     * contact and the deception is the whole scouting point.
      */
     batterAction?: BatterAction;
     batterId:      string;
@@ -286,9 +291,14 @@ export interface ZoneCoord {
 
 /**
  * observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent =
- * conventional AB posture.
+ * conventional AB posture. Narrowed from five values in v0.52: showed_bunt/pulled_bunt and
+ * slap/fake_slap each conflated *what she intended* with *whether she offered*, and the
+ * second derives from the outcome — squared with ball/called_strike means she did not
+ * offer, foul_bunt/in_play means she did. `slash` stays explicit even though bunt posture
+ * plus a non-bunt trajectory nearly implies it, because that only works when she makes
+ * contact and the deception is the whole scouting point.
  */
-export type BatterAction = "showed_bunt" | "pulled_bunt" | "slap" | "fake_slap" | "slash";
+export type BatterAction = "bunt" | "slap" | "slash";
 
 export type BatterSide = "L" | "R";
 
@@ -816,9 +826,7 @@ const typeMap: any = {
         "strike_effect",
     ],
     "BatterAction": [
-        "fake_slap",
-        "pulled_bunt",
-        "showed_bunt",
+        "bunt",
         "slap",
         "slash",
     ],

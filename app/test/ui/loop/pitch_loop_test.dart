@@ -3,6 +3,7 @@ import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
@@ -205,6 +206,150 @@ void main() {
       expect(pitch.intendedType, isNull);
       expect(pitch.actualLocation, isNull);
       expect(find.text('1-0', findRichText: true), findsOneWidget);
+    });
+  });
+
+  group('the batter-action modifier (§4.1)', () {
+    testWidgets('a bunt rides along with the outcome, on one event', (
+      tester,
+    ) async {
+      // Posture and outcome are two facts about one pitch, so they are one
+      // tap-then-tap on one surface and one `PitchThrown` — never a modifier
+      // committed separately, which could disagree about which pitch it
+      // described.
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, batterActionKey(BatterAction.BUNT));
+      await tapText(tester, 'Foul');
+
+      final pitch = await lastPitch();
+      expect(pitch.batterAction, BatterAction.BUNT);
+      expect(pitch.outcome, Outcome.FOUL);
+    });
+
+    testWidgets('absent unless she is asked to be, and toggles off', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      // On, then off: a mis-tap is corrected before committing rather than by
+      // undoing the pitch.
+      await tapKey(tester, batterActionKey(BatterAction.SLAP));
+      await tapKey(tester, batterActionKey(BatterAction.SLAP));
+      await tapText(tester, 'Ball');
+
+      expect((await lastPitch()).batterAction, isNull);
+    });
+
+    testWidgets('it does not carry to the next pitch', (tester) async {
+      // Posture is a per-pitch observation. Sticking would record a bunt she
+      // never showed.
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, batterActionKey(BatterAction.SLASH));
+      await tapText(tester, 'Ball');
+
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'Ball');
+      expect((await lastPitch()).batterAction, isNull);
+    });
+  });
+
+  group('the getaway consequence (§13.2, §11.3)', () {
+    Future<void> runnerOnSecond(WidgetTester tester) async {
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r2',
+              from: 0,
+              to: 2,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('nothing is offered with the bases empty', (tester) async {
+      // Rule 9.13 charges a getaway on its *consequence*. Empty bases, no
+      // consequence, no question — and no chip to mis-tap either.
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      expect(find.byKey(getawayKey(Cause.WILD_PITCH)), findsNothing);
+    });
+
+    testWidgets('all runners up one, in a single tap', (tester) async {
+      await pumpLoop(tester);
+      await runnerOnSecond(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, getawayKey(Cause.WILD_PITCH));
+      await tapText(tester, 'Ball');
+      await tapKey(tester, getawayAdvanceAllKey);
+
+      final advance = (await stream())
+          .where((e) => e.type == 'RunnerAdvance')
+          .map((e) => RunnerAdvance.fromJson(e.payload))
+          .last;
+      expect(advance.runnerId, 'r2');
+      expect((advance.from, advance.to), (2, 3));
+      expect(advance.reason, RunnerAdvanceReason.WILD_PITCH);
+      expect(container.read(gameControllerProvider).value!.bases.third, 'r2');
+    });
+
+    testWidgets("a passed ball writes §13.2's pair, linked", (tester) async {
+      // The catcher's misplay and the advance it enabled — the same shape the
+      // D3K resolution writes, reused rather than reinvented.
+      await pumpLoop(tester);
+      await runnerOnSecond(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, getawayKey(Cause.PASSED_BALL));
+      await tapText(tester, 'Ball');
+      await tapKey(tester, getawayAdvanceAllKey);
+
+      final events = await stream();
+      final touch = events
+          .where((e) => e.type == 'FielderTouch')
+          .map((e) => FielderTouch.fromJson(e.payload))
+          .single;
+      expect(touch.position, 2);
+      expect(touch.touchType, TouchType.MISSED_CATCH);
+
+      final advance = events.lastWhere((e) => e.type == 'RunnerAdvance');
+      expect(
+        advance.payload['enabledByTouchId'],
+        events.firstWhere((e) => e.type == 'FielderTouch').id,
+      );
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.passedBalls, 1);
+      expect(scoring.errors, isEmpty, reason: 'a PB is never an error');
+    });
+
+    testWidgets('going to the field seeds the ball loose, not to the catcher', (
+      tester,
+    ) async {
+      // A wild pitch's physics is the *absence* of a touch (§13.2), so seeding
+      // her would assert something that did not happen.
+      await pumpLoop(tester);
+      await runnerOnSecond(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, getawayKey(Cause.WILD_PITCH));
+      await tapText(tester, 'Ball');
+      await tapKey(tester, getawayToFieldKey);
+
+      expect(
+        container.read(playDraftProvider).value!.holderPosition,
+        isNull,
+        reason: 'nobody has it — that is what got away means',
+      );
     });
   });
 

@@ -3,6 +3,37 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.52
+
+**`batterAction` gets a writer and narrows to three values (§4.1, §11.1), and the outcome sheet gains
+the getaway consequence.**
+
+The field had been defined since §4.1 was written and **nothing wrote it**. Building the writer forced
+the question of what the five values were for, and two of them were recording a fact the stream already
+held: `showed_bunt`/`pulled_bunt` and `slap`/`fake_slap` each carried *what she intended* alongside
+*whether she offered*, and the second derives from the outcome — squared with `ball`/`called_strike`
+means she did not offer, `foul_bunt`/`in_play` means she did. Storing it stored a derived fact that
+could contradict its own source (§13).
+
+So: `bunt` | `slap` | `slash`. `slash` stays explicit even though bunt posture plus a non-bunt
+trajectory nearly implies it, because that inference only works when she makes contact, and the
+deception is the whole scouting point. `slap` is fastpitch and should be `RuleSet`-gated; it ships
+offered in both sports because `RuleSet` does not exist yet (DIA-017), which is recorded at the call
+site rather than left to be noticed.
+
+**The one-tap getaway.** Marking a wild pitch or passed ball with runners aboard offers *all runners up
+one*, because that is the whole play the overwhelming majority of the time and it should not cost a trip
+to the field. It is **one tap, not zero**: §11.3's rule is automatic where the rules leave no doubt and
+a prompt where they don't, and a runner on third often holds on a ball that only trickled away. The
+correction is action-scoped undo rather than a confirmation dialog, since confirming every common case
+costs more taps across a game than undoing the rare wrong one.
+
+Offered only with somebody aboard — rule 9.13 charges a getaway on its *consequence*, so with the bases
+empty there is nothing to charge and no chip to mis-tap. A passed ball writes §13.2's pair, reusing the
+D3K resolution's shape rather than a second one. And going to the field instead seeds the ball
+**loose**: a wild pitch's physics is the absence of a touch, so seeding the catcher would assert
+something that did not happen and the scorer would have to un-say it.
+
 ## v0.51
 
 **§11.1's outcome sheet ranks by frequency, and the location suggestion is deleted (§11.1, §4.1).**

@@ -26,7 +26,7 @@ Widget _sheetIn(Brightness brightness, {bool droppedThirdStrike = false}) =>
       home: Scaffold(
         body: Center(
           child: OutcomeStep(
-            onChosen: (_) {},
+            onChosen: (_, __, ___) {},
             onDroppedThirdStrike: droppedThirdStrike ? () {} : null,
           ),
         ),

@@ -16,8 +16,8 @@
     "bounceLocation":   { "$ref": "../common/bounce_coord.schema.json", "description": "set when the pitch hit the dirt before reaching the catcher (§3.3); mutually exclusive with an observed actualLocation. Actual only — never a call." },
     "velocity":         { "type": "number", "description": "mph, optional" },
     "batterAction": {
-      "enum": ["showed_bunt", "pulled_bunt", "slap", "fake_slap", "slash"],
-      "description": "observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent = conventional AB posture."
+      "enum": ["bunt", "slap", "slash"],
+      "description": "observed offensive posture on this pitch, orthogonal to outcome (§4.1, §11.1). Absent = conventional AB posture. Narrowed from five values in v0.52: showed_bunt/pulled_bunt and slap/fake_slap each conflated *what she intended* with *whether she offered*, and the second derives from the outcome — squared with ball/called_strike means she did not offer, foul_bunt/in_play means she did. `slash` stays explicit even though bunt posture plus a non-bunt trajectory nearly implies it, because that only works when she makes contact and the deception is the whole scouting point."
     },
     "outcome": {
       "enum": ["ball", "called_strike", "swinging_strike",
