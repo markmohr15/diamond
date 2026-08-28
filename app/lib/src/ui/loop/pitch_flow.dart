@@ -127,20 +127,6 @@ List<RunnerAdvance> forcedAdvances(
   ];
 }
 
-/// Diamond's suggested outcome for the confirm button (§11.1), or null when
-/// there is nothing to suggest from.
-///
-/// Suggestion ≠ auto-commit: the ump's call is the truth, not the location,
-/// so one tap is always required and the override row always shows.
-Outcome? suggestOutcome({ZoneCoord? actual, BounceCoord? bounce}) {
-  // Bounced before the plate: never a strike by location.
-  if (bounce != null) return Outcome.BALL;
-  if (actual == null) return null;
-  final inZone =
-      actual.x >= -1 && actual.x <= 1 && actual.y >= 0 && actual.y <= 1;
-  return inZone ? Outcome.CALLED_STRIKE : Outcome.BALL;
-}
-
 /// §11.1's state machine: call → actual → outcome → commit → back to call.
 ///
 /// **Outcome is its own step with its own surface, never entangled with
@@ -391,7 +377,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'c',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.FIELDED,
         ).toJson(),
@@ -400,7 +386,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'f',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 3,
           touchType: TouchType.RECEIVED_THROW,
         ).toJson(),
@@ -424,7 +410,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'c',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.TAG_APPLIED,
         ).toJson(),
@@ -441,8 +427,13 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     ],
   );
 
-  /// Safe, and the ball was the pitcher's doing: the advance alone. The
-  /// absence of a catcher touch is what makes it a wild pitch (§13.2).
+  /// Safe, and the ball was the pitcher's doing.
+  ///
+  /// `reason` stays `dropped_third_strike` — that is why she was *entitled* to
+  /// run, and the batting line reads it — while `cause` says what happened to
+  /// the ball (§13.2 v0.50). The two used to be one field, so this said only
+  /// the first and the projection inferred the second from whether a touch
+  /// existed.
   Future<void> d3kSafeWildPitch() => _resolveD3k(
     (offer) => [
       PendingEvent(
@@ -452,6 +443,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           'from': 0,
           'to': 1,
           'reason': 'dropped_third_strike',
+          'cause': 'wild_pitch',
         },
       ),
     ],
@@ -464,7 +456,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         type: 'FielderTouch',
         localKey: 'pb',
         payload: FielderTouch(
-          ballInPlayEventId: offer.pitchEventId,
+          anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.MISSED_CATCH,
           ordinaryEffort: true,
@@ -477,6 +469,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           'from': 0,
           'to': 1,
           'reason': 'dropped_third_strike',
+          'cause': 'passed_ball',
           'enabledByTouchId': localRef('pb'),
         },
       ),

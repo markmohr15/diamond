@@ -196,7 +196,7 @@ class GameController extends AsyncNotifier<GameState> {
     for (final event in visible) {
       if (event.type != 'FielderTouch') continue;
       final touch = FielderTouch.fromJson(event.payload);
-      if (touch.ballInPlayEventId != pitchId) continue;
+      if (touch.anchorEventId != pitchId) continue;
       if (!pitchReceivingTouchTypes.contains(touch.touchType)) continue;
       touchId = event.id;
     }

@@ -122,13 +122,12 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
   }
   working = working.copyWith(currentPitcherId: payload.pitcherId);
 
-  // Every real pitch counts toward the pitcher's total; `no_pitch` is
-  // explicitly "nothing was actually pitched" (spec §4.1), so it doesn't.
-  if (payload.outcome != Outcome.NO_PITCH) {
-    final counts = Map<String, int>.from(working.pitchCountByPitcher);
-    counts[payload.pitcherId] = (counts[payload.pitcherId] ?? 0) + 1;
-    working = working.copyWith(pitchCountByPitcher: counts);
-  }
+  // Every recorded pitch counts toward the pitcher's total, unconditionally.
+  // `no_pitch` used to be the exception and is gone (v0.51): nothing ever
+  // wrote it, so it existed only as three exclusions like this one.
+  final counts = Map<String, int>.from(working.pitchCountByPitcher);
+  counts[payload.pitcherId] = (counts[payload.pitcherId] ?? 0) + 1;
+  working = working.copyWith(pitchCountByPitcher: counts);
 
   if (payload.outcome == Outcome.UNKNOWN) {
     return working.copyWith(

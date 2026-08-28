@@ -37,6 +37,16 @@ ColorScheme deriveScheme({
     // `primary` is the seed itself, not `family.primary`. The on/container
     // colors around it stay tonal.
     primary: accent,
+    // **The contrast guardrail** (§23.3: "derivation guarantees legibility;
+    // the seed does not"). `primary` is the seed itself rather than a tonal
+    // approximation, so Material's `onPrimary` — derived for the tonal one —
+    // can disagree with it badly. In dark it assumes a *light* primary and
+    // returns a dark green, which on Grass measures **1.73:1**: a filled
+    // button whose label is invisible, in both an accent no team can change.
+    //
+    // Chosen by contrast against the accent rather than by brightness, since
+    // the accent is a team's color and may be light or dark in either theme.
+    onPrimary: _onFill(accent),
     surfaceTint: accent,
 
     // Tier 1 from here down: never overridden, including under an opponent
@@ -93,6 +103,17 @@ ColorScheme deriveScheme({
 /// stored seed.
 Color _resolveAccent(Color seed, BrandBaseline baseline) => seed;
 
+/// What to write on a fill of [fill]: the brand's near-white, or its dark
+/// counterpart. **Neither varies with the theme, because the fill does not.**
+///
+/// Relative luminance per WCAG, which is the measure the 4.5:1 threshold is
+/// defined against — not `Color.computeLuminance`'s cousin by another name,
+/// but the same thing, so the comparison is against a real standard rather
+/// than a guess about what looks right.
+Color _onFill(Color fill) => fill.computeLuminance() > 0.4
+    ? BrandBaseline.onLightFill
+    : BrandBaseline.onBrandFill;
+
 /// The scheme wrapped in a [ThemeData], with §23.2's reservations attached as a
 /// [DiamondSemantics] extension. The only place a [ThemeData] is constructed.
 ThemeData buildTheme(ColorScheme scheme) {
@@ -126,7 +147,19 @@ ThemeData buildTheme(ColorScheme scheme) {
     outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle(theme)),
     textButtonTheme: TextButtonThemeData(style: _buttonStyle(theme)),
     chipTheme: ChipThemeData(
-      labelStyle: theme.titleMedium,
+      // **Colored explicitly, unlike every other slot here.** `BrandType`'s
+      // styles deliberately carry no color so `ThemeData` can merge Material's
+      // brightness-appropriate ink into them — but `ChipThemeData.labelStyle`
+      // is read *directly* by the chip and never goes through that merge, so
+      // handing it a colorless style strips the label's color and leaves it
+      // inheriting whatever `DefaultTextStyle` happens to be. In a dialog that
+      // rendered white-on-white.
+      labelStyle: theme.titleMedium?.copyWith(color: scheme.onSurface),
+      // The selected label sits on `secondaryContainer`, which is a different
+      // surface and needs its own on-color for the same reason.
+      secondaryLabelStyle: theme.titleMedium?.copyWith(
+        color: scheme.onSecondaryContainer,
+      ),
       // Vertical padding rather than a minimumSize: a Chip sizes to its label,
       // and padding is the only lever that reaches both axes.
       padding: const EdgeInsets.symmetric(

@@ -19,14 +19,14 @@ void main() {
   const allowlist = <String, String>{
     'theme/brand_baseline.dart':
         'The brand baseline itself — tier 1 of §23.3 has to be written down '
-            'somewhere, and this is that somewhere.',
+        'somewhere, and this is that somewhere.',
     'zone_canvas/zone_canvas.dart':
         'Depiction of physical objects (dirt, chalk, ball leather, plate, cast '
-            'shadows), which §23.4 governs as per-surface fidelity rather than '
-            'palette. Whether any of them should become theme tokens is open; '
-            'DIA-012 scoped itself to the accent, atmosphere, and zone fill, '
-            'which are already on the theme. Structural ink is the obvious '
-            'next candidate.',
+        'shadows), which §23.4 governs as per-surface fidelity rather than '
+        'palette. Whether any of them should become theme tokens is open; '
+        'DIA-012 scoped itself to the accent, atmosphere, and zone fill, '
+        'which are already on the theme. Structural ink is the obvious '
+        'next candidate.',
   };
 
   // `Colors.` catches the Material palette; `Color(0x…)` and `Color.fromARGB`

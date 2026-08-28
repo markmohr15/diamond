@@ -10,6 +10,43 @@ void main() {
     trajectory: Trajectory.LINE,
   );
 
+  group('ballAt and rollEnd — one answer for where the ball is', () {
+    test('the second tap wins, then the last touch, then the landing', () {
+      final landed = base.copyWith(
+        landing: FieldCoord(x: 0, y: 200),
+        trajectory: Trajectory.LINE,
+      );
+      // Nothing moved it: the ball is where it came down, and there is no
+      // streak to draw.
+      expect(landed.ballAt?.y, 200);
+      expect(landed.rollEnd, isNull, reason: 'a zero-length roll is no roll');
+
+      // The scorer traced it into the corner.
+      final traced = landed.copyWith(endedAt: FieldCoord(x: -110, y: 190));
+      expect(traced.ballAt?.x, -110);
+      expect(traced.rollEnd?.x, -110);
+
+      // A boot leaves the ball at the booter's feet, and that is where the
+      // next fielder over has to go — not back to the landing.
+      final booted = landed.addingTouch(
+        7,
+        TouchType.BOOTED,
+        location: FieldCoord(x: -60, y: 210),
+      );
+      expect(booted.ballAt?.x, -60);
+    });
+
+    test('a home run has a landing and no roll', () {
+      // It does not travel after landing; it arrives. Which is also why the
+      // field behind `rollEnd` is absent on every one of them.
+      final homer = base.copyWith(
+        landing: FieldCoord(x: 20, y: 260),
+        trajectory: Trajectory.FLY,
+      );
+      expect(homer.rollEnd, isNull);
+    });
+  });
+
   group('invitesSacrifice (§13.6) — the two calls only a scorer can make', () {
     PlayDraft flyScoring({required bool caught, int to = 4}) {
       var draft = base.copyWith(
@@ -65,7 +102,7 @@ void main() {
   group('PlayDraft JSON (the §15.5 journal format)', () {
     test('round-trips a full chain', () {
       final draft = landed
-          .copyWith(retrieved: FieldCoord(x: -80, y: 180), offWall: true)
+          .copyWith(endedAt: FieldCoord(x: -80, y: 180), offWall: true)
           .addingTouch(6, TouchType.BOOTED)
           .addingLeg('opp-1', from: 0, to: 1)
           .addingRuleCall(CallType.OBSTRUCTION)
@@ -74,7 +111,7 @@ void main() {
       final back = PlayDraft.fromJson(draft.toJson());
       expect(back.pitchEventId, 'pitch-1');
       expect(back.landing!.x, -45);
-      expect(back.retrieved!.y, 180);
+      expect(back.endedAt!.y, 180);
       expect(back.offWall, isTrue);
       expect(back.nextKey, 4);
       expect(back.entries, hasLength(4));
@@ -486,7 +523,7 @@ void main() {
       expect(events[0].payload['landingIsCaught'], isFalse);
       expect(events[1].payload['touchType'], 'dropped');
       expect(events[1].payload['ordinaryEffort'], isTrue); // §13.2 default
-      expect(events[1].payload['ballInPlayEventId'], localRef('bip'));
+      expect(events[1].payload['anchorEventId'], localRef('bip'));
       expect(events[2].payload['ordinaryEffort'], isNull); // clean touch
       expect(events[4].payload['how'], 'force');
       expect(events[4].payload['putoutTouchId'], localRef('e2'));
