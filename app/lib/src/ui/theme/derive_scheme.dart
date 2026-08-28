@@ -147,7 +147,19 @@ ThemeData buildTheme(ColorScheme scheme) {
     outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle(theme)),
     textButtonTheme: TextButtonThemeData(style: _buttonStyle(theme)),
     chipTheme: ChipThemeData(
-      labelStyle: theme.titleMedium,
+      // **Colored explicitly, unlike every other slot here.** `BrandType`'s
+      // styles deliberately carry no color so `ThemeData` can merge Material's
+      // brightness-appropriate ink into them — but `ChipThemeData.labelStyle`
+      // is read *directly* by the chip and never goes through that merge, so
+      // handing it a colorless style strips the label's color and leaves it
+      // inheriting whatever `DefaultTextStyle` happens to be. In a dialog that
+      // rendered white-on-white.
+      labelStyle: theme.titleMedium?.copyWith(color: scheme.onSurface),
+      // The selected label sits on `secondaryContainer`, which is a different
+      // surface and needs its own on-color for the same reason.
+      secondaryLabelStyle: theme.titleMedium?.copyWith(
+        color: scheme.onSecondaryContainer,
+      ),
       // Vertical padding rather than a minimumSize: a Chip sizes to its label,
       // and padding is the only lever that reaches both axes.
       padding: const EdgeInsets.symmetric(
