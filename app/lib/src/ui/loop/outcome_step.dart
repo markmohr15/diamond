@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
+import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:flutter/material.dart';
 
 /// Keys the widget tests resolve against. Production code has no reason to
@@ -127,6 +128,49 @@ class _OutcomeStepState extends State<OutcomeStep> {
   BatterAction? _action;
   Cause? _getaway;
 
+  /// A bordered group with a small label.
+  ///
+  /// Deliberately quiet — a hairline and an eyebrow, not a card. The sheet's
+  /// weight belongs to the five primaries (§23.1.1: data-ink first, and the
+  /// datum here is the outcome). These sections exist to say *these controls
+  /// answer one question*, which a gap alone does not: the chips all look
+  /// alike, so nothing distinguished "what the batter did" from "what the ball
+  /// did" from "everything else".
+  ///
+  /// The label is `BrandType.eyebrow` — mono, small caps, wide tracking —
+  /// because a section name is read as a tag rather than as prose (§23.5), the
+  /// same style the count HUD's COUNT UNSURE uses.
+  Widget _section(BuildContext context, String label, Widget child) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(bottom: BrandMetrics.spaceMd),
+      padding: const EdgeInsets.all(BrandMetrics.spaceMd),
+      decoration: BoxDecoration(
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(BrandMetrics.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: BrandType.eyebrow.copyWith(color: scheme.outline),
+          ),
+          const SizedBox(height: BrandMetrics.spaceSm),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _chips(List<Widget> children) => Wrap(
+    spacing: BrandMetrics.spaceSm,
+    runSpacing: BrandMetrics.spaceSm,
+    alignment: WrapAlignment.center,
+    children: children,
+  );
+
   Widget _primary(
     BuildContext context, {
     required Key key,
@@ -161,10 +205,16 @@ class _OutcomeStepState extends State<OutcomeStep> {
           // one observation, and choosing the posture after committing the
           // outcome would mean two taps describing one pitch in the wrong
           // order.
-          Wrap(
-            spacing: BrandMetrics.spaceSm,
-            alignment: WrapAlignment.center,
-            children: [
+          // Both of these sections hold **toggles**: tapping one lights it
+          // and nothing commits. The primaries below commit. That difference
+          // is what the borders really mark, and it is why `Dropped 3rd
+          // strike` stays below with `In play` rather than joining the
+          // getaways it resembles — it leaves the screen when tapped, and a
+          // shared border would promise otherwise.
+          _section(
+            context,
+            'AT THE PLATE',
+            _chips([
               for (final entry in _batterActions.entries)
                 FilterChip(
                   key: batterActionKey(entry.key),
@@ -175,13 +225,13 @@ class _OutcomeStepState extends State<OutcomeStep> {
                   onSelected: (on) =>
                       setState(() => _action = on ? entry.key : null),
                 ),
-            ],
+            ]),
           ),
           if (widget.runnersAboard)
-            Wrap(
-              spacing: BrandMetrics.spaceSm,
-              alignment: WrapAlignment.center,
-              children: [
+            _section(
+              context,
+              'GOT AWAY',
+              _chips([
                 for (final entry in _getaways.entries)
                   FilterChip(
                     key: getawayKey(entry.key),
@@ -190,7 +240,7 @@ class _OutcomeStepState extends State<OutcomeStep> {
                     onSelected: (on) =>
                         setState(() => _getaway = on ? entry.key : null),
                   ),
-              ],
+              ]),
             ),
           const SizedBox(height: BrandMetrics.spaceLg),
           for (final entry in _primaryOutcomes.entries) ...[
@@ -221,12 +271,10 @@ class _OutcomeStepState extends State<OutcomeStep> {
             const SizedBox(height: BrandMetrics.spaceMd),
           ],
 
-          const SizedBox(height: BrandMetrics.spaceSm),
-          Wrap(
-            spacing: BrandMetrics.spaceSm,
-            runSpacing: BrandMetrics.spaceSm,
-            alignment: WrapAlignment.center,
-            children: [
+          _section(
+            context,
+            'EVERYTHING ELSE',
+            _chips([
               for (final entry in _rareOutcomes.entries)
                 OutlinedButton(
                   key: outcomeKey(entry.key),
@@ -234,7 +282,7 @@ class _OutcomeStepState extends State<OutcomeStep> {
                       widget.onChosen(entry.key, _action, _getaway),
                   child: Text(entry.value),
                 ),
-            ],
+            ]),
           ),
         ],
       ),

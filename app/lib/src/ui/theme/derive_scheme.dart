@@ -114,6 +114,41 @@ Color _onFill(Color fill) => fill.computeLuminance() > 0.4
     ? BrandBaseline.onLightFill
     : BrandBaseline.onBrandFill;
 
+double _contrast(Color a, Color b) {
+  final l1 = a.computeLuminance() + 0.05;
+  final l2 = b.computeLuminance() + 0.05;
+  return l1 > l2 ? l1 / l2 : l2 / l1;
+}
+
+/// The accent as **text on a surface**, lifted or deepened until it is legible.
+///
+/// §23.3's rule: Grass and Clay keep their light values wherever they are a
+/// *fill* with Chalk on top, and take lifted values as strokes, icons and text,
+/// where the light values disappear against Ink. `BrandBaseline.grassLit` is
+/// that value for Grass — but the accent belongs to a team (§23.3 tier 2) and
+/// may be any color, so the lift is computed rather than looked up.
+///
+/// This is the **third** thing to need the guardrail, and they share one cause:
+/// `deriveScheme` sets `primary` to the seed itself rather than a tonal
+/// approximation, so every Material default derived from `primary` is suspect.
+/// `onPrimary` was wrong on a filled button (1.73:1); this is `primary` used
+/// directly as a label on a surface, which an `OutlinedButton` and a
+/// `TextButton` both do — 2.20:1 on Grass in dark.
+Color _accentOnSurface(Color accent, Color surface) {
+  if (_contrast(accent, surface) >= 4.5) return accent;
+  // Blend toward the far end of the surface's own range, a step at a time, and
+  // stop at the first legible value rather than jumping to the extreme — the
+  // team's color should still be recognizable as theirs.
+  final toward = surface.computeLuminance() > 0.4
+      ? BrandBaseline.onLightFill
+      : BrandBaseline.onBrandFill;
+  for (var t = 0.1; t < 1.0; t += 0.1) {
+    final lifted = Color.lerp(accent, toward, t)!;
+    if (_contrast(lifted, surface) >= 4.5) return lifted;
+  }
+  return toward;
+}
+
 /// The scheme wrapped in a [ThemeData], with §23.2's reservations attached as a
 /// [DiamondSemantics] extension. The only place a [ThemeData] is constructed.
 ThemeData buildTheme(ColorScheme scheme) {
@@ -144,8 +179,22 @@ ThemeData buildTheme(ColorScheme scheme) {
     // is smaller than BrandMetrics.minTouchTarget, so leaving these unset is
     // what would let a 32px control ship.
     filledButtonTheme: FilledButtonThemeData(style: _buttonStyle(theme)),
-    outlinedButtonTheme: OutlinedButtonThemeData(style: _buttonStyle(theme)),
-    textButtonTheme: TextButtonThemeData(style: _buttonStyle(theme)),
+    // Outlined and text buttons draw their label in `primary` — the raw
+    // accent — so on a dark surface it needs the lift §23.3 describes.
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: _buttonStyle(theme).copyWith(
+        foregroundColor: WidgetStatePropertyAll(
+          _accentOnSurface(scheme.primary, baseline.surfaceContainerLow),
+        ),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: _buttonStyle(theme).copyWith(
+        foregroundColor: WidgetStatePropertyAll(
+          _accentOnSurface(scheme.primary, baseline.surface),
+        ),
+      ),
+    ),
     chipTheme: ChipThemeData(
       // **Colored explicitly, unlike every other slot here.** `BrandType`'s
       // styles deliberately carry no color so `ThemeData` can merge Material's
@@ -182,8 +231,18 @@ ThemeData buildTheme(ColorScheme scheme) {
         borderRadius: BorderRadius.all(Radius.circular(BrandMetrics.radiusLg)),
       ),
     ),
+    // Colored for the same reason as the chip above, and this is the second
+    // slot that needed it: `ListTileThemeData.titleTextStyle` is also consumed
+    // *directly*, so a `BrandType` style — which deliberately carries no color
+    // — left the title inheriting the ambient `DefaultTextStyle`. In a dialog
+    // that is white on near-white, which is how the chain strip's Remove
+    // action became unreadable.
+    //
+    // The rule for this file: **any slot handed a `BrandType` style directly
+    // must color it.** Only `textTheme` gets the merge that supplies ink.
     listTileTheme: ListTileThemeData(
-      titleTextStyle: theme.titleMedium,
+      titleTextStyle: theme.titleMedium?.copyWith(color: scheme.onSurface),
+      iconColor: scheme.onSurfaceVariant,
       minVerticalPadding: BrandMetrics.spaceMd,
     ),
     extensions: [DiamondSemantics.fromBaseline(baseline)],
