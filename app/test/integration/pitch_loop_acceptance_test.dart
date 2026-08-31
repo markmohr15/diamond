@@ -259,28 +259,38 @@ void main() {
     expect((gs.balls, gs.strikes), (0, 0));
     expect(gs.pitchCountByPitcher[session.pitcherId], 7);
 
-    // ——— Unlimited depth, action-scoped (§6, §11.3 v0.41): peel it back. ———
+    // ——— Action-scoped undo, bounded at the plate appearance ———
+    // (§6, §11.3 v0.41, and v0.54's seal.) This script used to peel three
+    // levels straight through a plate-appearance boundary and assert the
+    // walk came back. It cannot any more, and that is the point of the
+    // seal: undo takes back what the scorer just did, and DIA-020's
+    // editing surface — not this button — reaches into a finished batter.
 
     // Undo #1: the §6 correction — the backfilled location goes, the pitch
-    // stays.
+    // stays. A correction unwind, so nothing is voided and nothing seals.
     await tester.tap(find.byKey(countHudUndoKey));
     await tester.pumpAndSettle();
     expect((await lastPitch()).actualLocation, isNull);
     expect((await lastPitch()).outcome, Outcome.IN_PLAY);
 
-    // Undo #2: the in-play pitch itself; opp-2's PA reopens.
+    // Undo #2: the in-play pitch itself; opp-2's PA reopens. Still hers, so
+    // still reachable.
     await tester.tap(find.byKey(countHudUndoKey));
     await tester.pumpAndSettle();
     gs = container.read(gameControllerProvider).requireValue;
     expect(gs.batterDue('opp'), 'opp-2');
 
-    // Undo #3: the whole walk — ball four AND its forced advance, one tap,
-    // one unit. Not two.
-    await tester.tap(find.byKey(countHudUndoKey));
+    // Undo #3 is refused: the next tap would cross into opp-1, whose walk
+    // is a finished plate appearance. The button says so rather than
+    // silently declining.
+    expect(
+      tester.widget<IconButton>(find.byKey(countHudUndoKey)).onPressed,
+      isNull,
+      reason: 'sealed, and the button shows it',
+    );
+    await tester.tap(find.byKey(countHudUndoKey), warnIfMissed: false);
     await tester.pumpAndSettle();
     gs = container.read(gameControllerProvider).requireValue;
-    expect(gs.bases.first, isNull);
-    expect((gs.balls, gs.strikes), (3, 2));
-    expect(find.text('3-2', findRichText: true), findsOneWidget);
+    expect(gs.bases.first, 'opp-1', reason: 'the walk stands');
   });
 }

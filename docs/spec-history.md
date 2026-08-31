@@ -3,6 +3,52 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.54
+
+**Undo hands back the scorer's entry, and stops at the plate appearance.**
+
+Two halves of one button, and the second came out of questioning the first. Mark: *"if we record a
+pitch, say a ball, and then click undo, we're undoing the location and the call as well. This is
+wrong."* The call, the location and the outcome commit as one `PitchThrown`, so voiding it is right
+for the stream and wrong for the scorer — mistap "Ball" for "Called strike" and you re-enter the
+wristband code and the zone to fix a wrong button. Undo now repopulates the loop from the voided
+payload and lands on the **location** step, with the zone and the dot still on the canvas. It does
+not reopen the outcome sheet, which was the first design: the sheet is modal and its scrim covers
+the count HUD, so an undo that reopened it made the *next* undo untappable.
+
+Everything the loop appended automatically stays voided — a walk's forced chain, the strikeout's
+`RunnerOut`. Nothing the scorer typed is automatic and nothing automatic survives, so the line falls
+in the same place from either side. The **call draft** is deliberately not restored: the wristband
+code is not on the event, only the type and the zone, so rebuilding it would roll a different code
+and show the coach a number that was never on the band.
+
+Then the depth. Mark, on the same button: *"when you call a pitch and hit the checkmark, that's a
+real thing that happened that you wouldn't think would need to be undone ever."* That is the tell —
+`PitchThrown` bundles a fact about the world with an entry that can be mistapped, and unlimited
+undo lets one button rewind the first to fix the second, arbitrarily far back. So a plate appearance
+**seals when the next one begins, and stays sealed**, and undo reaches anything unsealed.
+
+"Begins" is *calling the next pitch* — the first type tap — or, when the call is skipped, any action
+belonging to that pitch. Not a new signal: the "record last pitch" offer already dies on exactly it.
+
+**Staying sealed is the load-bearing half.** The first version of the rule put the floor at "the
+start of the plate appearance containing the most recent action," which bounds nothing — peel one
+empty and the most recent action moves into the previous plate appearance, taking the floor with it,
+all the way to the first pitch of the game. The wall has to be a frozen point rather than a
+recomputed one.
+
+Unlimited depth was the original promise (§6, §11.3) and it was the wrong one. Every hazard in
+editing history — a count that shifts under later pitches, a plate appearance that ended earlier
+than recorded, pitches belonging to a different batter — requires undo to cross a plate-appearance
+boundary, and nothing requires it to. Reaching further back is an explicit edit, deliberately a
+different gesture. The button **disables** when everything is sealed, rather than declining in
+silence.
+
+One consequence worth recording: the seal is session state and cannot be otherwise. The call lives
+in the draft and nothing is written until the outcome commits, so "she started calling the next
+pitch" leaves no trace to project from. A relaunch starts with no seal — undo still cannot cross a
+`batterId` change, so the exposure is one plate appearance, not the game.
+
 ## v0.53
 
 **§11.1's "record last pitch" backfill covers the uncaught third strike, and its canvas gains the

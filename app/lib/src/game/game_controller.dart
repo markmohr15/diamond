@@ -203,14 +203,80 @@ class GameController extends AsyncNotifier<GameState> {
     return (pitchId: pitchId, passedBallTouchId: touchId);
   }
 
-  /// Undoes the last action, and returns **the root that was voided** so a
-  /// caller can put back what the scorer typed (§11.3, DIA-019b).
+  /// The root the next undo would act on, or null when undo is unavailable
+  /// (§11.3, DIA-019f) — so the button can *show* it is unavailable rather
+  /// than silently doing nothing when tapped.
   ///
-  /// Null when nothing was undone, and null when a *correction* was unwound
-  /// rather than voided — there the original entry still stands, so there is
-  /// nothing for the loop to reopen.
-  Future<GameEvent?> undoLast() async {
+  /// [floorEventId] is the seal (see [undoLast]).
+  Future<GameEvent?> undoableRoot({String? floorEventId}) async {
     final visible = await _store.readStream(_session.gameId);
+    final root = _undoRoot(visible);
+    if (root == null) return null;
+    return _undoReaches(visible, root, floorEventId) ? root : null;
+  }
+
+  /// Where the current plate appearance starts, as an index into [visible].
+  ///
+  /// The boundary is a `batterId` change on `PitchThrown` — the same test the
+  /// scoring partition uses (`official_scoring.dart`), rather than a second
+  /// definition that could drift from it.
+  ///
+  /// Events *before* her first pitch but after the previous batter's last one
+  /// — a steal taken while she stood in — count as hers here. That is one
+  /// event's worth of generosity at the boundary and it errs toward letting
+  /// the scorer undo something she just did.
+  int _currentPaStart(List<GameEvent> visible) {
+    String? currentBatter;
+    for (final event in visible.reversed) {
+      if (event.type != 'PitchThrown') continue;
+      currentBatter = PitchThrown.fromJson(event.payload).batterId;
+      break;
+    }
+    if (currentBatter == null) return 0;
+
+    var start = 0;
+    for (var i = visible.length - 1; i >= 0; i--) {
+      final event = visible[i];
+      if (event.type != 'PitchThrown') continue;
+      if (PitchThrown.fromJson(event.payload).batterId != currentBatter) {
+        start = i + 1;
+        break;
+      }
+    }
+    return start;
+  }
+
+  /// §11.3 v0.54's floor: undo reaches only what is unsealed.
+  ///
+  /// Two walls, and a root must clear both. The **plate appearance** — undo
+  /// never crosses a `batterId` change, so it can never reach into a batter
+  /// whose line is finished. And the **seal**, an explicit event id the
+  /// caller carries forward: once the scorer has moved on to the next pitch,
+  /// or once an undo has emptied a plate appearance, that id freezes the wall
+  /// so the next tap cannot walk through the gap the first one opened.
+  bool _undoReaches(
+    List<GameEvent> visible,
+    GameEvent root,
+    String? floorEventId,
+  ) {
+    final rootIndex = visible.indexWhere((e) => e.id == root.id);
+    if (rootIndex < 0) return false;
+    if (rootIndex < _currentPaStart(visible)) return false;
+    if (floorEventId == null) return true;
+    final floorIndex = visible.indexWhere((e) => e.id == floorEventId);
+    return floorIndex < 0 || rootIndex > floorIndex;
+  }
+
+  /// The event the scorer authored, for the unit the next undo would take.
+  GameEvent? _undoRoot(List<GameEvent> visible) {
+    final unit = _undoUnit(visible);
+    if (unit == null) return null;
+    return unit.firstWhere(_isActionRoot);
+  }
+
+  /// The batch one undo takes, newest first, or null when there is no
+  /// complete action to undo.
+  List<GameEvent>? _undoUnit(List<GameEvent> visible) {
     final unit = <GameEvent>[];
     var rooted = false;
     for (final event in visible.reversed) {
@@ -230,12 +296,27 @@ class GameController extends AsyncNotifier<GameState> {
     // No complete action to undo (bootstrap only, or consequences with no
     // root — which the loop never writes): a no-op, not an error.
     if (unit.isEmpty || !unit.any(_isActionRoot)) return null;
+    return unit;
+  }
+
+  /// Undoes the last action, and returns **the root that was voided** so a
+  /// caller can put back what the scorer typed (§11.3, DIA-019b).
+  ///
+  /// Null when nothing was undone — including when the action is **sealed**
+  /// (DIA-019f, see [_undoReaches]) — and null when a *correction* was
+  /// unwound rather than voided, since there the original entry still stands
+  /// and there is nothing for the loop to reopen.
+  Future<GameEvent?> undoLast({String? floorEventId}) async {
+    final visible = await _store.readStream(_session.gameId);
+    final unit = _undoUnit(visible);
+    if (unit == null) return null;
 
     // The event the scorer authored. For a play that is the batch's first
     // event (BallInPlay/PitchThrown, reached last by the backward walk);
     // for a between-pitch entry it is the advance or out the chips
     // committed, with its touches collected after it.
     final root = unit.firstWhere(_isActionRoot);
+    if (!_undoReaches(visible, root, floorEventId)) return null;
     if (root.corrects != null) {
       final raw = await _store.readRawStream(_session.gameId);
       final byId = {for (final e in raw) e.id: e};

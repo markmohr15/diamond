@@ -69,6 +69,11 @@ class CountHud extends ConsumerWidget {
     // the strip a solid block of chroma.
     final foreground = scheme.onSurface;
 
+    // Optimistic while the check is in flight: the button guesses, and
+    // `undoLast` re-reads the seal and is authoritative. Defaulting to
+    // disabled would make the first tap after every action a dead one.
+    final canUndo = ref.watch(canUndoProvider).valueOrNull ?? true;
+
     return Container(
       key: countHudKey,
       color: background,
@@ -133,12 +138,23 @@ class CountHud extends ConsumerWidget {
             style: text.headlineMedium!.copyWith(color: foreground).code,
           ),
           const SizedBox(width: 12),
+          // Disabled rather than inert when the plate appearance behind it
+          // is sealed (§11.3 v0.54). A button that silently does nothing
+          // reads as a bug, and this one declines often by design.
           IconButton(
             key: countHudUndoKey,
             // Through the pitch flow, not straight to the store: undoing a
             // pitch hands its call and location back to the loop (§11.3).
-            onPressed: () => ref.read(pitchFlowProvider.notifier).undoLast(),
-            icon: Icon(Icons.undo, color: foreground),
+            onPressed: canUndo
+                ? () => ref.read(pitchFlowProvider.notifier).undoLast()
+                : null,
+            icon: Icon(
+              Icons.undo,
+              color: canUndo ? foreground : foreground.withValues(alpha: 0.35),
+            ),
+            // Plain, both ways. An explanation here would live behind a
+            // long-press on a greyed-out button, which nobody performs — the
+            // disabled state has to carry the message by itself.
             tooltip: 'Undo',
           ),
           // A non-scoring control on the scoring surface, which §18.7's
