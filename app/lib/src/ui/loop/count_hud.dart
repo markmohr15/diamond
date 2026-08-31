@@ -2,6 +2,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
+import 'package:diamond/src/ui/settings/settings_sheet.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -14,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key countHudKey = Key('countHud');
 @visibleForTesting
 const Key countHudUndoKey = Key('countHudUndo');
+@visibleForTesting
+const Key countHudSettingsKey = Key('countHudSettings');
 @visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
 @visibleForTesting
@@ -136,6 +139,17 @@ class CountHud extends ConsumerWidget {
                 ref.read(gameControllerProvider.notifier).undoLast(),
             icon: Icon(Icons.undo, color: foreground),
             tooltip: 'Undo',
+          ),
+          // A non-scoring control on the scoring surface, which §18.7's
+          // data-ink rule would ordinarily refuse. It earns the pixels
+          // because of *when* it is needed: the scorer who wants this wants
+          // it at 9pm with a game running, and a gesture nobody can find is
+          // worse than one small icon beside one that is already here.
+          IconButton(
+            key: countHudSettingsKey,
+            onPressed: () => showSettingsSheet(context),
+            icon: Icon(Icons.settings_outlined, color: foreground),
+            tooltip: 'Settings',
           ),
         ],
       ),
