@@ -1,0 +1,22 @@
+{
+  "id": "play-15",
+  "title": "Bases loaded, one wild pitch: everybody up, two score, one runner moves twice",
+  "specRef": "§13.2, rule 9.13",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 1 }, "runners": { "1": "r1", "2": "r2", "3": "r3" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "bounceLocation": { "x": 1.8, "depth": 0.59 }, "outcome": "ball" } },
+    { "id": "e2", "type": "RunnerAdvance", "payload": { "runnerId": "r3", "from": 3, "to": 4, "reason": "wild_pitch" } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 2, "to": 3, "reason": "wild_pitch" } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 2, "reason": "wild_pitch" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 3, "to": 4, "reason": "wild_pitch" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 2,
+    "count": { "balls": 2, "strikes": 1 },
+    "officialErrors": [],
+    "runnerBases": { "r1": 2 },
+    "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 4 } ],
+    "note": "Rule 9.13 charges a wild pitch per *pitch*, never per runner: four advances, two runs, one charge. r2 appears twice — 2→3 with the pack, then 3→4 on her own — which is legal and is the case a naive per-advance count gets wrong. Entered exactly this way in the simulator (2026-08-30): §11.1's one-tap 'all runners up one' wrote e2–e4, then the field surface wrote e5. No touch is recorded because a wild pitch's physics is the *absence* of one (§13.2), and no error follows for the same reason. The count still advances on ball two."
+  }
+}
