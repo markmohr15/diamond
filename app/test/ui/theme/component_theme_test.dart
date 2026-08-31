@@ -78,6 +78,52 @@ void main() {
       }
     });
 
+    test('every theme slot handed a style directly carries a color', () {
+      // The class of bug, not the instances. `BrandType`'s styles carry no
+      // color on purpose so `ThemeData` can merge brightness-appropriate ink
+      // into `textTheme` — but slots like `ChipThemeData.labelStyle` and
+      // `ListTileThemeData.titleTextStyle` are read *directly* and never see
+      // that merge, so a colorless style there renders in whatever
+      // `DefaultTextStyle` is ambient. Both shipped that way and both were
+      // found by looking at a screen: white-on-white chips in a dialog, then
+      // an unreadable Remove action four lines below the fix.
+      for (final brightness in Brightness.values) {
+        final t = _theme(brightness);
+        final slots = <String, TextStyle?>{
+          'chipTheme.labelStyle': t.chipTheme.labelStyle,
+          'chipTheme.secondaryLabelStyle': t.chipTheme.secondaryLabelStyle,
+          'listTileTheme.titleTextStyle': t.listTileTheme.titleTextStyle,
+        };
+        for (final entry in slots.entries) {
+          expect(
+            entry.value?.color,
+            isNotNull,
+            reason: '${entry.key} in $brightness has no color',
+          );
+        }
+      }
+    });
+
+    test('an outlined button label is readable in both themes', () {
+      // The third thing to need this guardrail, and they share one cause:
+      // `primary` is the seed itself rather than a tonal approximation, so
+      // every Material default derived from it is suspect. A filled button's
+      // `onPrimary` was 1.73:1; an outlined button draws its *label* in
+      // `primary` directly, which was 2.20:1 on Grass in dark.
+      for (final brightness in Brightness.values) {
+        final theme = _theme(brightness);
+        final base = BrandBaseline.of(brightness);
+        final label = theme.outlinedButtonTheme.style!.foregroundColor!.resolve(
+          {},
+        )!;
+        expect(
+          contrast(label, base.surfaceContainerLow),
+          greaterThan(4.5),
+          reason: '$brightness',
+        );
+      }
+    });
+
     test('it holds for a light accent too, not just Grass', () {
       // The guardrail picks the on-color by contrast rather than by theme,
       // because the accent belongs to a team (§23.3) and may be light or dark
