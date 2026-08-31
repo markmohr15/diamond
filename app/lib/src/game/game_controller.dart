@@ -203,7 +203,13 @@ class GameController extends AsyncNotifier<GameState> {
     return (pitchId: pitchId, passedBallTouchId: touchId);
   }
 
-  Future<void> undoLast() async {
+  /// Undoes the last action, and returns **the root that was voided** so a
+  /// caller can put back what the scorer typed (§11.3, DIA-019b).
+  ///
+  /// Null when nothing was undone, and null when a *correction* was unwound
+  /// rather than voided — there the original entry still stands, so there is
+  /// nothing for the loop to reopen.
+  Future<GameEvent?> undoLast() async {
     final visible = await _store.readStream(_session.gameId);
     final unit = <GameEvent>[];
     var rooted = false;
@@ -223,7 +229,7 @@ class GameController extends AsyncNotifier<GameState> {
     }
     // No complete action to undo (bootstrap only, or consequences with no
     // root — which the loop never writes): a no-op, not an error.
-    if (unit.isEmpty || !unit.any(_isActionRoot)) return;
+    if (unit.isEmpty || !unit.any(_isActionRoot)) return null;
 
     // The event the scorer authored. For a play that is the batch's first
     // event (BallInPlay/PitchThrown, reached last by the backward walk);
@@ -251,7 +257,7 @@ class GameController extends AsyncNotifier<GameState> {
             corrects: root.id,
           );
           state = AsyncData(await _projector.project(_session.gameId));
-          return;
+          return null;
         }
       }
     }
@@ -263,6 +269,7 @@ class GameController extends AsyncNotifier<GameState> {
       );
     }
     state = AsyncData(await _projector.project(_session.gameId));
+    return root;
   }
 
   /// Structural equality for JSON-shaped payloads (maps, lists, scalars).

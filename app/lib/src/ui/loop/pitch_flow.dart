@@ -599,6 +599,60 @@ class PitchFlowController extends Notifier<PitchFlowState> {
         );
   }
 
+  /// Undo, with the scorer's own entry handed back (§11.3, DIA-019b).
+  ///
+  /// Mark: *"if we record a pitch, say a ball, and then click undo, we're
+  /// undoing the location and the call as well. This is wrong."* He is right,
+  /// and the reason is that the call, the location and the outcome ride into
+  /// the store as **one** `PitchThrown`: voiding it is correct for the stream
+  /// and throws away two answers the scorer never wanted to redo. Mistap
+  /// "Ball" for "Called strike" and you re-enter the wristband code and the
+  /// zone to fix a wrong button.
+  ///
+  /// So the void stands and the *entry* comes back: the loop lands on the
+  /// **location** step with the call and the placed location intact, one
+  /// long-press from the outcome sheet again.
+  ///
+  /// Not the outcome step, which is where this first landed (Mark, 2026-08-31)
+  /// — the sheet is modal and its scrim covers the count HUD, so an undo that
+  /// reopened it made the *next* undo untappable. Unlimited-depth
+  /// action-scoped undo (§6, §11.3) is an existing property and the
+  /// acceptance script peels three levels, so reopening the sheet would have
+  /// traded a working behavior for this one. Landing on the canvas also shows
+  /// the zone and the dot still sitting there, which answers "did it keep
+  /// what I typed?" more directly than a sheet floating over them.
+  ///
+  /// **Everything automatic stays voided** (Mark): "if it happened
+  /// automatically, then one undo should undo everything that happened
+  /// automatically." A walk's forced chain and the strikeout's `RunnerOut`
+  /// are already in the same undo unit and stay gone. Nothing she typed is
+  /// automatic, and nothing automatic survives — the line falls in the same
+  /// place from either side.
+  ///
+  /// The **call draft is deliberately not restored.** The wristband code is
+  /// not on the event (only the type and the zone are), so rebuilding the
+  /// draft would roll a *different* code and show the coach a number that was
+  /// never on the band. [CallIntent] holds what the event actually knows, and
+  /// that is what rides the recommit.
+  Future<void> undoLast() async {
+    final voided = await ref.read(gameControllerProvider.notifier).undoLast();
+    if (voided == null || voided.type != 'PitchThrown') return;
+
+    final pitch = PitchThrown.fromJson(voided.payload);
+    final type = pitch.intendedType;
+    final zone = pitch.intendedZoneId;
+    state = PitchFlowState(
+      step: PitchStep.actual,
+      // Both or neither: a call is a type *and* a zone (§10.3), and the
+      // pitch that skipped the call has neither.
+      intent: (type != null && zone != null)
+          ? CallIntent(pitchTypeId: type, zoneId: zone)
+          : null,
+      actual: pitch.actualLocation,
+      bounce: pitch.bounceLocation,
+    );
+  }
+
   /// Take the standing offer (§11.1 v0.39): open location entry for the
   /// pitch that already committed.
   void takeLastPitchOffer() {
