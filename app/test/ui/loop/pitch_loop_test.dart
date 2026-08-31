@@ -781,6 +781,133 @@ void main() {
     });
   });
 
+  group('record last pitch after a D3K (§11.1 v0.53)', () {
+    /// Two called strikes, then a third pitch taken to the outcome sheet with
+    /// **no location entered** and declared an uncaught third strike. The
+    /// pitch commits here; what follows is only how the D3K ended.
+    Future<void> d3kUnlocated(WidgetTester tester) async {
+      for (var i = 0; i < 2; i++) {
+        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, 'Called strike');
+      }
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kSwingingKey);
+    }
+
+    /// Capturing a bounce is **two** gestures, not one: a release in the dirt
+    /// band hinges the canvas to the top-down plane, and a second release
+    /// there places the depth. Both are needed, which is why this asserts the
+    /// hinge in between — reaching the ground plane at all is what proves
+    /// `onCommitBounce` is wired on this step.
+    Future<void> placeBounceAt(WidgetTester tester, double fx) async {
+      final area = find.byKey(zoneCanvasDrawingAreaKey);
+      final topLeft = tester.getTopLeft(area);
+      final size = tester.getSize(area);
+
+      Future<void> longPressAt(double fy) async {
+        final gesture = await tester.startGesture(
+          topLeft + Offset(size.width * fx, size.height * fy),
+        );
+        await tester.pump(
+          zoneCanvasArmDuration + const Duration(milliseconds: 50),
+        );
+        await gesture.up();
+        await tester.pumpAndSettle();
+      }
+
+      await longPressAt(0.97);
+      expect(find.text('IN THE DIRT'), findsOneWidget);
+      await longPressAt(0.1);
+    }
+
+    // The four endings each reset the flow, and each has to carry the offer
+    // through. They are separate resets in `pitch_flow`, so one test per
+    // ending rather than one test and a loop over keys.
+    for (final (name, key) in [
+      ('out on the throw', d3kOutThrowKey),
+      ('out on the tag', d3kOutTagKey),
+      ('safe, wild pitch', d3kSafeWpKey),
+      ('safe, passed ball', d3kSafePbKey),
+    ]) {
+      testWidgets('the offer stands after $name', (tester) async {
+        await pumpLoop(tester);
+        await d3kUnlocated(tester);
+        await tapKey(tester, key);
+
+        expect(find.byKey(recordLastPitchKey), findsOneWidget);
+      });
+    }
+
+    testWidgets('and it survives the detour to the field — the longest way '
+        'back to the loop', (tester) async {
+      await pumpLoop(tester);
+      await d3kUnlocated(tester);
+      await tapKey(tester, d3kFieldKey);
+      // The between-pitches surface, so its own ✕ — `fieldDiscardKey` is the
+      // play surface's, and a D3K to the field opens the idle chrome.
+      await tapKey(tester, fieldIdleCloseKey);
+
+      expect(find.byKey(recordLastPitchKey), findsOneWidget);
+    });
+
+    testWidgets('no offer when the D3K pitch was located — the guard against '
+        'arming this for every pitch', (tester) async {
+      await pumpLoop(tester);
+      for (var i = 0; i < 2; i++) {
+        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, 'Called strike');
+      }
+      await tapText(tester, 'Skip call');
+      await placeActualAt(tester, ZoneCoord(x: 0.2, y: -0.3));
+      await tapKey(tester, outcomeD3kKey);
+      await tapKey(tester, d3kSwingingKey);
+      await tapKey(tester, d3kSafeWpKey);
+
+      expect(find.byKey(recordLastPitchKey), findsNothing);
+    });
+
+    testWidgets('taking it corrects the committed pitch (§6) rather than '
+        'writing a second one', (tester) async {
+      await pumpLoop(tester);
+      await d3kUnlocated(tester);
+      await tapKey(tester, d3kSafeWpKey);
+      await tapKey(tester, recordLastPitchKey);
+      await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.4));
+
+      final pitch = await lastPitch();
+      expect(pitch.actualLocation, isNotNull);
+      expect(pitch.bounceLocation, isNull);
+
+      final visible = await stream();
+      expect(
+        visible.where((e) => e.type == 'PitchThrown'),
+        hasLength(3),
+        reason: 'a correction replaces in place — three pitches, not four',
+      );
+    });
+
+    testWidgets('the bounce hinge is available here: a third strike in the '
+        'dirt is the case that motivates the offer', (tester) async {
+      await pumpLoop(tester);
+      await d3kUnlocated(tester);
+      await tapKey(tester, d3kSafeWpKey);
+      await tapKey(tester, recordLastPitchKey);
+      await placeBounceAt(tester, 0.55);
+
+      final pitch = await lastPitch();
+      expect(pitch.bounceLocation, isNotNull);
+      expect(
+        pitch.actualLocation,
+        isNull,
+        reason: '§4.1: the two are mutually exclusive',
+      );
+    });
+  });
+
   group('forcedAdvances (§11.3)', () {
     const reason = RunnerAdvanceReason.WALK;
 

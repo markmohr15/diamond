@@ -201,13 +201,16 @@ class PitchLoopPage extends ConsumerWidget {
                   // Location entry for the already-committed pitch (§11.1
                   // v0.39). Same canvas, same gesture; only what the release
                   // writes differs — a §6 correction rather than a new event.
-                  // No bounce hinge: the offer exists only for in-play pitches.
+                  // The bounce hinge is here too (v0.53): a dropped third
+                  // strike also arms the offer, and it is most often a ball
+                  // in the dirt, so backfill has to be able to say so.
                   PitchStep.recordLast => ZoneCanvas(
                     mode: ZoneCanvasIntent.actual,
                     value: null,
                     batterSide: batterSide,
                     ballKind: BallKind.softball,
                     onCommit: controller.recordLastLocation,
+                    onCommitBounce: controller.recordLastBounce,
                     skipLabel: 'Keep unlocated',
                     onSkip: controller.dismissLastPitchOffer,
                     onCancel: controller.cancelRecordLast,
