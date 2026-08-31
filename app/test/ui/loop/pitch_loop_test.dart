@@ -534,6 +534,86 @@ void main() {
     });
   });
 
+  group('undo stops at the plate appearance (§11.3 v0.54)', () {
+    /// One taken pitch, no call, no location.
+    Future<void> pitch(WidgetTester tester, String outcome) async {
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, outcome);
+    }
+
+    /// Three strikes: the plate appearance ends and the next batter is due.
+    Future<void> strikeOut(WidgetTester tester) async {
+      for (var i = 0; i < 3; i++) {
+        await pitch(tester, 'Called strike');
+      }
+    }
+
+    bool undoEnabled(WidgetTester tester) =>
+        tester.widget<IconButton>(find.byKey(countHudUndoKey)).onPressed !=
+        null;
+
+    testWidgets('the finished plate appearance is still undoable until the '
+        'scorer moves on — the strikeout she just mistapped', (tester) async {
+      await pumpLoop(tester);
+      await strikeOut(tester);
+
+      expect(undoEnabled(tester), isTrue);
+      await tapKey(tester, countHudUndoKey);
+      final gs = container.read(gameControllerProvider).requireValue;
+      expect((gs.balls, gs.strikes), (0, 2), reason: 'strike three came off');
+    });
+
+    testWidgets('calling the next pitch seals it: the first type tap is '
+        'moving on, and undo stops offering the last batter', (tester) async {
+      await pumpLoop(tester);
+      await strikeOut(tester);
+
+      // The signal the record-last-pitch offer already uses.
+      await tapText(tester, 'Fastball');
+      await tester.pumpAndSettle();
+
+      expect(undoEnabled(tester), isFalse);
+      final gs = container.read(gameControllerProvider).requireValue;
+      expect(gs.outs, 1, reason: 'the strikeout stands');
+    });
+
+    testWidgets('undo cannot walk out of the current plate appearance into '
+        'the one before it, however many taps', (tester) async {
+      await pumpLoop(tester);
+      await strikeOut(tester); // batter 1 down
+      await pitch(tester, 'Called strike'); // batter 2, one strike
+
+      // Peel batter 2's plate appearance empty, then keep tapping.
+      await tapKey(tester, countHudUndoKey);
+      for (var i = 0; i < 3; i++) {
+        if (undoEnabled(tester)) await tapKey(tester, countHudUndoKey);
+      }
+
+      final gs = container.read(gameControllerProvider).requireValue;
+      expect(
+        gs.outs,
+        1,
+        reason: "batter 1's strikeout is sealed behind the boundary",
+      );
+      expect(undoEnabled(tester), isFalse);
+    });
+
+    testWidgets('the seal does not lift when a plate appearance is emptied '
+        '— the wall is frozen, not recomputed', (tester) async {
+      await pumpLoop(tester);
+      await strikeOut(tester);
+      await pitch(tester, 'Ball'); // batter 2's only pitch
+
+      await tapKey(tester, countHudUndoKey); // batter 2 now has nothing
+      expect(
+        undoEnabled(tester),
+        isFalse,
+        reason: 'recomputing the boundary here would offer batter 1',
+      );
+    });
+  });
+
   group('undo from the HUD', () {
     testWidgets('one tap voids the last pitch and the count walks back', (
       tester,

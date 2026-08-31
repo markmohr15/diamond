@@ -19,6 +19,100 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// questions are dialogs over that sheet rather than states of the loop.
 enum PitchStep { call, actual, outcome, recordLast, bailout }
 
+/// §11.3 v0.54's seal: the event undo may not reach past.
+///
+/// A plate appearance seals when the next one begins, and **stays** sealed.
+/// That second half is the load-bearing one. An earlier draft put the floor
+/// at "the start of the plate appearance containing the most recent action",
+/// which bounds nothing — peel a plate appearance empty and the most recent
+/// action moves into the previous one, taking the floor with it, all the way
+/// back to the first pitch of the game. Freezing an event id instead cannot
+/// walk backwards.
+///
+/// Session state, not stream state, and it cannot be otherwise: the call
+/// lives in the draft and nothing is written until the outcome commits, so
+/// "she started calling the next pitch" leaves no trace to project from. A
+/// relaunch therefore starts with no seal — undo still cannot cross a
+/// `batterId` change, so the exposure is one plate appearance, not the game.
+final undoFloorProvider = NotifierProvider<UndoFloor, String?>(UndoFloor.new);
+
+class UndoFloor extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Freezes the wall at [eventId]. Only ever moves **forward** — [order] is
+  /// the visible stream, and a proposed floor earlier than the standing one
+  /// is ignored, which is what makes sealing monotonic.
+  void sealAt(String eventId, List<GameEvent> order) {
+    final standing = state;
+    if (standing != null) {
+      final was = order.indexWhere((e) => e.id == standing);
+      final now = order.indexWhere((e) => e.id == eventId);
+      if (was >= 0 && now >= 0 && now <= was) return;
+    }
+    state = eventId;
+  }
+}
+
+/// Whether undo has anything it may reach (§11.3 v0.54) — so the button can
+/// **show** it is unavailable instead of silently doing nothing when tapped.
+///
+/// A sealed plate appearance is the ordinary reason this goes false: the
+/// scorer has started the next pitch, and what came before is history.
+final canUndoProvider = FutureProvider<bool>((ref) async {
+  // Rebuilds when the fold moves, which is every append and every void.
+  ref.watch(gameControllerProvider);
+  // The seal has to be read *here* as well as in `undoLast`, not just there:
+  // the floor is frozen when undo runs, but the button has to know before it
+  // is pressed. One predicate, two readers.
+  if (ref.watch(hasMovedOnProvider)) return false;
+  final root = await ref
+      .read(gameControllerProvider.notifier)
+      .undoableRoot(floorEventId: ref.watch(undoFloorProvider));
+  return root != null;
+});
+
+/// Whether the scorer has left the finished plate appearance behind.
+///
+/// True only *between* plate appearances — while one is in progress there is
+/// nothing finished to seal, and her own pitches stay undoable. "Moved on" is
+/// **calling the next pitch**, the first type tap; or, when the call is
+/// skipped, any action belonging to that pitch. Not a new signal: the
+/// record-last-pitch offer already dies on exactly this, and says so in
+/// `pitch_loop_page.dart` ("starting the next call IS moving on"). This
+/// generalizes it to undo.
+final hasMovedOnProvider = Provider<bool>((ref) {
+  return hasMovedOn(
+    currentBatterId: ref
+        .watch(gameControllerProvider)
+        .valueOrNull
+        ?.currentBatterId,
+    paInProgress: ref.watch(gameControllerProvider).valueOrNull != null,
+    calledType: ref.watch(callDraftProvider).pitchTypeId,
+    flow: ref.watch(pitchFlowProvider),
+  );
+});
+
+/// The predicate itself, as a function rather than only a provider.
+///
+/// `PitchFlowController` cannot read [hasMovedOnProvider] — that provider
+/// watches `pitchFlowProvider`, so reading it from inside the notifier is a
+/// `CircularDependencyError`. Both callers share this instead, which is the
+/// point: one definition, so the button and the seal can never disagree
+/// about whether the scorer has moved on.
+bool hasMovedOn({
+  required String? currentBatterId,
+  required bool paInProgress,
+  required String? calledType,
+  required PitchFlowState flow,
+}) {
+  if (!paInProgress || currentBatterId != null) return false;
+  return calledType != null ||
+      flow.step != PitchStep.call ||
+      flow.actual != null ||
+      flow.bounce != null;
+}
+
 /// Which box the batter stands in. Session-level stub for M1 — DIA-008/009's
 /// lineup work replaces this with per-batter data; the loop already reads it
 /// per pitch, so that swap touches only this provider.
@@ -635,8 +729,25 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// never on the band. [CallIntent] holds what the event actually knows, and
   /// that is what rides the recommit.
   Future<void> undoLast() async {
-    final voided = await ref.read(gameControllerProvider.notifier).undoLast();
-    if (voided == null || voided.type != 'PitchThrown') return;
+    final game = ref.read(gameControllerProvider.notifier);
+    await _sealIfMovedOn();
+
+    // Read the wall **before** voiding anything. Afterwards is too late: the
+    // undo may have emptied the plate appearance, and a boundary computed
+    // from the collapsed stream points at the *previous* batter — which is
+    // the cascade the seal exists to stop, not the wall that stops it.
+    final before = await _visibleStream();
+
+    final voided = await game.undoLast(
+      floorEventId: ref.read(undoFloorProvider),
+    );
+    if (voided == null) return;
+
+    if (before.isNotEmpty) {
+      ref.read(undoFloorProvider.notifier).sealAt(_paFloorOf(before), before);
+    }
+
+    if (voided.type != 'PitchThrown') return;
 
     final pitch = PitchThrown.fromJson(voided.payload);
     final type = pitch.intendedType;
@@ -651,6 +762,49 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       actual: pitch.actualLocation,
       bounce: pitch.bounceLocation,
     );
+  }
+
+  Future<List<GameEvent>> _visibleStream() => ref
+      .read(eventStoreProvider)
+      .readStream(ref.read(gameSessionProvider).gameId);
+
+  /// The last event of the plate appearance *before* the current one — the
+  /// wall undo may not pass once frozen.
+  String _paFloorOf(List<GameEvent> visible) {
+    String? currentBatter;
+    for (final event in visible.reversed) {
+      if (event.type != 'PitchThrown') continue;
+      currentBatter = PitchThrown.fromJson(event.payload).batterId;
+      break;
+    }
+    if (currentBatter == null) return visible.last.id;
+    for (var i = visible.length - 1; i >= 0; i--) {
+      final event = visible[i];
+      if (event.type != 'PitchThrown') continue;
+      if (PitchThrown.fromJson(event.payload).batterId != currentBatter) {
+        return event.id;
+      }
+    }
+    // Nothing before her: the first plate appearance of the game has no wall
+    // behind it, so anchor on the bootstrap rather than inventing one.
+    return visible.first.id;
+  }
+
+  /// Freezes the wall once [hasMovedOnProvider] says the scorer has left the
+  /// finished plate appearance behind. The button reads the same predicate
+  /// to disable itself; this is where it becomes permanent.
+  Future<void> _sealIfMovedOn() async {
+    final gs = ref.read(gameControllerProvider).valueOrNull;
+    final movedOn = hasMovedOn(
+      currentBatterId: gs?.currentBatterId,
+      paInProgress: gs != null,
+      calledType: ref.read(callDraftProvider).pitchTypeId,
+      flow: state,
+    );
+    if (!movedOn) return;
+    final visible = await _visibleStream();
+    if (visible.isEmpty) return;
+    ref.read(undoFloorProvider.notifier).sealAt(visible.last.id, visible);
   }
 
   /// Take the standing offer (§11.1 v0.39): open location entry for the
