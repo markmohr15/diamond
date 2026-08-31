@@ -372,12 +372,19 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           .start(pitchEventId: event.id, batterId: batterId);
     }
 
-    // Loop closes. An in-play pitch that went unlocated gets the standing
-    // offer to fix that (§11.1 v0.39) — it blocks nothing and dies the moment
-    // the loop moves on.
+    // Loop closes. A pitch that went unlocated gets the standing offer to fix
+    // that (§11.1 v0.39) — it blocks nothing and dies the moment the loop
+    // moves on.
+    //
+    // Two outcomes arm it, for one reason (v0.53): the scorer's attention
+    // left the zone. On contact that is obvious; on an uncaught third strike
+    // it is the same — the batter is running. Everything else does not
+    // qualify, and arming this for *every* unlocated pitch would put the
+    // affordance on nearly every call screen of a scorer who skips location
+    // routinely.
     state = PitchFlowState(
       lastPitchOffer:
-          outcome == Outcome.IN_PLAY &&
+          (outcome == Outcome.IN_PLAY || d3k != null) &&
               state.actual == null &&
               state.bounce == null
           ? RecordLastPitchOffer(eventId: event.id, payload: payload)
@@ -615,11 +622,24 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// location filled in, `corrects` pointing at the original. The stream
   /// shows the corrected pitch at the original's position; provenance shows
   /// when and by whom the location arrived.
-  Future<void> recordLastLocation(ZoneCoord coord) async {
+  Future<void> recordLastLocation(ZoneCoord coord) =>
+      _backfill('actualLocation', coord.toJson());
+
+  /// The same correction for a pitch that bounced (§4.1's other field).
+  ///
+  /// The canvas offers the hinge because a dropped third strike is most often
+  /// a ball in the dirt (v0.53) — an offer that could only record a frontal
+  /// location would miss the case that motivates it.
+  Future<void> recordLastBounce(BounceCoord coord) =>
+      _backfill('bounceLocation', coord.toJson());
+
+  /// §4.1's mutual exclusion holds here by construction rather than by check:
+  /// the offer only arms when *both* location fields are null, so filling one
+  /// in leaves the other null however the scorer answers.
+  Future<void> _backfill(String field, Map<String, dynamic> json) async {
     final offer = state.lastPitchOffer;
     if (offer == null) return;
-    final corrected = Map<String, dynamic>.from(offer.payload)
-      ..['actualLocation'] = coord.toJson();
+    final corrected = Map<String, dynamic>.from(offer.payload)..[field] = json;
     await ref
         .read(gameControllerProvider.notifier)
         .append(

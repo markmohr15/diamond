@@ -3,6 +3,31 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.53
+
+**§11.1's "record last pitch" backfill covers the uncaught third strike, and its canvas gains the
+bounce hinge.**
+
+The offer has existed since v0.39 and was armed only when the outcome was `in_play`. That was
+narrower than the reason the offer exists. The bullet's own justification is that *on contact the
+scorer's attention leaves the zone* — and a dropped third strike is that same fact: the batter is
+running, the eye follows her and the ball, and the plate is the last thing anyone is looking at. The
+implementation had encoded the example rather than the principle.
+
+It stops there deliberately. Arming the offer for **every** unlocated pitch is what the principle
+would permit read literally — a pitch missing its location can be given one at any time — but a
+scorer who skips location routinely would then meet the affordance on nearly every call screen, and
+a standing offer that is always standing is chrome. In-play and the D3K share a specific
+justification that a take does not.
+
+The **bounce hinge** comes with it. The backfill canvas had deliberately omitted it, on the ground
+that only in-play pitches armed the offer and a hit ball is not a bounced one. That reasoning does
+not survive the extension: the ordinary uncaught third strike *is* a ball in the dirt, so an offer
+that could only record a frontal location would miss the case that motivates it. Backfill is now the
+same canvas as live entry — same gesture, same two planes — and only what the release writes
+differs, a §6 correction rather than a new event. §4.1's mutual exclusion holds by construction,
+since the offer arms only when both location fields are null.
+
 ## v0.52
 
 **`batterAction` gets a writer and narrows to three values (§4.1, §11.1), and the outcome sheet gains
