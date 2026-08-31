@@ -38,18 +38,34 @@ class PlayJournals extends Table {
   Set<Column> get primaryKey => {gameId};
 }
 
-@DriftDatabase(tables: [Events, PlayJournals])
+/// Device-local preferences: one row per key, value as text.
+///
+/// Deliberately **not** an event. A theme choice is a property of this tablet
+/// in this dugout, not a fact about the game — syncing it would push one
+/// scorer's night-game setting onto everyone else's device (§12).
+class AppSettings extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
+@DriftDatabase(tables: [Events, PlayJournals, AppSettings])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.createTable(playJournals);
+      }
+      if (from < 3) {
+        await m.createTable(appSettings);
       }
     },
   );

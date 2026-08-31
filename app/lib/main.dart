@@ -1,6 +1,7 @@
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/ui/brand/splash_screen.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
+import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,10 +21,13 @@ class DiamondApp extends ConsumerWidget {
       // MaterialApp so a swap re-themes everything below it.
       theme: ref.watch(lightThemeProvider),
       darkTheme: ref.watch(darkThemeProvider),
+      // §23.1.4: the scorer's choice, not the system's. Until it loads,
+      // `system` — the behavior the app had before there was a choice.
+      themeMode: ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system,
       // DIA-007's pitch loop is the home screen until §19.4's navigation
-      // exists. The DIA-005/006 dev harness is gone (DIA-007's cleanup) —
-      // its fidelity/silhouette toggles come back as real settings when a
-      // settings surface exists.
+      // exists. The DIA-005/006 dev harness is gone (DIA-007's cleanup); the
+      // settings surface it was waiting on now exists (the count HUD's ⚙),
+      // so its fidelity/silhouette toggles have somewhere to come back to.
       home: const _Boot(),
     );
   }
