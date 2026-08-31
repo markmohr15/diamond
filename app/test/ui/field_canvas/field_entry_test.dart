@@ -1797,7 +1797,7 @@ void main() {
       final backstop = FieldCoord(x: 20, y: -14);
       await drag(tester, px(spots[3]!), px(backstop));
       // A loose ball asks what happened, in either state of the screen.
-      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapKey(tester, fielderPlayKey('picked_up'));
       await tester.tapAt(px(spots[2]!));
       await tester.pumpAndSettle();
 
