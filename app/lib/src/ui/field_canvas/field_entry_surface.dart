@@ -878,7 +878,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // no deflection either. What is left is the honest set: she picked it
       // up, she fumbled picking it up, or she never got to it.
       if (!_draft.battedBall) ...[
-        ('fielded', 'Fielded', TouchType.FIELDED),
+        // *Picked it up*, not "fielded": a catcher chasing a pitch to the
+        // backstop is the same "ball on the ground, take possession" case as
+        // a dropped fly, and Mark's rule is that you field a batted ball and
+        // pick up a dead one. Same `TouchType` either way — the distinction
+        // is linguistic, not physical, and §13 charges on the physical fact.
+        ('picked_up', 'Picked it up', TouchType.FIELDED),
         // `bobbled` rather than `dropped`: she never had it to drop. A muffed
         // pickup is still chargeable (§13.2), which is why it is offered at
         // all.
