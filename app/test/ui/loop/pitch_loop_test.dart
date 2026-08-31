@@ -433,6 +433,107 @@ void main() {
     });
   });
 
+  group('undo hands back what the scorer typed (§11.3, DIA-019b)', () {
+    /// A full pitch: a real call, a placed location, an outcome.
+    Future<void> calledPitch(WidgetTester tester, String outcome) async {
+      await tapText(tester, 'Fastball');
+      await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5)); // c2r2
+      await tapKey(tester, callScreenPitchThrownKey);
+      await placeActualAt(tester, ZoneCoord(x: -0.2, y: 0.1));
+      await tapText(tester, outcome);
+    }
+
+    testWidgets('the call and the location survive it — only the wrong '
+        'answer has to be given again', (tester) async {
+      await pumpLoop(tester);
+      await calledPitch(tester, 'Ball');
+      final wrong = await lastPitch();
+
+      await tapKey(tester, countHudUndoKey);
+      // The location step, with everything still on the canvas — one
+      // long-press from the sheet again.
+      await placeActualAt(tester, ZoneCoord(x: -0.2, y: 0.1));
+      await tapText(tester, 'Called strike');
+
+      final fixed = await lastPitch();
+      expect(fixed.outcome, Outcome.CALLED_STRIKE);
+      expect(fixed.intendedType, wrong.intendedType);
+      expect(fixed.intendedZoneId, wrong.intendedZoneId);
+      expect(fixed.intendedLocation?.x, wrong.intendedLocation?.x);
+    });
+
+    testWidgets('a second undo still works: the count HUD is reachable, so '
+        'depth is not the price of keeping the entry', (tester) async {
+      await pumpLoop(tester);
+      await calledPitch(tester, 'Ball');
+      await calledPitch(tester, 'Ball');
+      expect(find.text('2-0', findRichText: true), findsOneWidget);
+
+      await tapKey(tester, countHudUndoKey);
+      await tapKey(tester, countHudUndoKey);
+      expect(find.text('0-0', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('everything automatic stays voided: a walk goes back with '
+        'its forced advance, not without it', (tester) async {
+      await pumpLoop(tester);
+      for (var i = 0; i < 4; i++) {
+        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, 'Ball');
+      }
+      var gs = container.read(gameControllerProvider).requireValue;
+      expect(gs.bases.first, isNotNull, reason: 'the walk placed her');
+
+      await tapKey(tester, countHudUndoKey);
+      gs = container.read(gameControllerProvider).requireValue;
+      expect(gs.bases.first, isNull, reason: 'one undo, one unit');
+      expect((gs.balls, gs.strikes), (3, 0));
+    });
+
+    testWidgets('a pitch that skipped the call comes back with no call — '
+        'a zone without a type is not a call (§10.3)', (tester) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Skip call');
+      await placeActualAt(tester, ZoneCoord(x: 0.1, y: 0.2));
+      await tapText(tester, 'Ball');
+
+      await tapKey(tester, countHudUndoKey);
+      await placeActualAt(tester, ZoneCoord(x: 0.1, y: 0.2));
+      await tapText(tester, 'Called strike');
+
+      final pitch = await lastPitch();
+      expect(pitch.intendedType, isNull);
+      expect(pitch.intendedZoneId, isNull);
+      expect(pitch.actualLocation, isNotNull);
+    });
+
+    testWidgets('undoing a §6 correction reopens nothing: the pitch it '
+        'corrected is still standing', (tester) async {
+      await pumpLoop(tester);
+      // In play with no location, then take the standing offer — that
+      // backfill is a correction, not a new pitch.
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'In play');
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.pumpAndSettle();
+      await tapKey(tester, recordLastPitchKey);
+      await placeActualAt(tester, ZoneCoord(x: 0.4, y: 0.2));
+      expect((await lastPitch()).actualLocation, isNotNull);
+
+      await tapKey(tester, countHudUndoKey);
+
+      final pitch = await lastPitch();
+      expect(pitch.actualLocation, isNull, reason: 'the backfill came off');
+      expect(pitch.outcome, Outcome.IN_PLAY, reason: 'the pitch stands');
+      // Nothing to re-answer, so the loop stayed where it was.
+      expect(find.text('Called strike'), findsNothing);
+    });
+  });
+
   group('undo from the HUD', () {
     testWidgets('one tap voids the last pitch and the count walks back', (
       tester,

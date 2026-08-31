@@ -135,8 +135,9 @@ class CountHud extends ConsumerWidget {
           const SizedBox(width: 12),
           IconButton(
             key: countHudUndoKey,
-            onPressed: () =>
-                ref.read(gameControllerProvider.notifier).undoLast(),
+            // Through the pitch flow, not straight to the store: undoing a
+            // pitch hands its call and location back to the loop (§11.3).
+            onPressed: () => ref.read(pitchFlowProvider.notifier).undoLast(),
             icon: Icon(Icons.undo, color: foreground),
             tooltip: 'Undo',
           ),
