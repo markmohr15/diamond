@@ -750,8 +750,17 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     // happened" (Mark, in the simulator). The play surface owns the screen
     // (§15.5); the button now respects that.
     final play = ref.read(playDraftProvider.notifier);
-    if (ref.read(playDraftProvider).valueOrNull != null) {
+    final draft = ref.read(playDraftProvider).valueOrNull;
+    if (draft != null) {
       if (await play.stepUndo()) return;
+      if (!draft.battedBall) {
+        // A between-pitch entry (§15.6) hangs off no outcome of its own: the
+        // scorer opened the field, and closing it is the whole of taking
+        // that back. Falling through here would void the *previous pitch*,
+        // which she never asked about.
+        await play.discard();
+        return;
+      }
       // Nothing left to step back through — she is at the trajectory
       // question, having entered nothing. The last thing she actually did
       // was tap `in_play`, so that is what comes off, and she lands back on

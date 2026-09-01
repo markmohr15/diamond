@@ -1,6 +1,7 @@
 import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
@@ -8,6 +9,8 @@ import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
+import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
@@ -102,6 +105,26 @@ void main() {
   Future<void> tapKey(WidgetTester tester, Key key) async {
     await tester.tap(find.byKey(key));
     await tester.pumpAndSettle();
+  }
+
+  /// Score a minimal ball in play and commit it — trajectory plus a landing
+  /// is all `PlayDraft.committable` asks of a batted ball.
+  ///
+  /// This is now the only way off the field surface that keeps the pitch: ✕
+  /// restarts the play rather than abandoning it (v0.54), and undoing out
+  /// takes the pitch with it.
+  Future<void> commitMinimalPlay(WidgetTester tester) async {
+    await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+    final canvas = find.byKey(fieldCanvasKey);
+    await tester.tapAt(
+      tester.getTopLeft(canvas) +
+          FieldGeometry(
+            profile: FieldProfile.fastpitch12U,
+            size: tester.getSize(canvas),
+          ).toPx(FieldCoord(x: 0, y: 120)),
+    );
+    await tester.pumpAndSettle();
+    await tapKey(tester, fieldCommitKey);
   }
 
   group('the full loop, §11.1 in order', () {
@@ -516,14 +539,15 @@ void main() {
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(countHudCancelKey));
-      await tester.pumpAndSettle();
+      await commitMinimalPlay(tester);
       await tapKey(tester, recordLastPitchKey);
       await placeActualAt(tester, ZoneCoord(x: 0.4, y: 0.2));
       expect((await lastPitch()).actualLocation, isNotNull);
 
+      // Two taps, not one. A correction is shown at the *original's*
+      // position (`applyVisibility` collapses the chain there), so the last
+      // visible event is the committed play — that comes off first.
+      await tapKey(tester, countHudUndoKey);
       await tapKey(tester, countHudUndoKey);
 
       final pitch = await lastPitch();
@@ -671,14 +695,59 @@ void main() {
       expect(pitch.intendedZoneId, 'c2r2');
     });
 
-    testWidgets('cancel lives in the top bar now and abandons the play', (
-      tester,
-    ) async {
+    testWidgets('cancel starts the play over in place: the field stays up '
+        'and the first question comes back', (tester) async {
       await pumpLoop(tester);
       await toFieldWith(tester, Trajectory.GROUND);
 
       await tapKey(tester, countHudCancelKey);
+
+      final draft = container.read(playDraftProvider).valueOrNull;
+      expect(draft, isNotNull, reason: 'still on the field');
+      expect(draft!.trajectory, isNull, reason: 'and back at the start');
+      expect(find.text('How did it come off the bat?'), findsOneWidget);
+    });
+
+    testWidgets('so cancel can never strand a pitch: an in-play pitch is '
+        'never left with no play recorded', (tester) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      await tapKey(tester, countHudCancelKey);
+
+      final events = await stream();
+      expect(events.where((e) => e.type == 'PitchThrown'), hasLength(1));
+      expect(
+        container.read(playDraftProvider).valueOrNull,
+        isNotNull,
+        reason: 'the play it belongs to is still being entered',
+      );
+    });
+
+    testWidgets('undo out of a between-pitch entry closes the field and '
+        'leaves the previous pitch alone', (tester) async {
+      await pumpLoop(tester);
+      // A committed pitch to sit behind the idle field.
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'Ball');
+      await tapKey(tester, openIdleFieldKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNotNull);
+
+      await tapKey(tester, countHudUndoKey);
+
       expect(container.read(playDraftProvider).valueOrNull, isNull);
+      final events = await stream();
+      expect(
+        events.where((e) => e.type == 'PitchThrown'),
+        hasLength(1),
+        reason: 'closing the field is the whole of taking that back',
+      );
+      expect(
+        container.read(gameControllerProvider).requireValue.balls,
+        1,
+        reason: 'the ball she recorded still stands',
+      );
     });
 
     testWidgets('cancel is disabled with no play to abandon', (tester) async {
@@ -965,12 +1034,7 @@ void main() {
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
-      // Wave off the trajectory modal that opens with the surface
-      // (§15.1 v0.43), then discard.
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(countHudCancelKey));
-      await tester.pumpAndSettle();
+      await commitMinimalPlay(tester);
     }
 
     testWidgets('no offer when the in-play pitch was located — there is '
@@ -979,12 +1043,7 @@ void main() {
       await tapText(tester, 'Skip call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       await tapText(tester, 'In play');
-      // Wave off the trajectory modal that opens with the surface
-      // (§15.1 v0.43), then discard.
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(countHudCancelKey));
-      await tester.pumpAndSettle();
+      await commitMinimalPlay(tester);
 
       expect(find.byKey(recordLastPitchKey), findsNothing);
     });

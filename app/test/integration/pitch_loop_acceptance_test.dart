@@ -1,8 +1,12 @@
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
+import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
+import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
@@ -173,10 +177,21 @@ void main() {
     // subject is the pitch loop, and DIA-009's scripted half-inning is where
     // plays get scored for real.
     await quickPitch(tester, 'In play');
-    // Wave off the trajectory modal (§15.1 v0.43), then discard.
-    await tester.tapAt(const Offset(20, 20));
+    // Score the ball and commit it. ✕ used to be the quick way off this
+    // surface, but cancel now restarts the play rather than abandoning it
+    // (v0.54) — an `in_play` pitch can no longer be left with no play.
+    await tester.tap(find.byKey(trajectoryKey(Trajectory.GROUND)));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(countHudCancelKey));
+    final canvas = find.byKey(fieldCanvasKey);
+    await tester.tapAt(
+      tester.getTopLeft(canvas) +
+          FieldGeometry(
+            profile: FieldProfile.fastpitch12U,
+            size: tester.getSize(canvas),
+          ).toPx(FieldCoord(x: 0, y: 120)),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(fieldCommitKey));
     await tester.pumpAndSettle();
 
     // The loop returns offering to fix that (§11.1 v0.39) — blocking nothing.
@@ -203,6 +218,13 @@ void main() {
       'PitchThrown', // P6 ball four
       'RunnerAdvance', // the confirmed walk
       'PitchThrown', // P7 in play — corrected version, original position
+      // The ball in play is now *scored* rather than discarded (v0.54):
+      // cancel restarts a play instead of abandoning it, so committing is
+      // the only exit that keeps the pitch. A truer script for it — a real
+      // scorer never leaves an `in_play` pitch with no play recorded.
+      'BallInPlay',
+      'RunnerAdvance', // the batter's walk-up to first
+      'RunnerAdvance', // and her advance on the grounder
     ]);
 
     final pitches = visible
@@ -238,22 +260,37 @@ void main() {
     expect(inPlay.actualLocation!.x, closeTo(0.5, 0.05));
     expect(inPlay.actualLocation!.y, closeTo(0.4, 0.05));
 
-    // …and the raw stream shows how it got there: the last raw event is the
-    // correction, pointing at the original unlocated pitch.
+    // …and the raw stream shows how it got there: a correction pointing at
+    // the original unlocated pitch.
+    //
+    // Found by *following the link* rather than by position. These used to
+    // index off the end of the raw stream and off `visible.last`, which held
+    // only while the play was discarded; committing it put three events
+    // after the pitch and both assertions broke. A correction is also shown
+    // at its original's position, so it is never last in the visible order
+    // anyway — the old assertion passed by coincidence.
     final raw = await store.readRawStream(session.gameId);
-    final original = raw[raw.length - 2];
-    final corrected = raw.last;
-    expect(corrected.corrects, original.id);
+    final corrected = raw.lastWhere((e) => e.corrects != null);
+    final original = raw.firstWhere((e) => e.id == corrected.corrects);
     expect(PitchThrown.fromJson(original.payload).actualLocation, isNull);
     expect(
-      visible.last.id,
-      corrected.id,
+      visible.map((e) => e.id),
+      contains(corrected.id),
       reason: 'the corrected version is what projections see',
     );
+    expect(
+      visible.map((e) => e.id),
+      isNot(contains(original.id)),
+      reason: 'and the superseded one is not',
+    );
 
-    // Final state: walk on, one PA in the books beyond it, count fresh.
+    // Final state: the walk on, and the ball in play *scored* on top of it
+    // (v0.54 — cancel restarts a play, so committing is the only exit that
+    // keeps the pitch). opp-2 reached on the grounder and forced opp-1 to
+    // second; the script used to discard that play, so first stayed opp-1.
     gs = container.read(gameControllerProvider).requireValue;
-    expect(gs.bases.first, 'opp-1');
+    expect(gs.bases.first, 'opp-2');
+    expect(gs.bases.second, 'opp-1');
     expect(gs.batterDue('opp'), 'opp-3');
     expect((gs.balls, gs.strikes), (0, 0));
     expect(gs.pitchCountByPitcher[session.pitcherId], 7);
@@ -265,21 +302,30 @@ void main() {
     // seal: undo takes back what the scorer just did, and DIA-020's
     // editing surface — not this button — reaches into a finished batter.
 
-    // Undo #1: the §6 correction — the backfilled location goes, the pitch
+    // Undo #1: the committed play, as one unit. It goes first because a
+    // correction is shown at its *original's* position, so the play's
+    // events are the last visible ones.
+    await tester.tap(find.byKey(countHudUndoKey));
+    await tester.pumpAndSettle();
+    gs = container.read(gameControllerProvider).requireValue;
+    expect(gs.bases.first, 'opp-1', reason: 'back to just the walk');
+    expect(gs.bases.second, isNull);
+
+    // Undo #2: the §6 correction — the backfilled location goes, the pitch
     // stays. A correction unwind, so nothing is voided and nothing seals.
     await tester.tap(find.byKey(countHudUndoKey));
     await tester.pumpAndSettle();
     expect((await lastPitch()).actualLocation, isNull);
     expect((await lastPitch()).outcome, Outcome.IN_PLAY);
 
-    // Undo #2: the in-play pitch itself; opp-2's PA reopens. Still hers, so
+    // Undo #3: the in-play pitch itself; opp-2's PA reopens. Still hers, so
     // still reachable.
     await tester.tap(find.byKey(countHudUndoKey));
     await tester.pumpAndSettle();
     gs = container.read(gameControllerProvider).requireValue;
     expect(gs.batterDue('opp'), 'opp-2');
 
-    // Undo #3 is refused: the next tap would cross into opp-1, whose walk
+    // Undo #4 is refused: the next tap would cross into opp-1, whose walk
     // is a finished plate appearance. The button says so rather than
     // silently declining.
     expect(

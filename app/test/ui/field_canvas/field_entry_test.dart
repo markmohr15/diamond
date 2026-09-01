@@ -1575,19 +1575,29 @@ void main() {
   });
 
   group('discard and restore (§15.5)', () {
-    testWidgets('discard abandons the play but keeps the pitch', (
+    testWidgets('cancel starts the play over and never strands the pitch', (
       tester,
     ) async {
+      // This used to assert that ✕ abandoned the play and left the pitch —
+      // an `in_play` pitch with no play recorded, which is an incomplete
+      // record the scorer could reach in one tap. Cancel now restarts the
+      // play in place (Mark, 2026-09-01), so that state is unreachable:
+      // leaving the field is undo's job, and undo takes the pitch with it.
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await tapWorld(tester, FieldCoord(x: 0, y: 100));
       await tapKey(tester, countHudCancelKey);
 
-      expect(find.byKey(fieldCanvasKey), findsNothing);
+      expect(find.byKey(fieldCanvasKey), findsOneWidget, reason: 'still here');
+      expect(find.text('How did it come off the bat?'), findsOneWidget);
       final types = (await stream()).map((e) => e.type).toList();
       expect(types, contains('PitchThrown'));
-      expect(types, isNot(contains('BallInPlay')));
+      expect(
+        types,
+        isNot(contains('BallInPlay')),
+        reason: '§15.5: nothing enters the stream until commit',
+      );
     });
 
     testWidgets('kill mid-play, relaunch: trajectory, ball, chain, and '

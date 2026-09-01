@@ -97,6 +97,29 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// starts over — trajectory question included — with the committed pitch
   /// untouched. Everything or nothing; there is no partial unpick once
   /// plays hang off the path.
+  /// Start this play over without leaving the field (Mark, 2026-09-01).
+  ///
+  /// What the top bar's ✕ does to a batted ball: the entries go, the play
+  /// stays open on the same pitch, and the trajectory question comes back to
+  /// the front — so cancel is "I got this play wrong, let me redo it" rather
+  /// than "throw the pitch away too". That is also what keeps ✕ from being
+  /// able to strand a pitch: it no longer abandons anything, so an `in_play`
+  /// pitch can never be left with no play recorded.
+  ///
+  /// Leaving the field entirely is undo's job — step back to the bottom and
+  /// once more, which takes the pitch with it.
+  Future<void> startOver() async {
+    final draft = state.valueOrNull;
+    if (draft == null) return;
+    _steps.clear();
+    final fresh = _openingDraft(
+      pitchEventId: draft.pitchEventId,
+      batterId: draft.batterId,
+    );
+    await _journal.save(_gameId, fresh);
+    state = AsyncData(fresh);
+  }
+
   /// Everyone the play found on the field, batter first: the fold's base
   /// state read as origins. The walk-up cascade and §16.3's beyond-the-fence
   /// awards both start here.
