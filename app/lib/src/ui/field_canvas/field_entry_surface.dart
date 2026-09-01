@@ -21,8 +21,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 @visibleForTesting
 const Key fieldCommitKey = Key('fieldCommit');
 @visibleForTesting
-const Key fieldDiscardKey = Key('fieldDiscard');
-@visibleForTesting
 const Key offWallChipKey = Key('offWallChip');
 @visibleForTesting
 const Key sacrificeChipKey = Key('sacrificeChip');
@@ -33,16 +31,12 @@ const Key fieldCanvasKey = Key('fieldCanvas');
 @visibleForTesting
 const Key fieldIdleLabelKey = Key('fieldIdleLabel');
 @visibleForTesting
-const Key fieldIdleCloseKey = Key('fieldIdleClose');
-@visibleForTesting
 Key betweenPitchChipKey(String reason) => Key('betweenPitch-$reason');
 
 @visibleForTesting
 Key fielderPlayKey(String choice) => Key('fielderPlay-$choice');
 @visibleForTesting
 const Key trajectoryEditKey = Key('trajectoryEdit');
-@visibleForTesting
-const Key fieldResetKey = Key('fieldReset');
 @visibleForTesting
 Key beyondFenceKey(String choice) => Key('beyondFence-$choice');
 @visibleForTesting
@@ -129,6 +123,23 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   }
 
   @override
+  void didUpdateWidget(FieldEntrySurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Stepping back past the trajectory answer (§15.2 v0.54) leaves the
+    // question unanswered again, so it comes back to the front — the same
+    // rule `initState` applies when the surface opens, and the same one a
+    // canvas tap applies at §15.1: nothing enters before the trajectory.
+    final draft = widget.draft;
+    if (draft.battedBall &&
+        draft.trajectory == null &&
+        oldWidget.draft.trajectory != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showTrajectoryDialog();
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final draft = widget.draft;
@@ -161,12 +172,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                 // same things: ✕ leaves with nothing recorded, ✓ commits
                 // what is on the chain. A between-pitch entry accumulates
                 // now, so it earns a real commit rather than a "close".
-                IconButton(
-                  key: fieldIdleCloseKey,
-                  onPressed: controller.discard,
-                  icon: const Icon(Icons.close),
-                  tooltip: 'Leave without recording',
-                ),
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   key: fieldCommitKey,
@@ -206,22 +211,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                   ),
                 ),
                 const Spacer(),
-                IconButton(
-                  key: fieldResetKey,
-                  onPressed: () async {
-                    setState(() => _pendingForcePlay = null);
-                    await controller.reset();
-                    if (mounted) _showTrajectoryDialog();
-                  },
-                  icon: const Icon(Icons.replay),
-                  tooltip: 'Start the play over',
-                ),
-                IconButton(
-                  key: fieldDiscardKey,
-                  onPressed: controller.discard,
-                  icon: const Icon(Icons.close),
-                  tooltip: 'Discard play',
-                ),
+                // ↺ and ✕ moved to the top bar (§15.2 v0.54): they were
+                // undo-shaped controls living on the surface while a third
+                // undo sat above them, and the split is what made "which
+                // undo am I pressing?" a real question. Commit stays here —
+                // it is this surface's own verb, not a general one.
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   key: fieldCommitKey,

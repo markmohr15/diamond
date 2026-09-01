@@ -36,6 +36,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     required String batterId,
   }) async {
     final draft = _openingDraft(pitchEventId: pitchEventId, batterId: batterId);
+    _steps.clear();
     await _journal.save(_gameId, draft);
     state = AsyncData(draft);
   }
@@ -80,6 +81,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
       }
       draft = draft.copyWith(openingLegCount: draft.entries.length);
     }
+    _steps.clear();
     await _journal.save(_gameId, draft);
     state = AsyncData(draft);
   }
@@ -95,17 +97,6 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// starts over — trajectory question included — with the committed pitch
   /// untouched. Everything or nothing; there is no partial unpick once
   /// plays hang off the path.
-  Future<void> reset() async {
-    final draft = state.valueOrNull;
-    if (draft == null) return;
-    final fresh = _openingDraft(
-      pitchEventId: draft.pitchEventId,
-      batterId: draft.batterId,
-    );
-    await _journal.save(_gameId, fresh);
-    state = AsyncData(fresh);
-  }
-
   /// Everyone the play found on the field, batter first: the fold's base
   /// state read as origins. The walk-up cascade and §16.3's beyond-the-fence
   /// awards both start here.
@@ -405,13 +396,43 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// Abandons the draft; the committed pitch stands (undo reverses it
   /// separately, §6). The escape hatch for a mistapped `in_play`.
   Future<void> discard() async {
+    _steps.clear();
     await _journal.clear(_gameId);
     state = const AsyncData(null);
+  }
+
+  /// Snapshots for step undo (§15.2, DIA-019c), newest last.
+  ///
+  /// The draft is immutable and every mutation goes through [_mutate], so a
+  /// stack of previous drafts is the whole mechanism — no inverse operation
+  /// per action, which is what makes this affordable. "Undo the last action"
+  /// and "back up one step" are different operations and only the first
+  /// existed; a throw writes a touch *and* a leg together, which is exactly
+  /// what per-node removal could not express.
+  ///
+  /// Session state, not journaled: a relaunch restores the draft but not its
+  /// history. The crash journal exists so a half-entered play survives
+  /// (§15.5), not so it can be rewound afterwards.
+  final _steps = <PlayDraft>[];
+
+  /// Whether [stepUndo] has anything to pop — for the top bar's button.
+  bool get hasSteps => _steps.isNotEmpty;
+
+  /// Pops one step. False when there is nothing left, which is the caller's
+  /// signal to take the play off the screen entirely rather than sit on an
+  /// empty draft (Mark, 2026-09-01).
+  Future<bool> stepUndo() async {
+    if (_steps.isEmpty) return false;
+    final previous = _steps.removeLast();
+    await _journal.save(_gameId, previous);
+    state = AsyncData(previous);
+    return true;
   }
 
   Future<void> _mutate(PlayDraft Function(PlayDraft) change) async {
     final draft = state.valueOrNull;
     if (draft == null) return;
+    _steps.add(draft);
     final next = change(draft);
     await _journal.save(_gameId, next);
     state = AsyncData(next);

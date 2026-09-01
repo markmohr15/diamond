@@ -8,7 +8,7 @@ import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
-import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
+import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
@@ -518,7 +518,7 @@ void main() {
       await tapText(tester, 'In play');
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.tap(find.byKey(countHudCancelKey));
       await tester.pumpAndSettle();
       await tapKey(tester, recordLastPitchKey);
       await placeActualAt(tester, ZoneCoord(x: 0.4, y: 0.2));
@@ -610,6 +610,82 @@ void main() {
         undoEnabled(tester),
         isFalse,
         reason: 'recomputing the boundary here would offer batter 1',
+      );
+    });
+  });
+
+  group("one undo, and on the field it is the play's (§15.2 v0.54)", () {
+    /// An in-play pitch with a real call and location, onto the field with
+    /// the trajectory answered — the state where a step exists to undo.
+    Future<void> toFieldWith(WidgetTester tester, Trajectory trajectory) async {
+      await tapText(tester, 'Fastball');
+      await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5)); // c2r2
+      await tapKey(tester, callScreenPitchThrownKey);
+      await placeActualAt(tester, ZoneCoord(x: -0.2, y: 0.1));
+      await tapText(tester, 'In play');
+      await tapKey(tester, trajectoryKey(trajectory));
+    }
+
+    testWidgets('it no longer reaches past the surface: the pitch under an '
+        'open play survives a tap', (tester) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      await tapKey(tester, countHudUndoKey);
+
+      final events = await stream();
+      expect(
+        events.where((e) => e.type == 'PitchThrown'),
+        hasLength(1),
+        reason: 'the tap took back the trajectory, not the pitch',
+      );
+      expect(
+        container.read(playDraftProvider).valueOrNull,
+        isNotNull,
+        reason: 'and left the play on screen',
+      );
+    });
+
+    testWidgets('with nothing entered, undo leaves the field and lands on '
+        'the location canvas with the pitch still placed', (tester) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      // First tap: back to the trajectory question, nothing entered.
+      await tapKey(tester, countHudUndoKey);
+      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      await tester.tapAt(const Offset(20, 20)); // wave the modal off
+      await tester.pumpAndSettle();
+
+      // Second: nothing left to step through, so the play comes off and the
+      // pitch with it.
+      await tapKey(tester, countHudUndoKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+      expect(find.text('Skip location'), findsOneWidget, reason: 'the canvas');
+
+      // And the entry survived: recommitting carries the same call.
+      await placeActualAt(tester, ZoneCoord(x: -0.2, y: 0.1));
+      await tapText(tester, 'Foul');
+      final pitch = await lastPitch();
+      expect(pitch.outcome, Outcome.FOUL);
+      expect(pitch.intendedZoneId, 'c2r2');
+    });
+
+    testWidgets('cancel lives in the top bar now and abandons the play', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      await tapKey(tester, countHudCancelKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+    });
+
+    testWidgets('cancel is disabled with no play to abandon', (tester) async {
+      await pumpLoop(tester);
+      expect(
+        tester.widget<IconButton>(find.byKey(countHudCancelKey)).onPressed,
+        isNull,
       );
     });
   });
@@ -893,7 +969,7 @@ void main() {
       // (§15.1 v0.43), then discard.
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.tap(find.byKey(countHudCancelKey));
       await tester.pumpAndSettle();
     }
 
@@ -907,7 +983,7 @@ void main() {
       // (§15.1 v0.43), then discard.
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(fieldDiscardKey));
+      await tester.tap(find.byKey(countHudCancelKey));
       await tester.pumpAndSettle();
 
       expect(find.byKey(recordLastPitchKey), findsNothing);
@@ -1027,9 +1103,9 @@ void main() {
       await pumpLoop(tester);
       await d3kUnlocated(tester);
       await tapKey(tester, d3kFieldKey);
-      // The between-pitches surface, so its own ✕ — `fieldDiscardKey` is the
+      // The between-pitches surface, so its own ✕ — `countHudCancelKey` is the
       // play surface's, and a D3K to the field opens the idle chrome.
-      await tapKey(tester, fieldIdleCloseKey);
+      await tapKey(tester, countHudCancelKey);
 
       expect(find.byKey(recordLastPitchKey), findsOneWidget);
     });

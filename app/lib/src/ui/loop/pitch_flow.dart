@@ -60,6 +60,9 @@ class UndoFloor extends Notifier<String?> {
 /// A sealed plate appearance is the ordinary reason this goes false: the
 /// scorer has started the next pitch, and what came before is history.
 final canUndoProvider = FutureProvider<bool>((ref) async {
+  // A play on screen is always undoable: either a step comes off, or the
+  // whole play does and the pitch with it.
+  if (ref.watch(playDraftProvider).valueOrNull != null) return true;
   // Rebuilds when the fold moves, which is every append and every void.
   ref.watch(gameControllerProvider);
   // The seal has to be read *here* as well as in `undoLast`, not just there:
@@ -71,6 +74,15 @@ final canUndoProvider = FutureProvider<bool>((ref) async {
       .undoableRoot(floorEventId: ref.watch(undoFloorProvider));
   return root != null;
 });
+
+/// Whether the top bar's ✕ has anything to cancel: an open play draft.
+///
+/// The design keeps ↺ and ✕ together top-right on every screen
+/// (`Pitch Screen.dc.html`), so the pair is one cluster rather than chrome
+/// that belongs to whichever surface is up.
+final canCancelProvider = Provider<bool>(
+  (ref) => ref.watch(playDraftProvider).valueOrNull != null,
+);
 
 /// Whether the scorer has left the finished plate appearance behind.
 ///
@@ -729,6 +741,25 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// never on the band. [CallIntent] holds what the event actually knows, and
   /// that is what rides the recommit.
   Future<void> undoLast() async {
+    // §15.2 v0.54: one undo, and on the field it is the *play's* undo.
+    //
+    // Before this the top bar reached straight past the surface the scorer
+    // was looking at: tapping it with a play open voided the pitch
+    // underneath and left the draft anchored to an event that no longer
+    // existed, with nothing on screen changing — so it read as "nothing
+    // happened" (Mark, in the simulator). The play surface owns the screen
+    // (§15.5); the button now respects that.
+    final play = ref.read(playDraftProvider.notifier);
+    if (ref.read(playDraftProvider).valueOrNull != null) {
+      if (await play.stepUndo()) return;
+      // Nothing left to step back through — she is at the trajectory
+      // question, having entered nothing. The last thing she actually did
+      // was tap `in_play`, so that is what comes off, and she lands back on
+      // the location canvas with the pitch still placed (Mark). Undo means
+      // the same thing at every depth: take back the last thing I did.
+      await play.discard();
+    }
+
     final game = ref.read(gameControllerProvider.notifier);
     await _sealIfMovedOn();
 

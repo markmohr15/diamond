@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
@@ -17,6 +18,8 @@ const Key countHudKey = Key('countHud');
 const Key countHudUndoKey = Key('countHudUndo');
 @visibleForTesting
 const Key countHudThemeKey = Key('countHudTheme');
+@visibleForTesting
+const Key countHudCancelKey = Key('countHudCancel');
 @visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
 @visibleForTesting
@@ -73,6 +76,7 @@ class CountHud extends ConsumerWidget {
     // `undoLast` re-reads the seal and is authoritative. Defaulting to
     // disabled would make the first tap after every action a dead one.
     final isDark = ref.watch(themeModeProvider).valueOrNull == ThemeMode.dark;
+    final canCancel = ref.watch(canCancelProvider);
     final canUndo = ref.watch(canUndoProvider).valueOrNull ?? true;
 
     return Container(
@@ -173,6 +177,21 @@ class CountHud extends ConsumerWidget {
             // long-press on a greyed-out button, which nobody performs — the
             // disabled state has to carry the message by itself.
             tooltip: 'Undo',
+          ),
+          // §15.2 v0.54: ↺ and ✕ are one cluster, on every screen, per the
+          // design. Cancel abandons the play being entered — the ✕ that used
+          // to live in the field surface's own chrome, where it was one of
+          // two undo-shaped controls on two different layers.
+          IconButton(
+            key: countHudCancelKey,
+            onPressed: canCancel
+                ? () => ref.read(playDraftProvider.notifier).discard()
+                : null,
+            icon: Icon(
+              Icons.close,
+              color: canCancel ? foreground : foreground.withValues(alpha: .35),
+            ),
+            tooltip: 'Cancel',
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
+import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
@@ -1346,7 +1347,6 @@ void main() {
       await tapWorld(tester, FieldCoord(x: 0, y: 180));
       expect(find.byKey(sacrificeChipKey), findsNothing);
     });
-
   });
 
   group('the locked path and the reset (§15.1 v0.43)', () {
@@ -1366,9 +1366,16 @@ void main() {
       await tapWorld(tester, FieldCoord(x: -85, y: 190));
       expect(find.text('152 ft'), findsOneWidget);
 
-      // The reset wipes the play — trajectory question and all — and the
-      // path draws fresh.
-      await tapKey(tester, fieldResetKey);
+      // Stepping back to the start wipes the play — trajectory question and
+      // all — and the path draws fresh. The ↺ that used to do this in one
+      // tap is gone (§15.2 v0.54): undo is one button in the top bar, and
+      // starting over is undoing to the bottom of the stack.
+      for (var i = 0; i < 6; i++) {
+        if (find.text('How did it come off the bat?').evaluate().isNotEmpty) {
+          break;
+        }
+        await tapKey(tester, countHudUndoKey);
+      }
       expect(find.text('How did it come off the bat?'), findsOneWidget);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await tapWorld(tester, FieldCoord(x: 30, y: 160));
@@ -1575,7 +1582,7 @@ void main() {
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await tapWorld(tester, FieldCoord(x: 0, y: 100));
-      await tapKey(tester, fieldDiscardKey);
+      await tapKey(tester, countHudCancelKey);
 
       expect(find.byKey(fieldCanvasKey), findsNothing);
       final types = (await stream()).map((e) => e.type).toList();
