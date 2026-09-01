@@ -1,7 +1,6 @@
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
-import 'package:diamond/src/ui/settings/settings_sheet.dart';
 import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
 import 'package:drift/native.dart';
@@ -37,8 +36,22 @@ void main() {
     return next;
   }
 
-  test('nothing stored means nothing chosen: the default is system', () async {
-    expect(await container.read(themeModeProvider.future), ThemeMode.system);
+  test('nothing stored: light, not the device', () async {
+    // Two states, not three (2026-09-01). `system` is gone, so the app never
+    // silently defers to the device — the design's base ladder is light and
+    // the toggle is one visible tap away.
+    expect(await container.read(themeModeProvider.future), ThemeMode.light);
+  });
+
+  test('toggle flips, and keeps flipping', () async {
+    await container.read(themeModeProvider.future);
+    final notifier = container.read(themeModeProvider.notifier);
+
+    await notifier.toggle();
+    expect(container.read(themeModeProvider).value, ThemeMode.dark);
+    await notifier.toggle();
+    expect(container.read(themeModeProvider).value, ThemeMode.light);
+    expect(await relaunch().read(themeModeProvider.future), ThemeMode.light);
   });
 
   test('a choice survives a relaunch', () async {
@@ -60,7 +73,7 @@ void main() {
     expect(await relaunch().read(themeModeProvider.future), ThemeMode.light);
   });
 
-  testWidgets('the HUD opens the sheet and the choice reaches MaterialApp', (
+  testWidgets('the top-bar button flips the theme and it reaches MaterialApp', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -70,14 +83,16 @@ void main() {
 
     ThemeMode modeOnApp() =>
         tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode!;
-    expect(modeOnApp(), ThemeMode.system);
+    expect(modeOnApp(), ThemeMode.light);
 
-    await tester.tap(find.byKey(countHudSettingsKey));
+    // One tap, no sheet in between.
+    await tester.tap(find.byKey(countHudThemeKey));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(themeModeKey(ThemeMode.dark)));
-    await tester.pumpAndSettle();
-
     expect(modeOnApp(), ThemeMode.dark);
+
+    await tester.tap(find.byKey(countHudThemeKey));
+    await tester.pumpAndSettle();
+    expect(modeOnApp(), ThemeMode.light);
   });
 }
 
