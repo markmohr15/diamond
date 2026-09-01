@@ -179,14 +179,12 @@ class CountHud extends ConsumerWidget {
             tooltip: 'Undo',
           ),
           // §15.2 v0.54: ↺ and ✕ are one cluster, on every screen, per the
-          // design. Cancel abandons the play being entered — the ✕ that used
-          // to live in the field surface's own chrome, where it was one of
-          // two undo-shaped controls on two different layers.
+          // design — the ✕ that used to live in the field surface's own
+          // chrome, where it was one of two undo-shaped controls on two
+          // different layers.
           IconButton(
             key: countHudCancelKey,
-            onPressed: canCancel
-                ? () => ref.read(playDraftProvider.notifier).discard()
-                : null,
+            onPressed: canCancel ? () => _cancel(ref) : null,
             icon: Icon(
               Icons.close,
               color: canCancel ? foreground : foreground.withValues(alpha: .35),
@@ -196,6 +194,22 @@ class CountHud extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  /// The top bar's ✕ (Mark, 2026-09-01).
+  ///
+  /// On a batted ball it **starts the play over in place** — the entries go,
+  /// the field stays up, and the trajectory question comes back to the front.
+  /// Cancel is "I got this play wrong", not "throw the pitch away too", and
+  /// leaving the field is undo's job.
+  ///
+  /// A between-pitch entry has no first question to return to, so there
+  /// cancel is what it always was: close the field, recording nothing.
+  void _cancel(WidgetRef ref) {
+    final draft = ref.read(playDraftProvider).valueOrNull;
+    if (draft == null) return;
+    final play = ref.read(playDraftProvider.notifier);
+    draft.battedBall ? play.startOver() : play.discard();
   }
 
   /// §12.5's CountCorrection sheet: "the scoreboard says 2-1, make it so."

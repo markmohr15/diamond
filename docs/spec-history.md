@@ -56,8 +56,13 @@ keeps only its `✓` — commit is that surface's own verb, not a general one. O
 **play's** undo: one entry at a time, by snapshotting the immutable draft rather than writing an
 inverse of every action. When there is nothing left to step back through — the trajectory question,
 nothing entered — it takes the play off the screen and the pitch with it, landing on the location
-canvas with the pitch still placed (Mark). Starting a play over is undoing to the bottom of the
-stack; the separate ↺ that did it in one tap is gone.
+canvas with the pitch still placed (Mark). Starting a play over is what `✕` now does: cancel clears the entries, keeps
+the field up, and puts the trajectory question back in front — "I got this play wrong, let me redo
+it", not "throw the pitch away too". That closes a hole rather than opening one, because ✕ can no
+longer leave an `in_play` pitch with no play recorded; the state simply is not reachable any more.
+Leaving the field is undo's job and undo takes the pitch with it. The consequence lands in the §14
+acceptance script, which used to discard its ball in play to get back to the loop and now **scores**
+it — a truer script, since no real scorer abandons a play to move on.
 
 Light/dark also becomes a top-bar button rather than a settings sheet, two states instead of three.
 It does not belong to these screens at all — its eventual home is a settings screen or a menu — so a
