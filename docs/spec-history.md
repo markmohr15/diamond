@@ -44,6 +44,26 @@ boundary, and nothing requires it to. Reaching further back is an explicit edit,
 different gesture. The button **disables** when everything is sealed, rather than declining in
 silence.
 
+**And it is now the only undo.** The field surface had grown its own ↺ (start the play over) and ✕
+(discard it) while the top bar's undo sat above them — three undo-shaped controls on two layers, and
+Mark found the consequence in the simulator: tapping the top one with a play open voided the pitch
+underneath and left the draft anchored to an event that no longer existed. Nothing on screen changed,
+because the play surface owns it, so it read as "nothing happened."
+
+So the pair moves up. `↺` and `✕` sit together top-right on every screen, per the design
+(`Pitch Screen.dc.html`: "count, outs, and undo stay up… nothing is orphaned"), and the play surface
+keeps only its `✓` — commit is that surface's own verb, not a general one. On the field, `↺` is the
+**play's** undo: one entry at a time, by snapshotting the immutable draft rather than writing an
+inverse of every action. When there is nothing left to step back through — the trajectory question,
+nothing entered — it takes the play off the screen and the pitch with it, landing on the location
+canvas with the pitch still placed (Mark). Starting a play over is undoing to the bottom of the
+stack; the separate ↺ that did it in one tap is gone.
+
+Light/dark also becomes a top-bar button rather than a settings sheet, two states instead of three.
+It does not belong to these screens at all — its eventual home is a settings screen or a menu — so a
+destination built to hold one control was scaffolding pretending to be a destination. `system` is
+gone with it: the app no longer defers the choice to the device, which was the original complaint.
+
 One consequence worth recording: the seal is session state and cannot be otherwise. The call lives
 in the draft and nothing is written until the outcome commits, so "she started calling the next
 pitch" leaves no trace to project from. A relaunch starts with no seal — undo still cannot cross a
