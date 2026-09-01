@@ -21,13 +21,15 @@ class DiamondApp extends ConsumerWidget {
       // MaterialApp so a swap re-themes everything below it.
       theme: ref.watch(lightThemeProvider),
       darkTheme: ref.watch(darkThemeProvider),
-      // §23.1.4: the scorer's choice, not the system's. Until it loads,
-      // `system` — the behavior the app had before there was a choice.
-      themeMode: ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system,
+      // §23.1.4: the scorer's choice, not the system's — and only ever one
+      // of two. Light until the stored choice loads, which is also the
+      // default when nothing is stored.
+      themeMode: ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.light,
       // DIA-007's pitch loop is the home screen until §19.4's navigation
       // exists. The DIA-005/006 dev harness is gone (DIA-007's cleanup); the
-      // settings surface it was waiting on now exists (the count HUD's ⚙),
-      // so its fidelity/silhouette toggles have somewhere to come back to.
+      // settings surface it was waiting on still does not exist: light/dark
+      // is a top-bar toggle, not a destination, so the fidelity and
+      // silhouette toggles are still waiting on §19.4.
       home: const _Boot(),
     );
   }

@@ -2,10 +2,10 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
-import 'package:diamond/src/ui/settings/settings_sheet.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
+import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,7 +16,7 @@ const Key countHudKey = Key('countHud');
 @visibleForTesting
 const Key countHudUndoKey = Key('countHudUndo');
 @visibleForTesting
-const Key countHudSettingsKey = Key('countHudSettings');
+const Key countHudThemeKey = Key('countHudTheme');
 @visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
 @visibleForTesting
@@ -72,6 +72,7 @@ class CountHud extends ConsumerWidget {
     // Optimistic while the check is in flight: the button guesses, and
     // `undoLast` re-reads the seal and is authoritative. Defaulting to
     // disabled would make the first tap after every action a dead one.
+    final isDark = ref.watch(themeModeProvider).valueOrNull == ThemeMode.dark;
     final canUndo = ref.watch(canUndoProvider).valueOrNull ?? true;
 
     return Container(
@@ -138,6 +139,22 @@ class CountHud extends ConsumerWidget {
             style: text.headlineMedium!.copyWith(color: foreground).code,
           ),
           const SizedBox(width: 12),
+          // Left of undo, per the design's top-right cluster (Mark,
+          // 2026-09-01). A direct toggle rather than a settings surface:
+          // light/dark does not belong to the pitch screens, and its real
+          // home is a settings screen or a menu that may not be reachable
+          // from here — so a sheet built to hold this one control was
+          // scaffolding pretending to be a destination.
+          IconButton(
+            key: countHudThemeKey,
+            onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+            icon: Icon(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: foreground,
+            ),
+            // Names what the tap *does*, not what is showing.
+            tooltip: isDark ? 'Light' : 'Dark',
+          ),
           // Disabled rather than inert when the plate appearance behind it
           // is sealed (§11.3 v0.54). A button that silently does nothing
           // reads as a bug, and this one declines often by design.
@@ -156,17 +173,6 @@ class CountHud extends ConsumerWidget {
             // long-press on a greyed-out button, which nobody performs — the
             // disabled state has to carry the message by itself.
             tooltip: 'Undo',
-          ),
-          // A non-scoring control on the scoring surface, which §18.7's
-          // data-ink rule would ordinarily refuse. It earns the pixels
-          // because of *when* it is needed: the scorer who wants this wants
-          // it at 9pm with a game running, and a gesture nobody can find is
-          // worse than one small icon beside one that is already here.
-          IconButton(
-            key: countHudSettingsKey,
-            onPressed: () => showSettingsSheet(context),
-            icon: Icon(Icons.settings_outlined, color: foreground),
-            tooltip: 'Settings',
           ),
         ],
       ),

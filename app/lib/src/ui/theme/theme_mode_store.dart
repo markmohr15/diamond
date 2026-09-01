@@ -19,10 +19,13 @@ class ThemeModeStore {
       _db.appSettings,
     )..where((t) => t.key.equals(themeModeSettingKey))).getSingleOrNull();
     return switch (row?.value) {
-      'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
-      // Including the null case: nothing stored means nothing chosen.
-      _ => ThemeMode.system,
+      // Light on anything else, the unset case included. **Two states, not
+      // three** (Mark, 2026-09-01): `system` is gone, so the app never
+      // silently defers the choice to the device. The design's base ladder is
+      // light — dark is "every screen after dark" — and the toggle sits in
+      // the top bar, one visible tap away if the default is wrong.
+      _ => ThemeMode.light,
     };
   }
 
@@ -39,12 +42,16 @@ final themeModeStoreProvider = Provider<ThemeModeStore>(
 
 /// §23.1.4: dark mode is not optional, and neither is *choosing* it. Both
 /// themes were built and nothing selected between them, so the app followed
-/// the system — which is the wrong authority for the use. A tablet in a dugout
-/// at a 9pm game is not reliably in system dark, and the scorer could not fix
-/// it from inside the app.
+/// the system — the wrong authority for the use. A tablet in a dugout at a
+/// 9pm game is not reliably in system dark, and the scorer could not fix it
+/// from inside the app.
 ///
-/// The default stays [ThemeMode.system]: pinning is the fix for the night
-/// game, and what the app does out of the box is a separate question.
+/// **Two states, and the toggle is a top-bar button** (Mark, 2026-09-01).
+/// Light/dark does not belong to the pitch screens at all — its eventual home
+/// is a settings screen or a menu that may not even be reachable from here —
+/// so a whole settings surface built to hold this one control was scaffolding
+/// pretending to be a destination. A direct toggle is honest about being
+/// temporary and costs one tap instead of three.
 final themeModeProvider = AsyncNotifierProvider<ThemeModeController, ThemeMode>(
   ThemeModeController.new,
 );
@@ -57,4 +64,10 @@ class ThemeModeController extends AsyncNotifier<ThemeMode> {
     state = AsyncData(mode);
     await ref.read(themeModeStoreProvider).save(mode);
   }
+
+  /// The top-bar button: light becomes dark, dark becomes light. There is no
+  /// third state to cycle through.
+  Future<void> toggle() => choose(
+    state.valueOrNull == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
+  );
 }
