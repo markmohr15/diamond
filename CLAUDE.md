@@ -122,7 +122,20 @@ until M2.
 The middle one is the load-bearing clause: it means a play that enters cleanly but derives wrongly is
 an M1 blocker, and it is why DIA-015 gates DIA-009 rather than riding alongside it.
 
-**Tickets: DIA-001 … DIA-012, plus DIA-014, DIA-015, DIA-016.** The old range stopped at DIA-011,
-which was written before 014 and 015 existed and undercounted M1 by two. **DIA-013** (the batter
-figure) is the only outstanding ticket that is *not* M1 — it is an illustration-sourcing problem, and
-nothing scores wrongly without it.
+**Tickets: DIA-001 … DIA-012, plus DIA-014, DIA-015, DIA-016, DIA-018, DIA-019, DIA-021, DIA-022.**
+The range grew twice: 014 and 015 were written after the original list, and on 2026-09-02 Mark
+widened M1 itself — *"I'm trying to make M1 to the level that a user could use it in a completely
+functional way."* That pulled in **DIA-018** (the field surface, designed — the mockups address real
+problems and it is substantial work), **DIA-021** (the pitch-entry rail and the labeled undo), and
+**DIA-022** (hit-vs-error, which gates DIA-009 the way DIA-015 does).
+
+**Not M1:** **DIA-013** (the batter figure) — an illustration-sourcing problem, and nothing scores
+wrongly without it. **DIA-017** (RuleSet) — its own sequencing note says M1 hardcodes fastpitch 12U;
+softball- and baseball-specific rules ship always-on and are gated there. **DIA-020** (editing
+history) — nothing scores wrongly, it makes a mistake expensive to fix.
+
+**The fourth clause, added 2026-09-02.** "Completely functional" is softer than the three below and
+needs an edge, or it can never be shown to be met: **DIA-009's manual script runs end to end without
+Mark needing a workaround.** If "I had to know that Cancel gets me back to the call screen" counts as
+a workaround, the clause has teeth and is tested by something already planned. If it does not, the
+item is polish and is not M1.
