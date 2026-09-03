@@ -901,8 +901,6 @@ final causeValues = EnumValues({
 });
 
 enum RunnerAdvanceReason {
-    AWARDED,
-    BALK,
     BATTED_BALL,
     CATCHER_INTERFERENCE,
     DEFENSIVE_INDIFFERENCE,
@@ -921,8 +919,6 @@ enum RunnerAdvanceReason {
 }
 
 final runnerAdvanceReasonValues = EnumValues({
-    "awarded": RunnerAdvanceReason.AWARDED,
-    "balk": RunnerAdvanceReason.BALK,
     "batted_ball": RunnerAdvanceReason.BATTED_BALL,
     "catcher_interference": RunnerAdvanceReason.CATCHER_INTERFERENCE,
     "defensive_indifference": RunnerAdvanceReason.DEFENSIVE_INDIFFERENCE,

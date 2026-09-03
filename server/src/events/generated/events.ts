@@ -390,7 +390,7 @@ export interface RunnerAdvance {
  */
 export type Cause = "wild_pitch" | "passed_ball";
 
-export type RunnerAdvanceReason = "batted_ball" | "walk" | "hbp" | "stolen_base" | "wild_pitch" | "passed_ball" | "balk" | "illegal_pitch" | "error" | "fielders_choice" | "defensive_indifference" | "dropped_third_strike" | "catcher_interference" | "obstruction" | "wild_throw" | "ground_rule" | "awarded";
+export type RunnerAdvanceReason = "batted_ball" | "walk" | "hbp" | "stolen_base" | "wild_pitch" | "passed_ball" | "illegal_pitch" | "error" | "fielders_choice" | "defensive_indifference" | "dropped_third_strike" | "catcher_interference" | "obstruction" | "wild_throw" | "ground_rule";
 
 /**
  * spec §4.3.
@@ -867,8 +867,6 @@ const typeMap: any = {
         "wild_pitch",
     ],
     "RunnerAdvanceReason": [
-        "awarded",
-        "balk",
         "batted_ball",
         "catcher_interference",
         "defensive_indifference",
