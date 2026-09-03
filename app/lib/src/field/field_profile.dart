@@ -35,7 +35,6 @@ class FieldProfile {
   FieldProfile({
     required this.id,
     required this.label,
-    required this.sport,
     required this.fence,
     required this.basePath,
     required this.pitchingDistance,
@@ -47,7 +46,6 @@ class FieldProfile {
 
   final String id;
   final String label;
-  final Sport sport;
   final FencePoles fence;
 
   /// Feet between consecutive bases (60 / 65 / 70 / 90).
@@ -71,7 +69,6 @@ class FieldProfile {
   static final fastpitch12U = FieldProfile(
     id: 'builtin-fastpitch-12u',
     label: 'Fastpitch 12U',
-    sport: Sport.softball,
     fence: const FencePoles(
       lfLine: 190,
       lfGap: 200,
@@ -83,11 +80,6 @@ class FieldProfile {
     pitchingDistance: 40,
   );
 }
-
-/// §16.1's sport discriminator. Local because no generated event carries a
-/// field profile (see the library comment) — this is not a duplicate of a
-/// schema type.
-enum Sport { baseball, softball }
 
 /// Position abbreviations, the label vocabulary everywhere a position shows
 /// on screen. Scoring numbers (1–9) stay in the event stream (§4.2), but

@@ -160,6 +160,10 @@ class PitchLoopPage extends ConsumerWidget {
                                   .read(playDraftProvider.notifier)
                                   .startBetweenPitches(pitchEventId: pitchId);
                             },
+                            // Material ships no softball glyph, so this is
+                            // the framework's name rather than a claim about
+                            // the sport. DIA-018's field design replaces this
+                            // button anyway (Mark, 2026-09-03).
                             icon: const Icon(Icons.sports_baseball),
                             label: const Text('Go to field'),
                           ),
@@ -179,7 +183,6 @@ class PitchLoopPage extends ConsumerWidget {
                     value: flow.actual,
                     bounceValue: flow.bounce,
                     batterSide: batterSide,
-                    ballKind: BallKind.softball,
                     onCommit: controller.actualCommitted,
                     onCommitBounce: controller.bounceCommitted,
                     onSkip: controller.skipLocation,
@@ -193,7 +196,6 @@ class PitchLoopPage extends ConsumerWidget {
                     value: flow.actual,
                     bounceValue: flow.bounce,
                     batterSide: batterSide,
-                    ballKind: BallKind.softball,
                     onCommit: (_) {},
                     onSkip: () {},
                     onCancel: () {},
@@ -208,7 +210,6 @@ class PitchLoopPage extends ConsumerWidget {
                     mode: ZoneCanvasIntent.actual,
                     value: null,
                     batterSide: batterSide,
-                    ballKind: BallKind.softball,
                     onCommit: controller.recordLastLocation,
                     onCommitBounce: controller.recordLastBounce,
                     skipLabel: 'Keep unlocated',

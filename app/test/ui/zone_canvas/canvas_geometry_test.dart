@@ -231,10 +231,6 @@ void main() {
     test('box dimensions come from the RuleSet spec, not a sport branch', () {
       expect(BatterBoxSpec.fastpitch.widthInches, 36);
       expect(BatterBoxSpec.fastpitch.foreInches, 48);
-      expect(BatterBoxSpec.baseball.widthInches, 48);
-      expect(BatterBoxSpec.baseball.foreInches, 36);
-      // Both codes measure the 6in gap to the chalk's inner edge, so the inner
-      // line lands identically; what differs is width and how far it runs.
       expect(BatterBoxSpec.offsetInches, 6);
       expect(BatterBoxSpec.chalkWidthInches, 3);
     });
@@ -600,37 +596,42 @@ void main() {
     });
 
     test('batter box fore/aft come from the RuleSet and change the render', () {
-      // Both boxes are always drawn (§11.4), but how far up-screen each runs is
-      // a sport difference routed through BatterBoxSpec, never an
+      // Both boxes are always drawn (§11.4), but how far up-screen each runs
+      // is a spec difference routed through BatterBoxSpec, never an
       // `if (softball)` at the painter. Fastpitch's 48in fore overruns the
-      // canvas and clips at the top edge; baseball's 36in does not.
+      // canvas and clips at the top edge.
       //
-      // That difference is exactly why the front line must be *drawn* rather
-      // than assumed off-canvas: baseball's box terminates in view, and an
-      // inner line stopping there with no front line to close it reads as
-      // chalk that simply gives up. Caught on device, not by this test — which
-      // is why the assertion now exists.
+      // The shallow box below is **synthetic** — no shipped ruleset produces
+      // it. It is kept because it is the only input that exercises "the front
+      // line terminates in view", the case that made drawing the front line
+      // necessary at all: an inner line stopping with nothing to close it
+      // reads as chalk that gives up. Caught on device, not by a test. With
+      // fastpitch the only ruleset (2026-09-03), dropping this input would
+      // leave that branch unexercised rather than proven unreachable.
+      const shallow = BatterBoxSpec(
+        widthInches: 48,
+        foreInches: 36,
+        aftInches: 36,
+      );
+
       double frontDepthFeet(BatterBoxSpec box) =>
           (TopDownGeometry.plateCenterDepthInches + box.foreInches) / 12;
 
-      expect(frontDepthFeet(BatterBoxSpec.baseball), lessThan(t.maxDepthFeet));
-      expect(frontDepthFeet(BatterBoxSpec.baseball), closeTo(2.292, 0.0005));
+      expect(frontDepthFeet(shallow), lessThan(t.maxDepthFeet));
+      expect(frontDepthFeet(shallow), closeTo(2.292, 0.0005));
       expect(
         frontDepthFeet(BatterBoxSpec.fastpitch),
         greaterThan(t.maxDepthFeet),
       );
       expect(frontDepthFeet(BatterBoxSpec.fastpitch), closeTo(3.292, 0.0005));
 
-      // The visible gap between baseball's front line and the canvas top —
+      // The visible gap between a terminating front line and the canvas top —
       // the strip that read as unexplained emptiness on device.
-      expect(
-        t.maxDepthFeet - frontDepthFeet(BatterBoxSpec.baseball),
-        closeTo(0.308, 0.0005),
-      );
+      expect(t.maxDepthFeet - frontDepthFeet(shallow), closeTo(0.308, 0.0005));
 
       // Both run off the bottom, so the aft difference never shows — which is
       // why the fore one is the assertion that would actually catch a swap.
-      for (final box in [BatterBoxSpec.baseball, BatterBoxSpec.fastpitch]) {
+      for (final box in [shallow, BatterBoxSpec.fastpitch]) {
         final backDepthFeet =
             (TopDownGeometry.plateCenterDepthInches - box.aftInches) / 12;
         expect(backDepthFeet, lessThan(t.minDepthFeet));

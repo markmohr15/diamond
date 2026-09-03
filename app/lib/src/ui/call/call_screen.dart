@@ -65,7 +65,6 @@ const double _typeRowHeight = 66;
 class CallScreen extends ConsumerStatefulWidget {
   const CallScreen({
     this.batterSide = BatterSide.R,
-    this.ballKind = BallKind.softball,
     this.fidelity = CanvasFidelity.restrained,
     this.showBatterSilhouette = false,
     this.onSkipCall,
@@ -76,8 +75,6 @@ class CallScreen extends ConsumerStatefulWidget {
   /// Which box the batter stands in. Moves the *labels* on the grid, never the
   /// geometry — "In" is negative x for a righty (§10.1, §11.4).
   final BatterSide batterSide;
-
-  final BallKind ballKind;
 
   /// Passed through to the canvas so the dev harness can flip treatments on a
   /// real tablet (§11.4).
@@ -128,7 +125,6 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       mode: ZoneCanvasIntent.call,
       value: null,
       batterSide: widget.batterSide,
-      ballKind: widget.ballKind,
       fidelity: widget.fidelity,
       showBatterSilhouette: widget.showBatterSilhouette,
       // Always set, so the grid is on screen from the first frame and the

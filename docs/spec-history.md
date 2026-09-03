@@ -3,6 +3,41 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.55
+
+**Fastpitch softball only.**
+
+Mark, 2026-09-03: *"Baseball doesn't call pitches like we're doing for softball, so baseball is
+really a different product with a different design. I'm going to build this for softball and maybe
+baseball is something we bring in later if we get adoption."*
+
+The taxonomy does not change, and that is the point. §1 #4 has always said "sport-agnostic core,
+sport-specific config," and the core held up: no event, coordinate or projection names a sport, so
+removing one is a deletion of **config rows**, not a change to the model. What goes is the zone
+dimension row, the batter's-box row, three field-dimension presets, the `sport` discriminator on
+`FieldProfile`, and `BallKind` — an enum the app never actually varied, since every call site passed
+softball explicitly.
+
+That last one had already gone wrong quietly. `BallKind`'s **default was baseball**, so it worked
+only because every call site remembered to override it — and the golden harness did not. Most
+zone-canvas goldens were pictures of a ball the app never draws, with softball annotated as the
+special case. Removing the enum corrects them rather than churning them.
+
+`RunnerAdvanceReason.balk` goes as baseball's. `awarded` goes alongside it, for a different reason —
+no *use case* rather than no ruleset. Mark: *"anytime a base is awarded, there's a reason other than
+just because,"* and the acceptance corpus agrees: play_07 and play_12 both describe awards in their
+titles and both carry a specific reason. `enabledByCallId` already links an award to its ruling.
+
+**`RuleSet` loses an axis and keeps its job.** DIA-017's three axes — sport, level, ruleset — become
+two. Level and association still vary enormously inside fastpitch (10U through HS, USA against
+USSSA), so the ticket is simpler, not redundant. Softball-specific rules that were waiting to be
+gated *against baseball* — look-back, leaving early — are now simply the rules, and only their
+**level** gating remains: look-back is called a few times a season and mostly at 11/12, tens and
+under get it explained rather than called.
+
+If baseball returns it returns as a ruleset plus the rows this version removed. The one thing that
+would have made that expensive — a taxonomy that had grown sport-aware — never happened.
+
 ## v0.54
 
 **Undo hands back the scorer's entry, and stops at the plate appearance.**

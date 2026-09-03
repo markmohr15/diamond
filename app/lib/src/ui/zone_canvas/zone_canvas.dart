@@ -27,15 +27,6 @@ enum ZoneCanvasIntent { call, actual }
 /// [ZoneCanvasIntent.actual] — and leaves it on commit or on Back.
 enum ZoneCanvasPlane { frontal, topDown }
 
-/// Baseball vs. softball, for the drag/marker icon in
-/// [ZoneCanvasIntent.actual].
-///
-/// Narrow placeholder standing in for the eventual `RuleSet` config
-/// (CLAUDE.md: sport differences route through `RuleSet`, never scattered
-/// `if (softball)` checks) — replace call sites with a real `RuleSet` field
-/// once that type exists.
-enum BallKind { baseball, softball }
-
 /// How richly the canvas renders (§11.4). Both treatments draw through the
 /// *same* [FrontalGeometry] / [TopDownGeometry] — fidelity changes paint, never
 /// a coordinate, which is what makes comparing them a fair test of the look
@@ -171,7 +162,6 @@ class ZoneCanvas extends StatefulWidget {
     this.onCommitBounce,
     this.batterSide = BatterSide.R,
     this.showBatterSilhouette = false,
-    this.ballKind = BallKind.baseball,
     this.fidelity = CanvasFidelity.restrained,
     this.geometry = const FrontalGeometry(),
     this.underlay,
@@ -242,9 +232,6 @@ class ZoneCanvas extends StatefulWidget {
   /// same switch, driven by a user setting rather than a constant, so this
   /// parameter has a reason to exist independent of how the figure looks.
   final bool showBatterSilhouette;
-
-  /// Baseball vs. softball for the actual-location ball icon. See [BallKind].
-  final BallKind ballKind;
 
   /// How richly to render. See [CanvasFidelity] — both treatments draw through
   /// the same geometry, and this parameter is expected to be removed once the
@@ -485,7 +472,6 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
         if (_dragLocal != null)
           _MarkerIcon(
             mode: widget.mode,
-            ballKind: widget.ballKind,
             center: _dragLocal!.translate(0, -_dragFingerOffset),
             ghost: true,
           ),
@@ -513,16 +499,10 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
     return [
       if (placed == null && _dragLocal == null) _DefaultMarker(center: start),
       if (placed != null)
-        _MarkerIcon(
-          mode: widget.mode,
-          ballKind: widget.ballKind,
-          center: placed,
-          ghost: false,
-        ),
+        _MarkerIcon(mode: widget.mode, center: placed, ghost: false),
       if (_dragLocal != null)
         _MarkerIcon(
           mode: widget.mode,
-          ballKind: widget.ballKind,
           center: _dragLocal!.translate(0, -_dragFingerOffset),
           ghost: true,
         ),
@@ -616,13 +596,11 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                         painter: topDown
                             ? _TopDownBackgroundPainter(
                                 geometry: widget.topDownGeometry,
-                                ballKind: widget.ballKind,
                                 brightness: Theme.of(context).brightness,
                                 fidelity: widget.fidelity,
                               )
                             : _FrontalBackgroundPainter(
                                 geometry: widget.geometry,
-                                ballKind: widget.ballKind,
                                 zoneRect: zoneRect,
                                 brightness: Theme.of(context).brightness,
                                 fidelity: widget.fidelity,
@@ -739,7 +717,6 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
 class _FrontalBackgroundPainter extends CustomPainter {
   const _FrontalBackgroundPainter({
     required this.geometry,
-    required this.ballKind,
     required this.zoneRect,
     required this.brightness,
     required this.fidelity,
@@ -748,7 +725,6 @@ class _FrontalBackgroundPainter extends CustomPainter {
   });
 
   final FrontalGeometry geometry;
-  final BallKind ballKind;
   final Rect zoneRect;
   final Brightness brightness;
   final CanvasFidelity fidelity;
@@ -765,9 +741,7 @@ class _FrontalBackgroundPainter extends CustomPainter {
 
   /// Batter's-box dimensions from the `RuleSet` placeholder (§11.4) — never an
   /// `if (softball)` branch at a call site.
-  BatterBoxSpec get _box => ballKind == BallKind.softball
-      ? BatterBoxSpec.fastpitch
-      : BatterBoxSpec.baseball;
+  BatterBoxSpec get _box => BatterBoxSpec.fastpitch;
 
   /// Ground point (lateral inches, camera-relative distance `u`) → local px.
   ///
@@ -973,7 +947,6 @@ class _FrontalBackgroundPainter extends CustomPainter {
   bool shouldRepaint(covariant _FrontalBackgroundPainter oldDelegate) =>
       oldDelegate.zoneRect != zoneRect ||
       oldDelegate.brightness != brightness ||
-      oldDelegate.ballKind != ballKind ||
       oldDelegate.fidelity != fidelity ||
       oldDelegate.geometry != geometry ||
       oldDelegate.atmosphere != atmosphere ||
@@ -1224,21 +1197,17 @@ class _SilhouettePainter extends CustomPainter {
 class _TopDownBackgroundPainter extends CustomPainter {
   const _TopDownBackgroundPainter({
     required this.geometry,
-    required this.ballKind,
     required this.brightness,
     required this.fidelity,
   });
 
   final TopDownGeometry geometry;
-  final BallKind ballKind;
   final Brightness brightness;
   final CanvasFidelity fidelity;
 
   bool get _rich => fidelity == CanvasFidelity.rich;
 
-  BatterBoxSpec get _box => ballKind == BallKind.softball
-      ? BatterBoxSpec.fastpitch
-      : BatterBoxSpec.baseball;
+  BatterBoxSpec get _box => BatterBoxSpec.fastpitch;
 
   /// (lateral inches, depth inches) → local px. True scale in both axes: the
   /// lateral term is the frontal plane's own mapping, and the depth term uses
@@ -1378,12 +1347,12 @@ class _TopDownBackgroundPainter extends CustomPainter {
   /// front line, never the back or outer ones — the same rule the frontal plane
   /// follows. No perspective here, so these are plain rectangles.
   ///
-  /// Whether the front line is visible is a `RuleSet` consequence, not a
-  /// special case: baseball's box reaches 2.29 ft in front of the plate and
-  /// lands inside this canvas, fastpitch's reaches 4.0 ft and does not, so the
-  /// same code draws a terminated box for one sport and a band running off the
-  /// top edge for the other. Drawing only the inner line, as this did before,
-  /// left baseball's band stopping at a depth with nothing to say why.
+  /// Whether the front line is visible is a `RuleSet` consequence rather than
+  /// a special case: fastpitch's box reaches 4.0 ft in front of the plate and
+  /// runs off the top of this canvas, so the front line is simply not drawn.
+  /// The code is uniform — a box whose fore depth landed inside the canvas
+  /// would terminate there — which is what `canvas_geometry_test` exercises
+  /// with a synthetic shallow box now that fastpitch is the only real one.
   void _paintBoxChalk(Canvas canvas, Size size) {
     const innerEdge = plateHalfWidthInches + BatterBoxSpec.offsetInches;
     const outerEdge = innerEdge + BatterBoxSpec.chalkWidthInches;
@@ -1423,7 +1392,6 @@ class _TopDownBackgroundPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TopDownBackgroundPainter oldDelegate) =>
       oldDelegate.brightness != brightness ||
-      oldDelegate.ballKind != ballKind ||
       oldDelegate.fidelity != fidelity ||
       oldDelegate.geometry != geometry;
 }
@@ -1630,13 +1598,11 @@ class _DefaultMarker extends StatelessWidget {
 class _MarkerIcon extends StatelessWidget {
   const _MarkerIcon({
     required this.mode,
-    required this.ballKind,
     required this.center,
     required this.ghost,
   });
 
   final ZoneCanvasIntent mode;
-  final BallKind ballKind;
   final Offset center;
   final bool ghost;
 
@@ -1656,7 +1622,7 @@ class _MarkerIcon extends StatelessWidget {
                   ? _ReticlePainter(
                       accent: Theme.of(context).colorScheme.primary,
                     )
-                  : _BallPainter(ballKind: ballKind),
+                  : const _BallPainter(),
             ),
           ),
         ),
@@ -1699,18 +1665,16 @@ class _ReticlePainter extends CustomPainter {
 }
 
 class _BallPainter extends CustomPainter {
-  const _BallPainter({required this.ballKind});
-
-  final BallKind ballKind;
+  const _BallPainter();
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
-    final softball = ballKind == BallKind.softball;
-    final radius = size.width / 2 * (softball ? 1 : 0.85);
+    final radius = size.width / 2;
 
-    final fill = Paint()
-      ..color = softball ? const Color(0xFFE8F26A) : Colors.white;
+    // Optic yellow, and it fills its box. One ball, no discriminator: the
+    // app is fastpitch-only (2026-09-03).
+    final fill = Paint()..color = const Color(0xFFE8F26A);
     final outline = Paint()
       ..color = Colors.black26
       ..style = PaintingStyle.stroke
@@ -1732,6 +1696,5 @@ class _BallPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _BallPainter oldDelegate) =>
-      oldDelegate.ballKind != ballKind;
+  bool shouldRepaint(covariant _BallPainter oldDelegate) => false;
 }
