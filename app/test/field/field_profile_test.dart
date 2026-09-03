@@ -9,7 +9,6 @@ void main() {
 
   group('FieldProfile.fastpitch12U (§16.1 builtin, draft values)', () {
     test('carries the preset dimensions', () {
-      expect(profile.sport, Sport.softball);
       expect(profile.fence.lfLine, 190);
       expect(profile.fence.lfGap, 200);
       expect(profile.fence.cf, 210);

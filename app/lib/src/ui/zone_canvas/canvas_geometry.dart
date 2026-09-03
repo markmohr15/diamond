@@ -311,11 +311,6 @@ class BatterBoxSpec {
   /// How far it runs back (toward the catcher) of the plate's center.
   final double aftInches;
 
-  static const baseball = BatterBoxSpec(
-    widthInches: 48,
-    foreInches: 36,
-    aftInches: 36,
-  );
   static const fastpitch = BatterBoxSpec(
     widthInches: 36,
     foreInches: 48,

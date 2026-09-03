@@ -63,11 +63,10 @@ const _rareOutcomes = <Outcome, String>{
 
 /// What she was doing at the plate (§4.1), orthogonal to what the pitch did.
 ///
-/// **`slap` is offered in both sports for M1** and should be gated to fastpitch
-/// by `RuleSet` — DIA-017. Offering it to a baseball scorer is a wrong option
-/// in a list; blocking this on a config refactor that touches every
-/// sport-dependent rule is worse, and the gate has one obvious home when it
-/// exists.
+/// `slap` is fastpitch's, and the app is fastpitch-only as of 2026-09-03, so
+/// there is nothing to gate it against today. It stays listed in DIA-017's
+/// table because a second ruleset — a level or an association, no longer a
+/// sport — could still want it off.
 const _batterActions = <BatterAction, String>{
   BatterAction.BUNT: 'Bunt',
   BatterAction.SLAP: 'Slap',

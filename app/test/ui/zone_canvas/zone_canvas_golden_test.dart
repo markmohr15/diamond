@@ -17,7 +17,6 @@ Widget _canvas({
   ZoneCoord? value,
   BounceCoord? bounceValue,
   Widget? underlay,
-  BallKind ballKind = BallKind.baseball,
   BatterSide batterSide = BatterSide.R,
   CanvasFidelity fidelity = CanvasFidelity.restrained,
   bool showBatterSilhouette = false,
@@ -32,7 +31,6 @@ Widget _canvas({
     // these reach it without driving the hinge gesture.
     bounceValue: bounceValue,
     underlay: underlay,
-    ballKind: ballKind,
     onCommit: (_) {},
     onCommitBounce: (_) {},
     onSkip: () {},
@@ -85,12 +83,11 @@ void main() {
             ),
           ),
           GoldenTestScenario(
-            name: 'actual, marker + underlay, softball',
+            name: 'actual, marker + underlay',
             constraints: BoxConstraints.tight(_tabletSize),
             child: _canvas(
               mode: ZoneCanvasIntent.actual,
               value: ZoneCoord(x: 0.3, y: 0.6),
-              ballKind: BallKind.softball,
               underlay: const ColoredBox(color: Color(0x334CAF50)),
             ),
           ),
@@ -144,11 +141,10 @@ void main() {
             ),
           ),
           GoldenTestScenario(
-            name: 'tablet, short hop behind the seam, softball',
+            name: 'tablet, short hop behind the seam',
             constraints: BoxConstraints.tight(_tabletSize),
             child: _canvas(
               mode: ZoneCanvasIntent.actual,
-              ballKind: BallKind.softball,
               bounceValue: BounceCoord(x: -1.2, depth: -0.8),
             ),
           ),

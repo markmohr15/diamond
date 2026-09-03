@@ -1,11 +1,12 @@
 # Diamond — CLAUDE.md
 
-Diamond is a tablet-first (phone-capable) baseball/fastpitch-softball coaching app: live pitch-by-pitch
+Diamond is a tablet-first (phone-capable) **fastpitch softball** coaching app (baseball was cut in v0.55 — a
+different product with a different design; the taxonomy stays sport-agnostic so it could return as config): live pitch-by-pitch
 scoring with pitch calling (wristband codes), pitch locations (intended AND actual), batted-ball
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.54). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.55). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -37,7 +38,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.54)
+docs/spec.md        authoritative spec (v0.55)
 docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)
@@ -83,7 +84,8 @@ tickets/            markdown tickets; work them in ID order unless told otherwis
 - Approval covers exactly the stated plan. Discovering mid-build that the plan must change — new refactor, new schema edit, new dependency, scope growth — means STOP and re-propose the delta before continuing.
 - Exempt (no approval needed): reading files, running existing tests, searches, and answering questions. When unsure whether something needs approval, ask — asking is always free.
 - UI work follows the design language (§18.7): data-ink first, one accent, accent on the datum not the frame, sunlight-glanceable, every number shows its denominator, no decorative motion. "Serviceable" is the failure bar.
-- Softball vs. baseball differences always route through `RuleSet` — never `if (softball)` scattered in logic (§1, §4.4).
+- Level and association differences (10U…HS, USA/USSSA) always route through `RuleSet` — never scattered conditionals
+  (§1, §4.4). There is no sport axis: the app is fastpitch only.
 - Youth-athlete data is sensitive: team-private by default, no sharing features without explicit design (§19.5). Never log player names in telemetry.
 
 ## Git workflow
@@ -130,8 +132,8 @@ problems and it is substantial work), **DIA-021** (the pitch-entry rail and the 
 **DIA-022** (hit-vs-error, which gates DIA-009 the way DIA-015 does).
 
 **Not M1:** **DIA-013** (the batter figure) — an illustration-sourcing problem, and nothing scores
-wrongly without it. **DIA-017** (RuleSet) — its own sequencing note says M1 hardcodes fastpitch 12U;
-softball- and baseball-specific rules ship always-on and are gated there. **DIA-020** (editing
+wrongly without it. **DIA-017** (RuleSet) — its own sequencing note says M1 hardcodes fastpitch 12U; rules that vary by
+level or association ship always-on and are gated there. **DIA-020** (editing
 history) — nothing scores wrongly, it makes a mistake expensive to fix.
 
 **The fourth clause, added 2026-09-02.** "Completely functional" is softer than the three below and
