@@ -87,6 +87,22 @@ grounder fielded cleanly and thrown away never raised the reach question at all,
 was gated on the **first touch** being a misplay. It committed as a single with nothing charged — the
 plainest E6 in the book, invisible. Fixtures play-17 and play-18 pin both throwing-error shapes.
 
+**The SAFE pill stopped settling runners silently.** It is a second gesture for the event the drag
+already classifies, and it skipped the classification — so a force play committed as plain
+batted-ball movement: an earned run, an RBI, no error. Mark, 2026-09-04, bases loaded and the throw
+home: *"Safe or Out comes up right away with no real way to comment on the throw. So I click safe and
+there are no options given there."* Both gestures now ask, and two of the answers write the misplay
+they name — *the throw was wild* retypes the thrower and removes the reception, *dropped the throw*
+retypes the reception — because the error answers only ever offered misplays already on the chain,
+and a clean chain has none.
+
+That partly reverses v0.43, which withdrew a first-base prompt and answered the case with "a misplay
+stays one tap away on the node that took the throw." The withdrawal stands: Diamond volunteers
+nothing, the routine answer leads, and offering an answer is not guessing at one. The consolation
+does not — the tap was not found in the field, and the cost of not finding it was a silently wrong
+record rather than a missing note. Mark: *"we have to at least make all options enterable without
+going to the stream."*
+
 **Post-hoc revision keeps working**, by re-attributing the advance rather than flipping a flag.
 §13.5 still gives overrides to earned runs and RBIs and none to the error charge; that stays open,
 and is not needed by this change, which makes the derivation match the judgment rather than routing

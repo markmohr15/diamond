@@ -924,7 +924,17 @@ class PlayDraft {
   /// provisional leg becomes an authored one at the same base. Nothing
   /// about the play changes except that it is no longer a presumption —
   /// she stops rendering in motion and stands on the bag.
-  PlayDraft affirmingSafe(String runnerId) {
+  /// [enabledByKey] and [reason] carry the SAFE popup's classification
+  /// (v0.56): the pill is a second gesture for the same event the drag
+  /// raises, so it settles *why* she is safe, not only that she is. Before
+  /// v0.56 it affirmed silently, which committed every force play as plain
+  /// batted-ball movement — an earned run and no error, with nothing on
+  /// screen to say the question had gone unasked.
+  PlayDraft affirmingSafe(
+    String runnerId, {
+    int? enabledByKey,
+    RunnerAdvanceReason? reason,
+  }) {
     LegEntry? provisional;
     for (final entry in entries.reversed) {
       if (entry is LegEntry && entry.runnerId == runnerId) {
@@ -939,7 +949,31 @@ class PlayDraft {
         for (final entry in entries)
           if (entry.key != leg.key) entry,
       ],
-    ).addingLeg(runnerId, from: leg.from, to: leg.to, attribute: false);
+    ).addingLeg(
+      runnerId,
+      from: leg.from,
+      to: leg.to,
+      attribute: false,
+      enabledByKey: enabledByKey,
+      reason: reason,
+    );
+  }
+
+  /// The throw at the end of the chain: who caught it and who threw it
+  /// (v0.56). Both are needed to say a throw went bad — the charge belongs
+  /// to whoever authored it, while the node the scorer is looking at is the
+  /// one that just appeared at the base.
+  ({TouchEntry receiver, TouchEntry thrower})? get lastThrow {
+    final touches = entries.whereType<TouchEntry>().toList();
+    if (touches.isEmpty) return null;
+    final receiver = touches.last;
+    if (receiver.touchType != TouchType.RECEIVED_THROW) return null;
+    for (final earlier in touches.reversed.skip(1)) {
+      if (earlier.position != receiver.position) {
+        return (receiver: receiver, thrower: earlier);
+      }
+    }
+    return null;
   }
 
   /// The misplays a reach or an advance can be charged to (§13.2 v0.56),

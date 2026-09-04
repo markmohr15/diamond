@@ -352,6 +352,8 @@ void main() {
       // SAFE/OUT pair is up instead — she beat it.
       expect(find.byKey(fielderPlayKey('fielded')), findsNothing);
       await tapPill(tester, 1);
+      // v0.56: the pill asks the same question the drag does.
+      await tapKey(tester, safeChipKey('hit'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1656,8 +1658,8 @@ void main() {
   });
 
   group('chips and prompts (§15.3–15.4)', () {
-    testWidgets('a throw to first never guesses at a drop: the runner is '
-        'presumed, not ruled, and nothing is asked', (tester) async {
+    testWidgets('a throw to first never guesses at a drop: SAFE offers the '
+        'vocabulary and volunteers nothing', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
@@ -1666,11 +1668,19 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded'));
       await tapWorld(tester, standardSpot(3)); // the throw
 
-      // The pills ask the force play. Nothing else is asked, and SAFE
-      // settles her without inventing a misplay.
-      expect(find.textContaining('drop'), findsNothing);
+      // Nothing is volunteered: no chip suggests a drop before she is
+      // asked about, which is §15.4's withdrawn first-base prompt staying
+      // withdrawn.
+      expect(find.textContaining('rop'), findsNothing);
       await tapPill(tester, 1);
-      expect(find.textContaining('drop'), findsNothing);
+      // v0.56: SAFE asks the same question the drag does, and the routine
+      // answer leads. "Dropped the throw" is *offered* here — that is the
+      // point, since it was previously reachable only from the chain strip
+      // — but offering an answer is not guessing at one, and taking the
+      // hit leaves the record exactly as it was before.
+      expect(find.text('Dropped the throw'), findsOneWidget);
+      await tapKey(tester, safeChipKey('hit'));
+      expect(find.textContaining('rop'), findsNothing);
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1693,6 +1703,8 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded')); // key 1
       await tapWorld(tester, standardSpot(3)); // key 2, the throw
       await tapPill(tester, 1); // safe
+      // v0.56: the pill asks the same question the drag does.
+      await tapKey(tester, safeChipKey('hit'));
 
       await tapKey(tester, chainNodeKey(2));
       await tapKey(tester, chainChipKey('dropped'));
@@ -1702,6 +1714,55 @@ void main() {
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       expect(touch.payload['touchType'], 'dropped');
       expect(touch.payload['position'], 3);
+    });
+
+    testWidgets('bases loaded, throw home, the throw was wild: enterable '
+        'from the SAFE pill, no trip to the chain strip (§15.1 v0.56)', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(2)); // the throw home
+
+      // The force play at the plate. Before v0.56 SAFE settled R3 silently
+      // as batted-ball movement: an earned run, an RBI, and no error, with
+      // the throw's story reachable only from the chain strip.
+      await tapPill(tester, 4);
+      await tapKey(tester, safeChipKey('wild_throw'));
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-throwing-6'));
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      // SS threw it away; the catcher is not credited with receiving it.
+      expect(touches.map((e) => e.payload['touchType']), ['wild_throw']);
+      expect(touches.single.payload['position'], 6);
+      final home = events.lastWhere(
+        (e) => e.type == 'RunnerAdvance' && e.payload['runnerId'] == 'r3',
+      );
+      expect(home.payload['to'], 4);
+      expect(home.payload['enabledByTouchId'], touches.single.id);
+      // A leg off a wild throw keeps that as its reason (§14 play-02 does
+      // the same); the charge comes from the link, not the word.
+      expect(home.payload['reason'], 'wild_throw');
     });
 
     testWidgets('marking a throw wild takes the reception off — nobody '
@@ -1744,6 +1805,8 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded')); // entry key 1
       await tapWorld(tester, standardSpot(3)); // tap = throw, key 2
       await tapPill(tester, 1); // SAFE — the throw's story comes next
+      // v0.56: the pill asks the same question the drag does.
+      await tapKey(tester, safeChipKey('hit'));
 
       await tapKey(tester, chainNodeKey(2));
       await tapKey(tester, chainChipKey('short_hop'));
