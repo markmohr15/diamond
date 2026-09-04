@@ -6,7 +6,7 @@
   "events": [
     { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "bounceLocation": { "x": 0.1, "depth": -0.4 }, "outcome": "swinging_strike" } },
     { "id": "e2", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "dropped_third_strike", "cause": "wild_pitch" } },
-    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e1", "position": 2, "touchType": "wild_throw", "ordinaryEffort": true } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e1", "position": 2, "touchType": "wild_throw" } },
     { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "wild_throw", "enabledByTouchId": "e3" } },
     { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 3, "reason": "wild_throw", "enabledByTouchId": "e3" } }
   ],

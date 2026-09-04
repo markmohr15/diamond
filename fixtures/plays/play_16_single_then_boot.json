@@ -1,0 +1,22 @@
+{
+  "id": "play-16",
+  "title": "Clean single, then the ball is booted; batter takes second — a hit AND an error",
+  "specRef": "§13.2 (v0.56 hit-vs-error), §14",
+  "setup": { "outs": 1, "count": { "balls": 1, "strikes": 1 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.2, "y": 0.1 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": -120, "y": 210 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 7, "touchType": "booted", "location": { "x": -125, "y": 215 } } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "error", "enabledByTouchId": "e4" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [{ "position": 7, "kind": "fielding", "basis": "advance" }],
+    "misplays": [{ "position": 7, "touchType": "booted" }],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
+    "runnerBases": { "b1": 2 },
+    "note": "The pair one boolean could never express (§13.2 v0.56). The ball landed untouched for a hit, so the reach is unattributed and she is credited a single; the boot that followed gave her a base she had not earned, so E7 is charged beside the hit. The two facts are independent because they live on different legs: 0->1 unattributed, 1->2 linked to the misplay. Before v0.56 the first touch being a misplay claimed the reach, which destroyed the single — and nothing on the chain could clear the link it wrote."
+  }
+}

@@ -13,7 +13,6 @@
                "bobbled", "booted", "wild_throw", "missed_catch",
                "tag_applied", "tag_missed"]
     },
-    "ordinaryEffort":    { "type": "boolean", "description": "scorer judgment on misplays; inferred default, overridable post-hoc (§13.2)" },
     "receivedQuality": {
       "enum": ["clean", "short_hop", "high", "wide"],
       "description": "how a received_throw arrived (§13, §22.1). Default clean; purely developmental, never affects official scoring."

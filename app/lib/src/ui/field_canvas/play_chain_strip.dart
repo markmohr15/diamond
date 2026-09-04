@@ -2,8 +2,6 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
-import 'package:diamond/src/rules/official_scoring.dart'
-    show defaultOrdinaryEffort;
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -380,30 +378,6 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
                   Navigator.pop(context);
                 },
               ),
-          ],
-        ),
-      ],
-      if (touch.isMisplay) ...[
-        const SizedBox(height: 8),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Ordinary effort?'),
-            const SizedBox(width: 8),
-            Switch(
-              key: chainChipKey('ordinaryEffort'),
-              // Shows what will actually be charged: an unresolved judgment
-              // (a wild throw nobody has ruled on) charges nothing, so the
-              // switch sits off until someone says she should have had it.
-              value:
-                  touch.ordinaryEffort ??
-                  defaultOrdinaryEffort(touch.touchType) ??
-                  false,
-              onChanged: (value) {
-                controller.setOrdinaryEffort(touch.key, ordinaryEffort: value);
-                Navigator.pop(context);
-              },
-            ),
           ],
         ),
       ],

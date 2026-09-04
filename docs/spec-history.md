@@ -3,6 +3,95 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.56
+
+**Hit versus error: `ordinaryEffort` deleted, errors charged from consequences.**
+
+Mark, 2026-09-02: *"ordinary effort sounded good to me, because as a coach, you often are saying 'is
+that a play we normally should make?' But that's a different question than error/hit, so I think we
+need to get rid of ordinary effort and just let scorers make hit/error judgments."*
+
+The flag was neither of §13.1's first two layers, which is why it never sat right. Nobody observes
+ordinary effort, so it is not physics; and it is not the ruling either, but a *proxy* for the ruling
+— the scorer translated the judgment she actually held ("that's a hit") into a different question
+for the app to translate back. A judgment dressed as an observation is the one thing §13 did not
+intend to have.
+
+It was also redundant with the touch vocabulary. `dropped` means she had it and lost it;
+`missed_catch` means she never handled it. *You cannot drop what you could not reach.* So
+"catchable" in play #1's development view was never an extra assertion — it is a restatement of what
+`dropped` already says. The misplay types stay; only the flag goes.
+
+And one boolean structurally cannot say what scorers say. A clean single followed by a boot that
+lets her take second is **a hit and an error**. `ordinaryEffort` had no way to express it, which is
+why the boot swallowed the single.
+
+**The model.** An error is charged when a misplay gave a base that was not earned — rule 9.12 read
+literally, prolonging an at-bat or the life of a runner. A boot on a routine grounder charges; a
+boot on a clean single that only buys second charges beside the hit; a boot the fielder recovers
+from in time to record the out charges nothing. The old flag got that last row right only by
+accident, since the misplay *was* ordinary effort and the charge was withheld by the consequence
+gate; deriving from consequences makes it the rule instead of a coincidence.
+
+**A misplay is still required.** Mark: *"we need some kind of misplay on a batted ball to even bring
+up an error. We're either going to have a fielder booting or missing it or we're going to have a bad
+throw."* Touchless errors — failure to cover, failure to cut off — are not modeled. The two by-rule
+charges (catcher's interference, obstruction on the batter-runner) are unchanged and remain the only
+errors with no misplay touch behind them.
+
+**The question the surface asks becomes "how far did she earn?"** The data model already answers it:
+a multi-base advance is stored as separate legs, each independently attributable, so *single, second
+on the error* is the 0→1 leg unattributed and the 1→2 leg linked to the misplay. It degenerates
+correctly at first base — earned one is a single, earned none is a reach on an error — so first base
+is the same question rather than a special case.
+
+**Diamond never attributes an advance to a misplay on its own.** Mark, 2026-09-03: *"we want scorers
+making error determinations, not Diamond."* Every link is a scorer act, which is what makes the
+charge her determination rather than the app's.
+
+**§15.1's misplay-claims-the-reach rule is withdrawn**, and this is the substantive design reversal
+in this version. A first touch that was a misplay used to re-attribute the batter's presumed reach
+to itself so `reached_on_error` derived with no extra taps. It was wrong in both directions: a fly
+ball that landed untouched for a clean single and was then booted derived as a reach on an error
+with the hit destroyed, and the claim could not be taken back, because the chain offered
+re-attribution to another touch but no way to *clear* a link — and on a one-touch play there was
+nothing else to point at. The misplay now raises the question instead of answering it: the presumed
+reach stays unattributed until the scorer says how far the batter earned.
+
+The force play's SAFE pill turned out to be a third place it has to be asked, and the reason is worth
+recording: `affirmingSafe` replaced the presumed leg with an authored one carrying no attribution, so
+it silently *discarded* the old auto-claim. Boot, recover, throw to first, tap SAFE — the ordinary
+shape of the play — and the boot scored as a clean single with no error at all. The claim only
+survived when nobody threw. So the same play was wrong in opposite directions depending on whether a
+throw happened, which is the strongest argument for asking that this ticket found.
+
+That ✓ prompt is a blocking answer rather than §15.4's dismissible suggestion, and the distinction is
+worth stating because §15.4 withdrew a first-base prompt in v0.43. Diamond still never asks
+*whether* there was a misplay — that would be guessing, and it is exactly what v0.43 withdrew. It
+asks what a misplay **the scorer already entered** cost, which is not suspicion but an unanswered
+question about evidence she put on the chain herself. Committing it unanswered would guess, in the
+way §11.2 forbids.
+
+**The scorer names the error, not just the fact of one.** The reach question offers one answer per
+misplay on the chain — *on the fielding error*, *on the throwing error* — because the last guess left
+in hit-vs-error cannot be made well. *Boot, recover, throw it away* and *field it clean, throw it
+away* record the same kinds of touch and put the batter on first off different mistakes; reading the
+first misplay charges the boot on the play where she had time to recover, and reading the latest
+charges the throw on the play where the boot is what beat her. Mark, 2026-09-03, on the alternative
+of a "charge a fielding error" box on the touch itself: that box is `ordinaryEffort` again — a
+judgment stored on the touch, free to contradict the link, which is the exact defect this version
+removes. The judgment belongs on the consequence, and naming the error keeps it there.
+
+Widening the trigger to *any* misplay also closed a gap that predated the auto-claim: a routine
+grounder fielded cleanly and thrown away never raised the reach question at all, because the question
+was gated on the **first touch** being a misplay. It committed as a single with nothing charged — the
+plainest E6 in the book, invisible. Fixtures play-17 and play-18 pin both throwing-error shapes.
+
+**Post-hoc revision keeps working**, by re-attributing the advance rather than flipping a flag.
+§13.5 still gives overrides to earned runs and RBIs and none to the error charge; that stays open,
+and is not needed by this change, which makes the derivation match the judgment rather than routing
+around it.
+
 ## v0.55
 
 **Fastpitch softball only.**

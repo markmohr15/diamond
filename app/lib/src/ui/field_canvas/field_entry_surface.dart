@@ -6,6 +6,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
+import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
@@ -175,7 +176,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   key: fieldCommitKey,
-                  onPressed: draft.committable ? controller.commit : null,
+                  onPressed: draft.committable ? _commitOrAsk : null,
                   icon: const Icon(Icons.check),
                   label: const Text('Commit'),
                 ),
@@ -219,7 +220,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                 const SizedBox(width: 8),
                 FilledButton.icon(
                   key: fieldCommitKey,
-                  onPressed: draft.committable ? controller.commit : null,
+                  onPressed: draft.committable ? _commitOrAsk : null,
                   icon: const Icon(Icons.check),
                   label: const Text('Commit play'),
                 ),
@@ -425,11 +426,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           : geometry.baseCenter(pending.base);
       if (pill == BaseCall.safe ||
           (position - baseCenter).distance <= _snapRadiusPx) {
+        setState(() => _pendingForcePlay = null);
         // Safe: she stays where the walk-up put her, but it is an answer
         // now rather than a presumption — so she stops running and stands
-        // on the bag.
+        // on the bag. For the batter after a misplay opened the play that
+        // is not the whole answer: affirming alone commits a plain
+        // unattributed reach, which derives a *hit* — so ask (§13.2 v0.56).
+        if (pending.runnerId == _draft.batterId && _draft.reachNeedsAnswer) {
+          _showReachDialog();
+          return;
+        }
         controller.affirmSafe(pending.runnerId);
-        setState(() => _pendingForcePlay = null);
         return;
       }
       // Anything else proceeds normally; the question stays up.
@@ -627,12 +634,232 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   }
 
   static const _baseLabels = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};
+
+  /// The error answers on offer, one per misplay the scorer could charge
+  /// this base to (§13.2 v0.56). Naming the error is what removes the last
+  /// guess from hit-vs-error: *boot, recover, throw it away* and *field it
+  /// clean, throw it away* record different touches but the same reach, and
+  /// only the scorer knows which one actually put her on.
+  ///
+  /// The kind comes from the projection's own mapping, so the chip cannot
+  /// name one error and the box score charge another. The fielder is named
+  /// only when two of the same kind would otherwise read identically.
+  List<({String id, String label, int touchKey})> _errorChoices(
+    PlayDraft draft,
+  ) {
+    final misplays = draft.chargeableMisplays;
+    final kinds = <OfficialErrorKind, int>{};
+    for (final touch in misplays) {
+      final kind = officialErrorKindOf(touch.touchType);
+      kinds[kind] = (kinds[kind] ?? 0) + 1;
+    }
+    return [
+      for (final touch in misplays)
+        () {
+          final kind = officialErrorKindOf(touch.touchType);
+          final name = _errorKindLabels[kind]!;
+          final who = positionAbbreviations[touch.position] ?? touch.position;
+          return (
+            id: 'error-${kind.name}-${touch.position}',
+            label: kinds[kind]! > 1
+                ? "On $who's $name error"
+                : 'On the $name error',
+            touchKey: touch.key,
+          );
+        }(),
+    ];
+  }
+
+  static const _errorKindLabels = {
+    OfficialErrorKind.fielding: 'fielding',
+    OfficialErrorKind.throwing: 'throwing',
+    OfficialErrorKind.catching: 'catching',
+    OfficialErrorKind.interference: 'interference',
+  };
+
+  /// How the scorer says it out loud (v0.56): the hit she earned, then the
+  /// error that gave her the rest. *Double and an error* when the misplay
+  /// bought one base, *Double, 2 base error* when it bought two, and the
+  /// bare *2 base error* when she earned none of it. Naming the hit first
+  /// matches how the play is read — she doubled, and then something else
+  /// happened — rather than naming the base she happened to stop on.
+  ///
+  /// [splitCharge] is the one case a base count would lie: she earned
+  /// nothing, and the bases came from *two different* misplays — the reach
+  /// from the touch that opened the play, the rest from a later one. That
+  /// is not an N-base error, it is two errors, and the play reads as two
+  /// ("reached first on a fielding error by SS; reached third on a two base
+  /// throwing error by SS"). Counting them as one would be the only number
+  /// on this dialog that was never true.
+  static String _earnedLabel(int earned, int base, {bool splitCharge = false}) {
+    if (earned == base) return _hitLabels[base]!;
+    final given = base - earned;
+    if (earned == 0) {
+      return splitCharge ? 'None of it earned' : '$given base error';
+    }
+    return given == 1
+        ? '${_hitLabels[earned]!} and an error'
+        : '${_hitLabels[earned]!}, $given base error';
+  }
+
   static const _hitLabels = {
     1: 'Single',
     2: 'Double',
     3: 'Triple',
     4: 'Home run',
   };
+
+  /// The SAFE answer applied: the dragged leg's classification, and — when
+  /// the chip said so — how the bases divide between the hit and the misplay
+  /// (§13.2 v0.56). [earned] is the last base she earned; null means the chip
+  /// answered nothing about it and the ✓ will ask.
+  ///
+  /// The reach is resolved first so its leg lands ahead of the dragged one,
+  /// keeping the chain in narrative order.
+  Future<void> _resolveSafe(
+    List<CascadedMove> moves,
+    SafeResolution resolution, {
+    int? earned,
+    int? errorTouchKey,
+    bool answersReach = true,
+  }) async {
+    final controller = ref.read(playDraftProvider.notifier);
+    if (earned != null && answersReach && _draft.reachNeedsAnswer) {
+      await controller.resolveReach(
+        earned: earned >= 1,
+        misplayKey: errorTouchKey,
+      );
+    }
+    await controller.resolveSafe(
+      moves,
+      resolution,
+      earnedThrough: earned,
+      errorTouchKey: errorTouchKey,
+    );
+  }
+
+  /// The ✓ (§15.5). One thing stops it: a misplay opened the play and nobody
+  /// has said whether the batter earned first, so committing would derive
+  /// hit-vs-error from an answer she never gave (§13.2 v0.56). Every other
+  /// unresolved presumption is already safe by default — a runner nobody
+  /// marked out is safe (§15.1) — which is why this blocks and nothing else
+  /// does.
+  void _commitOrAsk() {
+    if (_draft.reachNeedsAnswer) {
+      _showReachDialog(thenCommit: true);
+      return;
+    }
+    unawaited(ref.read(playDraftProvider.notifier).commit());
+  }
+
+  /// Hit-vs-error on the batter's reach (§13.2 v0.56) — the two-chip form of
+  /// the earned question, which at first base is the whole of it. The error
+  /// answer leads: a misplay on the first touch usually is what put her
+  /// there, so the common play stays one tap.
+  void _showReachDialog({bool thenCommit = false}) {
+    final choices = _errorChoices(_draft);
+    _centeredDialog('Safe at 1B — how?', [
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          // The errors lead: a misplay on a play where she is still standing
+          // on first usually is what put her there, so the common answer
+          // stays one tap. Each names its own charge — the app never picks
+          // between the boot and the throw that followed it.
+          for (final choice in choices)
+            ActionChip(
+              key: safeChipKey(choice.id),
+              label: Text(choice.label),
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(
+                  _answerReach(
+                    earned: false,
+                    misplayKey: choice.touchKey,
+                    thenCommit: thenCommit,
+                  ),
+                );
+              },
+            ),
+          ActionChip(
+            key: safeChipKey('hit'),
+            label: const Text('Single'),
+            onPressed: () {
+              Navigator.pop(context);
+              unawaited(_answerReach(earned: true, thenCommit: thenCommit));
+            },
+          ),
+        ],
+      ),
+    ]);
+  }
+
+  /// The second step of the error answer (§13.2 v0.56): how the bases divide
+  /// between the hit and the misplay. Only the breakdown lives here — the
+  /// first dialog already settled that it *was* an error — which is what
+  /// keeps the SAFE row four chips wide instead of seven.
+  void _showEarnedDialog(
+    int base,
+    List<CascadedMove> moves,
+    int misplayKey, {
+    required int from,
+  }) {
+    // With one misplay on the play, earning nothing means every base came
+    // from it — a clean "2 base error", and the reach can be settled here.
+    // With two, the reach may well belong to the *other* one (boot gives
+    // first, throw gives the rest), so this dialog answers only the bases
+    // it was dragged over and the ✓ asks who put her on first.
+    final draft = _draft;
+    final splitCharge = draft.chargeableMisplays.length > 1;
+    // How little she can have earned. Nothing, while the reach is still an
+    // open question — but once she has been settled on first, "she earned
+    // none of it" is an answer that contradicts one already given, so the
+    // ladder stops at the base she is standing on.
+    final least = draft.reachNeedsAnswer ? 0 : from;
+    _centeredDialog('How much did she earn?', [
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          // Most-earned first: the hit shrinks as the error grows. The top
+          // rung — all of it earned — is the plain hit chip on the dialog
+          // before this one, so it is not repeated here.
+          for (var earned = base - 1; earned >= least; earned--)
+            ActionChip(
+              key: safeChipKey('earned-$earned'),
+              label: Text(_earnedLabel(earned, base, splitCharge: splitCharge)),
+              onPressed: () {
+                Navigator.pop(context);
+                unawaited(
+                  _resolveSafe(
+                    moves,
+                    SafeResolution.onError,
+                    earned: earned,
+                    errorTouchKey: misplayKey,
+                    // Nothing earned with two misplays in play leaves the
+                    // reach open on purpose; the ✓ asks it by name.
+                    answersReach: !(splitCharge && earned == 0),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    ]);
+  }
+
+  Future<void> _answerReach({
+    required bool earned,
+    required bool thenCommit,
+    int? misplayKey,
+  }) async {
+    final controller = ref.read(playDraftProvider.notifier);
+    await controller.resolveReach(earned: earned, misplayKey: misplayKey);
+    if (thenCommit) await controller.commit();
+  }
 
   /// The SAFE classification (§15.1 v0.43): what got the runner there.
   /// Safe-only vocabulary — obstruction lives here and never on OUT.
@@ -641,7 +868,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     required bool isBatter,
     required List<CascadedMove> moves,
   }) {
-    final controller = ref.read(playDraftProvider.notifier);
     final draft = _draft;
     final caught = draft.caughtInFlight;
     // What could actually have moved her, and nothing else. A caught ball
@@ -654,42 +880,62 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // nothing is stolen on a batted ball and nothing comes "on the hit"
     // when there was no hit. "On an error" is in both: it is how a runner
     // is safe on a missed tag.
+    // v0.56: when a misplay opened the play and nobody has said yet whether
+    // the batter earned first, the batter's chips answer *both* legs — the
+    // reach and the one she was just dragged along — so the common
+    // multi-base shapes cost one tap instead of two. The fourth field is
+    // **the last base she earned**, null where the chip does not say.
+    final asksReach = isBatter && draft.reachNeedsAnswer;
     final choices = !draft.battedBall
-        ? <(String, String, SafeResolution)>[
-            ('stolen_base', 'Stolen base', SafeResolution.stolenBase),
-            ('wild_pitch', 'Wild pitch', SafeResolution.wildPitch),
-            ('passed_ball', 'Passed ball', SafeResolution.passedBall),
+        ? <(String, String, SafeResolution, int?)>[
+            ('stolen_base', 'Stolen base', SafeResolution.stolenBase, null),
+            ('wild_pitch', 'Wild pitch', SafeResolution.wildPitch, null),
+            ('passed_ball', 'Passed ball', SafeResolution.passedBall, null),
             (
               'defensive_indifference',
               'Defensive indifference',
               SafeResolution.defensiveIndifference,
+              null,
             ),
             if (draft.latestMisplayTouchKey != null)
-              ('error', 'On an error', SafeResolution.onError),
+              ('error', 'On an error', SafeResolution.onError, null),
           ]
-        : <(String, String, SafeResolution)>[
+        : <(String, String, SafeResolution, int?)>[
             (
               'hit',
               isBatter
                   ? _hitLabels[base]!
                   : (caught ? 'Tagged up' : 'On the hit'),
               SafeResolution.onTheHit,
+              // A two-base hit off a reach on an error does not exist, so
+              // `Double` settles the reach by definition rather than by
+              // inference — nothing is guessed on her behalf.
+              asksReach ? base : null,
             ),
+            // "On the throw" and a fielder's choice say nothing about how she
+            // reached first — both facts can be live on the same play — so
+            // they leave the reach to the ✓ rather than answering for her.
             if (draft.hasThrow)
-              ('throw', 'On the throw', SafeResolution.onTheThrow),
+              ('throw', 'On the throw', SafeResolution.onTheThrow, null),
             // Only offered when there is a misplay to point at: an advance that
             // claims an error but links to nothing derives as a hit (§13.2), so
             // the answer must not exist without its cause.
-            if (draft.latestMisplayTouchKey != null)
-              ('error', 'On an error', SafeResolution.onError),
+            // One chip per misplay the scorer could charge this to, named
+            // (§13.2 v0.56). Only offered when there is a misplay to point
+            // at: an advance that claims an error but links to nothing
+            // derives as a hit, so the answer must not exist without its
+            // cause.
+            for (final choice in _errorChoices(draft))
+              (choice.id, choice.label, SafeResolution.onError, null),
             if (!caught)
-              ('fc', "Fielder's choice", SafeResolution.fieldersChoice),
+              ('fc', "Fielder's choice", SafeResolution.fieldersChoice, null),
           ];
 
     // One possible answer is not a question: tagging up on a routine fly
     // costs the gesture that moved her and nothing more.
     if (choices.length == 1) {
-      controller.resolveSafe(moves, choices.single.$3);
+      final only = choices.single;
+      unawaited(_resolveSafe(moves, only.$3, earned: only.$4));
       return;
     }
     _centeredDialog('Safe at ${_baseLabels[base]} — how?', [
@@ -698,13 +944,38 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         runSpacing: 8,
         alignment: WrapAlignment.center,
         children: [
-          for (final (id, label, resolution) in choices)
+          for (final (id, label, resolution, earned) in choices)
             ActionChip(
               key: safeChipKey(id),
               label: Text(label),
               onPressed: () {
-                controller.resolveSafe(moves, resolution);
                 Navigator.pop(context);
+                // How the bases divide is its own question, asked only once
+                // the scorer has named the error — seven chips in one row is
+                // a menu, not an answer (v0.56).
+                final named = _errorChoices(
+                  _draft,
+                ).where((c) => c.id == id).firstOrNull;
+                // Batter only: the breakdown divides bases between a *hit*
+                // and an error, and a runner already aboard has no hit to
+                // divide. Her advance links whole, as it always did.
+                if (named != null && isBatter && base > 1) {
+                  _showEarnedDialog(
+                    base,
+                    moves,
+                    named.touchKey,
+                    from: moves.first.from,
+                  );
+                  return;
+                }
+                unawaited(
+                  _resolveSafe(
+                    moves,
+                    resolution,
+                    earned: earned,
+                    errorTouchKey: named?.touchKey,
+                  ),
+                );
               },
             ),
         ],

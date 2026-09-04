@@ -18,7 +18,7 @@ library;
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/rules/official_scoring.dart'
-    show defaultOrdinaryEffort, misplayTouchTypes;
+    show OfficialErrorKind, misplayTouchTypes, officialErrorKindOf;
 import 'package:flutter/foundation.dart';
 
 /// One node of the play chain. [key] is stable for the draft's lifetime —
@@ -38,7 +38,6 @@ sealed class PlayEntry {
         key: json['key'] as int,
         position: json['position'] as int,
         touchType: touchTypeValues.map[json['touchType']]!,
-        ordinaryEffort: json['ordinaryEffort'] as bool?,
         receivedQuality: receivedQualityValues.map[json['receivedQuality']],
         location: json['location'] == null
             ? null
@@ -78,16 +77,12 @@ class TouchEntry extends PlayEntry {
     required super.key,
     required this.position,
     required this.touchType,
-    this.ordinaryEffort,
     this.receivedQuality,
     this.location,
   });
 
   final int position;
   final TouchType touchType;
-
-  /// Null = not judged; §13.2's default applies at commit.
-  final bool? ordinaryEffort;
 
   /// Arrival quality on receiving touches (§4.2) — developmental only.
   final ReceivedQuality? receivedQuality;
@@ -100,16 +95,12 @@ class TouchEntry extends PlayEntry {
 
   TouchEntry copyWith({
     TouchType? touchType,
-    Object? ordinaryEffort = _unset,
     Object? receivedQuality = _unset,
   }) {
     return TouchEntry(
       key: key,
       position: position,
       touchType: touchType ?? this.touchType,
-      ordinaryEffort: ordinaryEffort == _unset
-          ? this.ordinaryEffort
-          : ordinaryEffort as bool?,
       receivedQuality: receivedQuality == _unset
           ? this.receivedQuality
           : receivedQuality as ReceivedQuality?,
@@ -123,7 +114,6 @@ class TouchEntry extends PlayEntry {
     'key': key,
     'position': position,
     'touchType': touchTypeValues.reverse[touchType],
-    'ordinaryEffort': ordinaryEffort,
     'receivedQuality': receivedQualityValues.reverse[receivedQuality],
     'location': location?.toJson(),
   };
@@ -553,7 +543,6 @@ class PlayDraft {
       key: touch.key,
       position: touch.position,
       touchType: touch.touchType,
-      ordinaryEffort: touch.ordinaryEffort,
       receivedQuality: touch.receivedQuality,
       location: spot,
     );
@@ -672,13 +661,11 @@ class PlayDraft {
     int position,
     TouchType touchType, {
     FieldCoord? location,
-    bool? ordinaryEffort,
   }) => _appending(
     (key) => TouchEntry(
       key: key,
       position: position,
       touchType: touchType,
-      ordinaryEffort: ordinaryEffort,
       location: location,
     ),
   );
@@ -692,10 +679,9 @@ class PlayDraft {
   /// - **Caught** voids the running presumption: every unattributed leg
   ///   (the walk-up [PlayDraft] opened with) comes off, and the batter is
   ///   out in the air, putout to this touch.
-  /// - **A misplay** claims the batter's provisional reach (§13.2:
-  ///   hit-vs-error lives on the first touch): her unattributed leg to
-  ///   first re-attributes to it, and the chain reorders to narrative
-  ///   order — the touch, then the reach it explains.
+  /// A misplay first touch does **not** touch her reach (§13.2 v0.56). It
+  /// raises the hit-vs-error question rather than answering it: see
+  /// [reachNeedsAnswer] and [resolvingReach].
   PlayDraft recordingFielderPlay(
     int position, {
     required FieldCoord spot,
@@ -732,25 +718,6 @@ class PlayDraft {
       );
     }
 
-    if (isFirstTouch && misplayTouchTypes.contains(touchType)) {
-      LegEntry? reach;
-      for (final entry in next.entries) {
-        if (entry is LegEntry && entry.runnerId == batterId) {
-          if (entry.to == 1 && entry.enabledByKey == null) reach = entry;
-          break; // only her first leg can be the provisional reach
-        }
-      }
-      if (reach != null) {
-        final claimed = reach.copyWith(enabledByKey: touchKey);
-        next = next.copyWith(
-          entries: [
-            for (final entry in next.entries)
-              if (entry.key != reach.key) entry,
-            claimed,
-          ],
-        );
-      }
-    }
     return next;
   }
 
@@ -915,16 +882,113 @@ class PlayDraft {
     ).addingLeg(runnerId, from: leg.from, to: leg.to, attribute: false);
   }
 
+  /// The misplays a reach or an advance can be charged to (§13.2 v0.56),
+  /// one per kind-and-fielder, in chain order.
+  ///
+  /// The scorer picks from these by name — "on the throwing error" — which
+  /// is what lets the engine stop guessing *which* misplay explains a base.
+  /// Guessing was wrong both ways round: the first touch charges the boot on
+  /// a play where she recovered and then threw it away, and the latest touch
+  /// charges the throw on a play where the boot is what put the batter on.
+  /// Neither is derivable from the physical record, because both plays
+  /// record the same touches.
+  List<TouchEntry> get chargeableMisplays {
+    final byLabel = <(OfficialErrorKind, int), TouchEntry>{};
+    for (final entry in entries) {
+      if (entry is! TouchEntry || !entry.isMisplay) continue;
+      // Two boots by the same fielder are one answer, not two identical
+      // chips; the later one is nearer the consequence.
+      byLabel[(officialErrorKindOf(entry.touchType), entry.position)] = entry;
+    }
+    return byLabel.values.toList()..sort((a, b) => a.key.compareTo(b.key));
+  }
+
+  /// Whether the batter's reach to first is a question nobody has answered
+  /// (§13.2 v0.56): some misplay on the play could explain it, she is still
+  /// standing on the walk-up rather than on an authored leg, and she was not
+  /// retired. Until v0.56 the first-touch misplay simply claimed the reach;
+  /// deriving hit-vs-error from an answer the scorer never gave was wrong in
+  /// both directions, so the question is now asked — on the SAFE popup when
+  /// she is resolved there, at the ✓ otherwise.
+  bool get reachNeedsAnswer =>
+      battedBall &&
+      chargeableMisplays.isNotEmpty &&
+      provisionalReach != null &&
+      !isOut(batterId);
+
+  /// Her walk-up leg to first while it is still a presumption (§15.1).
+  ///
+  /// Deliberately *not* [isProvisional], which reports on a runner's most
+  /// recent leg: once she is dragged to third her last leg is authored, and
+  /// the reach behind it can still be an unanswered question. Reading the
+  /// last leg made the ✓ commit that question silently.
+  LegEntry? get provisionalReach {
+    for (final entry in entries) {
+      if (entry is LegEntry && entry.runnerId == batterId) {
+        return entry.key < openingLegCount && entry.to == 1 ? entry : null;
+      }
+    }
+    return null;
+  }
+
+  /// The hit-vs-error answer applied to the reach (§13.2 v0.56). [earned]
+  /// true: she beat it out and no misplay cost her anything here — the leg
+  /// becomes an authored, unattributed reach, which derives a hit. False:
+  /// [misplayKey] gave her the base, so the leg links to that touch and
+  /// `reached_on_error` derives. The scorer names the touch (§13.2's
+  /// [chargeableMisplays]); nothing here infers it.
+  ///
+  /// Replaces the provisional leg rather than editing it, exactly as
+  /// [affirmingSafe] does — a presumption becoming an answer is a new leg,
+  /// and keeping the old key would leave it looking provisional forever.
+  PlayDraft resolvingReach({required bool earned, int? misplayKey}) {
+    misplayKey ??= latestMisplayTouchKey;
+    final leg = provisionalReach;
+    if (leg == null || misplayKey == null) return this;
+    final resolved = LegEntry(
+      key: nextKey,
+      runnerId: batterId,
+      from: leg.from,
+      to: leg.to,
+      enabledByKey: earned ? null : misplayKey,
+    );
+    // Narrative order: the touch that opened the play, then the reach it
+    // does or does not explain, then whatever she did afterwards. Appending
+    // would leave her reach *behind* legs she took later — the strip
+    // reading 1→3 above 0→1, which is the ordering complaint the old
+    // auto-claim also produced, from the other direction.
+    final next = <PlayEntry>[];
+    var placed = false;
+    for (final entry in entries) {
+      if (entry.key == leg.key) continue;
+      next.add(entry);
+      if (!placed && entry.key == misplayKey) {
+        next.add(resolved);
+        placed = true;
+      }
+    }
+    if (!placed) next.add(resolved);
+    return copyWith(entries: next, nextKey: nextKey + 1);
+  }
+
   /// The SAFE popup's answer applied (§15.1 v0.43): the dragged leg carries
   /// the classification — the hit itself (no enabler; raises hit rank), on
   /// the throw (linked to the latest touch; officially an advance, not more
   /// hit), on an error (linked to the latest misplay, or explicit `error`
   /// when none is entered yet), a fielder's choice, or obstruction (⚖
   /// inserted and linked). Cascade pushes stay plain forced movement.
+  ///
+  /// [earnedThrough] (v0.56) splits the dragged leg when the scorer says she
+  /// earned part of it: *double, then third on the boot* is 1→2 unattributed
+  /// plus 2→3 linked, not one 1→3 leg that has to be all hit or all error.
+  /// Only meaningful with [SafeResolution.onError], and only strictly
+  /// between the move's ends.
   PlayDraft resolvingSafe(
     List<CascadedMove> moves,
     SafeResolution how, {
     int? againstPosition,
+    int? earnedThrough,
+    int? errorTouchKey,
   }) {
     var next = this;
     for (var i = 0; i < moves.length; i++) {
@@ -954,13 +1018,36 @@ class PlayDraft {
         ),
         SafeResolution.onError =>
           next.latestMisplayTouchKey != null
-              ? next.addingLeg(
-                  move.runnerId,
-                  from: move.from,
-                  to: move.to,
-                  attribute: false,
-                  enabledByKey: next.latestMisplayTouchKey,
-                )
+              ? () {
+                  // The bases she earned come off the front of the move as
+                  // their own unattributed leg; the misplay is charged only
+                  // with what is left (v0.56).
+                  final earned = earnedThrough;
+                  var withEarned = next;
+                  var from = move.from;
+                  if (earned != null &&
+                      earned > move.from &&
+                      earned < move.to) {
+                    withEarned = next.addingLeg(
+                      move.runnerId,
+                      from: move.from,
+                      to: earned,
+                      attribute: false,
+                    );
+                    from = earned;
+                  }
+                  return withEarned.addingLeg(
+                    move.runnerId,
+                    from: from,
+                    to: move.to,
+                    attribute: false,
+                    // The misplay the scorer named, or the most recent when
+                    // this answer carried no name (a runner's advance, where
+                    // the chip is still the plain "on an error").
+                    enabledByKey:
+                        errorTouchKey ?? withEarned.latestMisplayTouchKey,
+                  );
+                }()
               : next.addingLeg(
                   move.runnerId,
                   from: move.from,
@@ -995,11 +1082,7 @@ class PlayDraft {
           var withTouch = next;
           var touchKey = next.passedBallTouchKey;
           if (touchKey == null) {
-            withTouch = next.addingTouch(
-              2,
-              TouchType.MISSED_CATCH,
-              ordinaryEffort: true,
-            );
+            withTouch = next.addingTouch(2, TouchType.MISSED_CATCH);
             touchKey = withTouch.entries.last.key;
           }
           return withTouch.addingLeg(
@@ -1116,7 +1199,6 @@ class PlayDraft {
   /// disabled until then, so reaching this any other way is a bug.
   ///
   /// Commit-time derivations, all mechanical (§13):
-  /// - `ordinaryEffort` defaults per §13.2 where the scorer didn't judge;
   /// - leg `reason` from the enabling entry — misplay touch → `error`
   ///   (`wild_throw` keeps its own reason), obstruction call →
   ///   `obstruction`, otherwise `batted_ball`;
@@ -1161,9 +1243,6 @@ class PlayDraft {
                     anchorEventId: '',
                     position: entry.position,
                     touchType: entry.touchType,
-                    ordinaryEffort:
-                        entry.ordinaryEffort ??
-                        defaultOrdinaryEffort(entry.touchType),
                     receivedQuality: entry.receivedQuality,
                     location: entry.location,
                   ).toJson()
