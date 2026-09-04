@@ -297,9 +297,6 @@ class FielderTouch {
     ///optional for opponents
     final String? fielderId;
     final FieldCoord? location;
-    
-    ///scorer judgment on misplays; inferred default, overridable post-hoc (§13.2)
-    final bool? ordinaryEffort;
     final int position;
     
     ///how a received_throw arrived (§13, §22.1). Default clean; purely developmental, never
@@ -311,7 +308,6 @@ class FielderTouch {
         required this.anchorEventId,
         this.fielderId,
         this.location,
-        this.ordinaryEffort,
         required this.position,
         this.receivedQuality,
         required this.touchType,
@@ -321,7 +317,6 @@ class FielderTouch {
         anchorEventId: json["anchorEventId"],
         fielderId: json["fielderId"],
         location: json["location"] == null ? null : FieldCoord.fromJson(json["location"]),
-        ordinaryEffort: json["ordinaryEffort"],
         position: json["position"],
         receivedQuality: receivedQualityValues.map[json["receivedQuality"]],
         touchType: touchTypeValues.map[json["touchType"]]!,
@@ -331,7 +326,6 @@ class FielderTouch {
         "anchorEventId": anchorEventId,
         "fielderId": fielderId,
         "location": location?.toJson(),
-        "ordinaryEffort": ordinaryEffort,
         "position": position,
         "receivedQuality": receivedQualityValues.reverse[receivedQuality],
         "touchType": touchTypeValues.reverse[touchType],

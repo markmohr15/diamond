@@ -2,8 +2,6 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
-import 'package:diamond/src/rules/official_scoring.dart'
-    show defaultOrdinaryEffort;
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -334,16 +332,21 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       Wrap(
         spacing: 6,
         children: [
+          // Deflected is infield-only, here as on the what-happened popup
+          // (§15.1 v0.56): an outfielder can miss a ball, not carom it to
+          // somebody standing there to take it. Retyping is a third way in
+          // to the same vocabulary, so it takes the same rule.
           for (final entry in _misplayLabels.entries)
-            ChoiceChip(
-              key: chainChipKey(touchTypeValues.reverse[entry.key]!),
-              label: Text(entry.value),
-              selected: touch.touchType == entry.key,
-              onSelected: (_) {
-                controller.setTouchType(touch.key, entry.key);
-                Navigator.pop(context);
-              },
-            ),
+            if (entry.key != TouchType.DEFLECTED || touch.position <= 6)
+              ChoiceChip(
+                key: chainChipKey(touchTypeValues.reverse[entry.key]!),
+                label: Text(entry.value),
+                selected: touch.touchType == entry.key,
+                onSelected: (_) {
+                  controller.setTouchType(touch.key, entry.key);
+                  Navigator.pop(context);
+                },
+              ),
         ],
       ),
       // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
@@ -360,7 +363,10 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
           key: chainChipKey('throw_was_wild'),
           label: const Text('The throw was wild'),
           onPressed: () {
-            controller.setTouchType(thrower.key, TouchType.WILD_THROW);
+            controller.markThrowWild(
+              throwerKey: thrower.key,
+              receiverKey: touch.key,
+            );
             Navigator.pop(context);
           },
         ),
@@ -380,30 +386,6 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
                   Navigator.pop(context);
                 },
               ),
-          ],
-        ),
-      ],
-      if (touch.isMisplay) ...[
-        const SizedBox(height: 8),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Ordinary effort?'),
-            const SizedBox(width: 8),
-            Switch(
-              key: chainChipKey('ordinaryEffort'),
-              // Shows what will actually be charged: an unresolved judgment
-              // (a wild throw nobody has ruled on) charges nothing, so the
-              // switch sits off until someone says she should have had it.
-              value:
-                  touch.ordinaryEffort ??
-                  defaultOrdinaryEffort(touch.touchType) ??
-                  false,
-              onChanged: (value) {
-                controller.setOrdinaryEffort(touch.key, ordinaryEffort: value);
-                Navigator.pop(context);
-              },
-            ),
           ],
         ),
       ],

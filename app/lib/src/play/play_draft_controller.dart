@@ -233,8 +233,80 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
 
   /// SAFE tapped on a force play (§15.1 v0.43): her provisional walk-up
   /// becomes an answer, so she stands on the base instead of running.
-  Future<void> affirmSafe(String runnerId) {
-    return _mutate((draft) => draft.affirmingSafe(runnerId));
+  Future<void> affirmSafe(
+    String runnerId, {
+    int? enabledByKey,
+    RunnerAdvanceReason? reason,
+  }) {
+    return _mutate(
+      (draft) => draft.affirmingSafe(
+        runnerId,
+        enabledByKey: enabledByKey,
+        reason: reason,
+      ),
+    );
+  }
+
+  /// *"The throw was wild"* answered from the SAFE popup (v0.56): the
+  /// thrower is retyped, the reception comes off, and the runner's leg is
+  /// settled against the throw that got her there — §13.2's pair, written
+  /// in one tap the way §15.6's passed-ball chip already writes it.
+  ///
+  /// [affirmRunnerId] settles a runner standing on her walk-up; leave it
+  /// null when the leg was authored by a drag and the caller settles it.
+  Future<void> safeOnWildThrow({
+    required int throwerKey,
+    required int receiverKey,
+    String? affirmRunnerId,
+  }) {
+    return _mutate((draft) {
+      var next = draft
+          .updatingEntry(
+            throwerKey,
+            (entry) =>
+                (entry as TouchEntry).copyWith(touchType: TouchType.WILD_THROW),
+          )
+          .removingEntry(receiverKey);
+      if (affirmRunnerId != null) {
+        next = next.affirmingSafe(affirmRunnerId, enabledByKey: throwerKey);
+      }
+      return next;
+    });
+  }
+
+  /// *"Dropped the throw"* answered from the SAFE popup (v0.56): the
+  /// reception becomes the muff, and the runner is safe on it. The throw
+  /// itself was fine, so the thrower keeps her touch and her assist.
+  Future<void> safeOnDroppedThrow({
+    required int receiverKey,
+    String? affirmRunnerId,
+  }) {
+    return _mutate((draft) {
+      var next = draft.updatingEntry(
+        receiverKey,
+        (entry) => (entry as TouchEntry).copyWith(touchType: TouchType.DROPPED),
+      );
+      if (affirmRunnerId != null) {
+        next = next.affirmingSafe(affirmRunnerId, enabledByKey: receiverKey);
+      }
+      return next;
+    });
+  }
+
+  /// The hit-vs-error answer on the batter's reach (§13.2 v0.56): she
+  /// earned first, or the misplay that opened the play gave it to her.
+  Future<void> resolveReach({
+    required bool earned,
+    int? misplayKey,
+    RunnerAdvanceReason? reason,
+  }) {
+    return _mutate(
+      (draft) => draft.resolvingReach(
+        earned: earned,
+        misplayKey: misplayKey,
+        reason: reason,
+      ),
+    );
   }
 
   /// A runner released SAFE (§15.1 v0.43): the dragged move plus its
@@ -244,14 +316,33 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     List<CascadedMove> moves,
     SafeResolution classification, {
     int? againstPosition,
+    int? earnedThrough,
+    int? errorTouchKey,
   }) {
     return _mutate(
       (draft) => draft.resolvingSafe(
         moves,
         classification,
         againstPosition: againstPosition,
+        earnedThrough: earnedThrough,
+        errorTouchKey: errorTouchKey,
       ),
     );
+  }
+
+  /// The scorer correcting Diamond about who has the ball (§15.1 v0.56):
+  /// tapping the fielder shown holding it says she does not. The ball goes
+  /// loose, so the next fielder tapped is making a play on it rather than
+  /// receiving a throw.
+  ///
+  /// Clears the seed *and* releases the touch possession was inferred from
+  /// — before v0.56 it cleared only the seed, so the gesture worked between
+  /// pitches and silently did nothing on a batted ball.
+  Future<void> releaseBall() {
+    return _mutate((draft) {
+      final held = draft.securedTouch ?? draft.recoverableTouch;
+      return draft.copyWith(heldBy: null, looseAfterKey: held?.key);
+    });
   }
 
   /// A fielder tap (§15.1): touch with the surface's inferred type.
@@ -279,13 +370,19 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
       // Mint it here, at the moment a throw proves she had it — not at
       // open, where a surface nobody throws on would record a phantom.
       final seed = next.heldBy;
-      if (seed != null && next.securedTouch == null) {
+      if (seed != null && next.holderPosition == seed) {
         next = next.addingTouch(
           seed,
           TouchType.FIELDED,
           location: next.movedFielders[seed],
         );
       }
+      // Same idea one step later (v0.56): a boot or a drop leaves the ball
+      // at her feet, and throwing it proves she picked it up. Minting the
+      // recovery here rather than asking for it is what removes the second
+      // dialog — and it keeps the chain shape the wild-throw retype and the
+      // assist credit both depend on.
+      next = next.recoveringLooseBall();
       // Off a loose ball she is making a play on it, not receiving a throw
       // — §15.1's rule, and what makes "the catcher never had it" honest.
       return next.addingTouch(
@@ -342,16 +439,12 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     });
   }
 
-  /// A chip on a touch node (§15.3): retype in place. Retyping resets any
-  /// explicit ordinary-effort judgment — it was about the old type.
+  /// A chip on a touch node (§15.3): retype in place.
   Future<void> setTouchType(int key, TouchType touchType) {
     return _mutate(
       (draft) => draft.updatingEntry(
         key,
-        (entry) => (entry as TouchEntry).copyWith(
-          touchType: touchType,
-          ordinaryEffort: null,
-        ),
+        (entry) => (entry as TouchEntry).copyWith(touchType: touchType),
       ),
     );
   }
@@ -367,14 +460,28 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     );
   }
 
-  /// The scorer's §13.2 judgment, when made in the moment.
-  Future<void> setOrdinaryEffort(int key, {required bool ordinaryEffort}) {
+  /// The receiving node's *"the throw was wild"* answer (§13.2 v0.56): the
+  /// thrower is retyped, and the reception **comes off**.
+  ///
+  /// Nobody receives a wild throw. Before v0.56 the node stayed, committing
+  /// a `received_throw` by a fielder who never touched the ball — a false
+  /// physical record, which is the one thing §13 asks the stream not to
+  /// carry. A throw she *did* catch after a scramble is a `received_throw`
+  /// with arrival quality `wide`, which the same sheet records separately.
+  ///
+  /// One mutation, so undo takes back the pair.
+  Future<void> markThrowWild({
+    required int throwerKey,
+    required int receiverKey,
+  }) {
     return _mutate(
-      (draft) => draft.updatingEntry(
-        key,
-        (entry) =>
-            (entry as TouchEntry).copyWith(ordinaryEffort: ordinaryEffort),
-      ),
+      (draft) => draft
+          .updatingEntry(
+            throwerKey,
+            (entry) =>
+                (entry as TouchEntry).copyWith(touchType: TouchType.WILD_THROW),
+          )
+          .removingEntry(receiverKey),
     );
   }
 

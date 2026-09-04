@@ -40,7 +40,6 @@ void main() {
         anchorEventId: 'bip',
         position: 8,
         touchType: caught ? TouchType.CAUGHT : TouchType.DROPPED,
-        ordinaryEffort: withError ? true : null,
       ),
       if (batterOut)
         b.runnerOut(id: 'o', runnerId: 'b1', atBase: 1, how: How.FLY_OUT),
@@ -240,7 +239,6 @@ void main() {
         anchorEventId: 'bip',
         position: 8,
         touchType: TouchType.WILD_THROW,
-        ordinaryEffort: true,
       ),
       b.runnerAdvance(
         id: 'extra',
@@ -499,13 +497,13 @@ void main() {
     expect(scoring.errors, hasLength(1));
     expect(scoring.errors.single.position, 5);
     expect(scoring.errors.single.kind, OfficialErrorKind.fielding);
-    // No explicit judgment was entered: the default says she should have
-    // made it, which is the whole reason it got recorded.
-    expect(scoring.misplays.single.ordinaryEffort, isTrue);
+    // The misplay stays in the development ledger either way: layer 1 is
+    // physics and does not depend on what official scoring makes of it.
+    expect(scoring.misplays.single.touchType, TouchType.TAG_MISSED);
   });
 
-  test('a missed tag judged no-play stays in the development ledger and '
-      'charges nothing (§13.1)', () {
+  test('a missed tag the scorer linked nothing to stays in the development '
+      'ledger and charges nothing (§13.2 v0.56)', () {
     final b = EventBuilder();
     final scoring = foldOfficialScoring([
       b.pitch(
@@ -520,20 +518,24 @@ void main() {
         anchorEventId: 'bip',
         position: 5,
         touchType: TouchType.TAG_MISSED,
-        ordinaryEffort: false,
       ),
+      // She was going to third on the ball either way, so the scorer links
+      // her advance to nothing. Before v0.56 this play was recorded with the
+      // link *made* and the flag set false — the record asserting the muff
+      // caused the advance and simultaneously that it cost nothing — which
+      // is the self-contradiction the flag made possible.
       b.runnerAdvance(
         id: 'extra',
         runnerId: 'r1',
         from: 1,
         to: 3,
-        reason: RunnerAdvanceReason.ERROR,
-        enabledByTouchId: 'muff',
+        reason: RunnerAdvanceReason.BATTED_BALL,
       ),
     ]);
 
     expect(scoring.errors, isEmpty);
     expect(scoring.misplays, hasLength(1));
+    expect(scoring.misplays.single.touchType, TouchType.TAG_MISSED);
   });
 
   test('hit rank counts only the hit itself (v0.43): taking second on the '
@@ -612,8 +614,10 @@ void main() {
   });
 
   // The §14 play-2 sequence: boot, batter reaches on it, recovery throw
-  // sails, batter takes third. bootEffort is the hit-vs-error judgment.
-  List<GameEvent> playTwo(EventBuilder b, {required bool bootEffort}) {
+  // sails, batter takes third. [reachOnBoot] is the hit-vs-error judgment,
+  // which since v0.56 *is* the link: attributed to the boot she reached on
+  // an error, unattributed she earned first and the boot cost nothing.
+  List<GameEvent> playTwo(EventBuilder b, {required bool reachOnBoot}) {
     return [
       b.pitch(
         id: 'p',
@@ -627,22 +631,22 @@ void main() {
         anchorEventId: 'bip',
         position: 6,
         touchType: TouchType.BOOTED,
-        ordinaryEffort: bootEffort,
       ),
       b.runnerAdvance(
         id: 'reach',
         runnerId: 'b1',
         from: 0,
         to: 1,
-        reason: RunnerAdvanceReason.ERROR,
-        enabledByTouchId: 'boot',
+        reason: reachOnBoot
+            ? RunnerAdvanceReason.ERROR
+            : RunnerAdvanceReason.BATTED_BALL,
+        enabledByTouchId: reachOnBoot ? 'boot' : null,
       ),
       b.fielderTouch(
         id: 'throw',
         anchorEventId: 'bip',
         position: 6,
         touchType: TouchType.WILD_THROW,
-        ordinaryEffort: true,
       ),
       b.runnerAdvance(
         id: 'to-third',
@@ -655,10 +659,12 @@ void main() {
     ];
   }
 
-  test("play-2 variant: flipping the boot's ordinaryEffort to false turns "
-      'E6+E6 into a single plus one throwing error (§13.2 hit-vs-error)', () {
+  test('play-2 variant: the scorer saying she earned first turns E6+E6 into '
+      'a single plus one throwing error (§13.2 v0.56)', () {
+    // The same physical record; only the link differs. There is no flag to
+    // flip any more, and no second place the judgment could contradict.
     final scoring = foldOfficialScoring(
-      playTwo(EventBuilder(), bootEffort: false),
+      playTwo(EventBuilder(), reachOnBoot: false),
     );
 
     expect(scoring.errors, hasLength(1));
@@ -677,7 +683,7 @@ void main() {
 
   test('play-2 as recorded: both errors charged, reach is on the boot', () {
     final scoring = foldOfficialScoring(
-      playTwo(EventBuilder(), bootEffort: true),
+      playTwo(EventBuilder(), reachOnBoot: true),
     );
 
     expect(scoring.errors, hasLength(2));
@@ -692,8 +698,8 @@ void main() {
     expect(scoring.unearnedConditions['b1'], 'unearned_if_scores');
   });
 
-  test('unresolved ordinaryEffort (bobbled with no flag) logs the misplay '
-      'but never charges an error until the scorer resolves it (§13.2)', () {
+  test('a bobble the scorer linked the reach to charges like any other '
+      'misplay (§13.2 v0.56)', () {
     final b = EventBuilder();
     final scoring = foldOfficialScoring([
       b.pitch(
@@ -719,27 +725,66 @@ void main() {
       ),
     ]);
 
-    expect(scoring.errors, isEmpty);
+    // Before v0.56 a bobble defaulted to "unresolved" and charged nothing
+    // until someone flipped a flag, so this play scored as a hit. The
+    // determination is the scorer's either way — she made it by linking the
+    // reach to the bobble — but it is now one determination, not two.
+    expect(scoring.errors, hasLength(1));
+    expect(scoring.errors.single.position, 5);
+    expect(scoring.errors.single.kind, OfficialErrorKind.fielding);
     expect(scoring.misplays, hasLength(1));
-    expect(scoring.misplays.single.ordinaryEffort, isNull);
   });
 
-  test('the v0.43 defaults: recording a missed tag is itself the claim she '
-      'should have made it; a wild throw is not (§13.2)', () {
-    expect(defaultOrdinaryEffort(TouchType.TAG_MISSED), isTrue);
-    expect(defaultOrdinaryEffort(TouchType.BOOTED), isTrue);
-    expect(defaultOrdinaryEffort(TouchType.MISSED_CATCH), isTrue);
-    expect(defaultOrdinaryEffort(TouchType.DROPPED), isTrue);
-    // Judgment calls, unresolved until someone makes them: a throw can
-    // sail and cost nothing, and a bobble is a bobble.
-    expect(defaultOrdinaryEffort(TouchType.WILD_THROW), isNull);
-    expect(defaultOrdinaryEffort(TouchType.BOBBLED), isNull);
-    // Never a candidate at all (§13.2): no judgment to default.
-    expect(defaultOrdinaryEffort(TouchType.DEFLECTED), isNull);
+  test('every misplay type charges on a consequence and none charges '
+      'without one — the whole test (§13.2 v0.56)', () {
+    // What v0.56 replaced the defaults table with. There is no per-type
+    // judgment left: `wild_throw` and `bobbled` used to default to
+    // "unresolved" and so charged nothing until someone found a switch,
+    // which meant a throw thrown away in a real game charged nobody.
+    for (final type in misplayTouchTypes) {
+      List<GameEvent> play({required bool linked}) {
+        final b = EventBuilder();
+        return [
+          b.pitch(
+            id: 'p',
+            batterId: 'b1',
+            pitcherId: 'pit',
+            outcome: Outcome.IN_PLAY,
+          ),
+          b.ballInPlay(id: 'bip', pitchEventId: 'p'),
+          b.fielderTouch(
+            id: 'miss',
+            anchorEventId: 'bip',
+            position: 5,
+            touchType: type,
+          ),
+          b.runnerAdvance(
+            id: 'reach',
+            runnerId: 'b1',
+            from: 0,
+            to: 1,
+            reason: RunnerAdvanceReason.BATTED_BALL,
+            enabledByTouchId: linked ? 'miss' : null,
+          ),
+        ];
+      }
+
+      expect(
+        foldOfficialScoring(play(linked: true)).errors,
+        hasLength(1),
+        reason: '$type gave a base and must charge',
+      );
+      expect(
+        foldOfficialScoring(play(linked: false)).errors,
+        isEmpty,
+        reason: '$type cost nothing and must not charge',
+      );
+      // Either way it stays on the physical record.
+      expect(foldOfficialScoring(play(linked: false)).misplays, hasLength(1));
+    }
   });
 
-  test('booted with no recorded judgment defaults ordinaryEffort true and '
-      'charges once a consequence exists (§13.2 defaults)', () {
+  test('a boot charges as soon as a consequence links to it (§13.2)', () {
     final b = EventBuilder();
     final scoring = foldOfficialScoring([
       b.pitch(
@@ -769,7 +814,7 @@ void main() {
     expect(scoring.errors.single.basis, OfficialErrorBasis.reached);
   });
 
-  test('misplay with ordinaryEffort true but zero consequence: no error', () {
+  test('misplay with zero consequence: no error (§13.2)', () {
     final b = EventBuilder();
     final scoring = foldOfficialScoring([
       b.pitch(
@@ -784,7 +829,6 @@ void main() {
         anchorEventId: 'bip',
         position: 6,
         touchType: TouchType.DROPPED,
-        ordinaryEffort: true,
       ),
       b.fielderTouch(
         id: 'recover',
@@ -847,7 +891,6 @@ void main() {
   group('wild pitches and passed balls (§13.2, rule 9.13)', () {
     List<GameEvent> getaway({
       TouchType? catcherTouch,
-      bool? ordinaryEffort,
       RunnerAdvanceReason reason = RunnerAdvanceReason.PASSED_BALL,
       bool runnerMoves = true,
     }) {
@@ -865,7 +908,6 @@ void main() {
             anchorEventId: 'p',
             position: 2,
             touchType: catcherTouch,
-            ordinaryEffort: ordinaryEffort,
           ),
         if (runnerMoves)
           b.runnerAdvance(
@@ -922,7 +964,6 @@ void main() {
             anchorEventId: 'p',
             position: position,
             touchType: TouchType.MISSED_CATCH,
-            ordinaryEffort: true,
           ),
           b.runnerAdvance(
             id: 'adv',
@@ -967,7 +1008,6 @@ void main() {
               anchorEventId: 'p',
               position: 2,
               touchType: TouchType.WILD_THROW,
-              ordinaryEffort: true,
             ),
           b.runnerAdvance(
             id: 'reach',
@@ -1040,15 +1080,17 @@ void main() {
       expect(scoring.passedBalls, 0);
     });
 
-    test('ordinaryEffort still governs the error, never the WP/PB split', () {
-      // A catcher misplay she could not have held with ordinary effort is not
-      // an error. That judgment is untouched — it simply no longer decides
-      // *which* getaway this was, which is the scorer's call now.
+    test('charging and the WP/PB split are independent (§13.2)', () {
+      // A catcher's misplay on a *pitch* is exempt from charging — a passed
+      // ball is not an error, they are separate statistics — and that
+      // exemption has never had anything to do with naming which getaway it
+      // was. v0.56 removes the flag that used to sit between them, and the
+      // two facts stay as separate as they were.
       final scoring = foldOfficialScoring(
-        getaway(catcherTouch: TouchType.MISSED_CATCH, ordinaryEffort: false),
+        getaway(catcherTouch: TouchType.MISSED_CATCH),
       );
       expect(scoring.passedBalls, 1, reason: 'the chip said passed ball');
-      expect(scoring.errors, isEmpty, reason: 'not ordinary effort, no error');
+      expect(scoring.errors, isEmpty, reason: 'a passed ball is not an error');
     });
 
     test('nobody moved: a blocked pitch is charged to no one', () {
@@ -1077,7 +1119,6 @@ void main() {
           anchorEventId: 'p',
           position: 2,
           touchType: TouchType.WILD_THROW,
-          ordinaryEffort: true,
         ),
         b.runnerAdvance(
           id: 'reach',

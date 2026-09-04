@@ -351,7 +351,11 @@ void main() {
       // No popup: a throw is not a new play on the ball. The force play's
       // SAFE/OUT pair is up instead — she beat it.
       expect(find.byKey(fielderPlayKey('fielded')), findsNothing);
+      // v0.56: SAFE asks the same question the drag does, and a throw on
+      // the chain puts "the throw was wild" and "dropped the throw" on the
+      // menu — so the routine answer is a tap rather than a collapse.
       await tapPill(tester, 1);
+      await tapKey(tester, safeChipKey('hit'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -384,11 +388,6 @@ void main() {
       expect(touches, hasLength(2));
       expect(touches.first.payload['touchType'], 'deflected');
       expect(touches.first.payload['position'], 5);
-      expect(
-        touches.first.payload['ordinaryEffort'],
-        isNull,
-        reason: 'never an error candidate — no judgment to default',
-      );
       // Her reach stands as a hit: a deflection is not a misplay, so it
       // never claims the batter's provisional reach (§13.2).
       final advance = RunnerAdvance.fromJson(
@@ -437,22 +436,30 @@ void main() {
       expect(container.read(gameControllerProvider).value!.bases.first, isNull);
     });
 
-    testWidgets('a loose ball is not throwable: after a drop, tapping '
-        'another fielder is a play on the ball', (tester) async {
+    testWidgets('a drop leaves the ball at her feet; one tap on her says it '
+        'caromed, and then the next fielder is picking it up', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await dragFielder(tester, 8, FieldCoord(x: 10, y: 150));
       await tapKey(tester, fielderPlayKey('dropped'));
 
-      // The ball is on the ground: LF coming over is a pickup, not a
-      // reception — the popup asks, and it no longer offers to catch a ball
-      // that is already down.
+      // A drop leaves the ball at her feet, so Diamond shows CF holding it
+      // and the next fielder tapped would be receiving a throw. It caromed
+      // away instead — one tap on CF says so, and the ball is loose again
+      // (§15.1 v0.56). That gesture is the whole escape hatch for a
+      // possession Diamond inferred wrongly.
+      await tapWorld(tester, FieldCoord(x: 10, y: 150)); // where she stands
+      // LF coming over is now a pickup, not a reception — the popup asks,
+      // and it no longer offers to catch a ball that is already down.
       await tapWorld(tester, standardSpot(7));
       expect(find.text('Caught'), findsNothing);
       expect(find.byKey(fielderPlayKey('fielded')), findsOneWidget);
       await tapKey(tester, fielderPlayKey('fielded'));
       await tapKey(tester, fieldCommitKey);
+      // The drop opened the play, so the ✓ asks what it cost before it
+      // commits, and the answer names the charge (§13.2 v0.56).
+      await tapKey(tester, safeChipKey('error-catching-8'));
 
       final events = await stream();
       final touches = events.where((e) => e.type == 'FielderTouch').toList();
@@ -578,10 +585,12 @@ void main() {
       expect(find.text('Caught'), findsOneWidget);
       await tapKey(tester, fielderPlayKey('dropped'));
 
+      await tapWorld(tester, FieldCoord(x: 20, y: 170)); // CF does not have it
       await tapWorld(tester, standardSpot(9));
       expect(find.text('Caught'), findsNothing);
       expect(find.text('Fielded'), findsOneWidget);
-      expect(find.text('Deflected'), findsOneWidget);
+      // Mark, 2026-09-04: outfielders can't deflect, they can only miss.
+      expect(find.text('Deflected'), findsNothing);
     });
 
     testWidgets('a liner caroms: deflected off the pitcher, still in the '
@@ -749,19 +758,20 @@ void main() {
   });
 
   group('fixtures through the UI (DIA-008 accept)', () {
-    testWidgets('play 01 — dropped liner, out anyway: 8 field gestures', (
+    testWidgets('play 01 — dropped liner, out anyway: 6 field gestures', (
       tester,
     ) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: -45, y: 120);
 
-      await runGestures(8, [
+      // Six, not eight (v0.56): a drop leaves the ball at her feet, so the
+      // scorer no longer tells Diamond she picked it up — throwing it is
+      // the proof, and the recovery touch is minted there.
+      await runGestures(6, [
         () => tapKey(tester, trajectoryKey(Trajectory.LINE)),
         () => dragFielder(tester, 6, spot), // she goes to the ball
         () => tapKey(tester, fielderPlayKey('dropped')),
-        () => tapWorld(tester, spot), // the pickup, where she stands
-        () => tapKey(tester, fielderPlayKey('fielded')),
         () => tapWorld(tester, standardSpot(3)), // tap 1B = the throw
         // The throw arrived at first with the batter heading there: the
         // SAFE/OUT pair is up at the bag — OUT resolves the force play.
@@ -783,7 +793,6 @@ void main() {
       expect(landing['x'] as double, closeTo(-45, 2));
       expect(tail[1].payload['touchType'], 'dropped');
       expect(tail[1].payload['position'], 6);
-      expect(tail[1].payload['ordinaryEffort'], isTrue);
       expect(tail[1].payload['anchorEventId'], tail[0].id);
       expect(tail[2].payload['touchType'], 'fielded');
       expect(tail[3].payload['touchType'], 'received_throw');
@@ -793,23 +802,34 @@ void main() {
       expect(container.read(gameControllerProvider).value!.outs, 1);
     });
 
-    testWidgets('play 02 — boot then throw-away, batter to third: 10 field '
+    testWidgets('play 02 — boot then throw-away, batter to third: 11 field '
         'gestures', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: -50, y: 95);
 
-      await runGestures(10, [
+      // Eleven. v0.56 stopped the boot from claiming her reach, and this
+      // play carries *two* errors — the boot put her on first, the throw
+      // gave her second and third — so the scorer names each on the leg it
+      // caused instead of the app picking one misplay for all three bases.
+      // Those two taps are the point of the ticket. Against them, the boot
+      // no longer needs a "she picked it up" tap, and marking the throw
+      // wild takes the reception off rather than leaving 1B credited with
+      // catching a ball that sailed past her.
+      await runGestures(11, [
         () => tapKey(tester, trajectoryKey(Trajectory.GROUND)),
         () => dragFielder(tester, 6, spot),
-        () => tapKey(tester, fielderPlayKey('booted')), // claims the reach
-        () => tapWorld(tester, spot), // the recovery
-        () => tapKey(tester, fielderPlayKey('fielded')), // entry key 2
-        () => tapKey(tester, chainNodeKey(2)),
-        () => tapKey(tester, chainChipKey('wild_throw')),
+        () => tapKey(tester, fielderPlayKey('booted')),
+        () => tapWorld(tester, standardSpot(3)), // the throw to first
+        // Key 3: the throw minted her recovery (key 2) and then the
+        // reception, so the reception is the node after it.
+        () => tapKey(tester, chainNodeKey(3)),
+        () => tapKey(tester, chainChipKey('throw_was_wild')),
         () => dragToken(tester, 1, 3, originFrom: 0),
-        () => tapKey(tester, safeChipKey('error')), // links the wild throw
-        () => tapKey(tester, fieldCommitKey),
+        () => tapKey(tester, safeChipKey('error-throwing-6')),
+        () => tapKey(tester, safeChipKey('earned-0')), // she earned none
+        () => tapKey(tester, fieldCommitKey), // ✓ asks who put her on first
+        () => tapKey(tester, safeChipKey('error-fielding-6')),
       ]);
 
       final events = await stream();
@@ -822,7 +842,6 @@ void main() {
         'RunnerAdvance',
       ]);
       expect(tail[1].payload['touchType'], 'booted');
-      expect(tail[1].payload['ordinaryEffort'], isTrue);
       expect(tail[2].payload['reason'], 'error');
       expect(tail[2].payload['enabledByTouchId'], tail[1].id);
       expect(tail[2].payload['from'], 0);
@@ -839,7 +858,7 @@ void main() {
     });
 
     testWidgets('play 03 — single, R3 scores, batter out stretching 9-6: '
-        '9 field gestures', (tester) async {
+        '8 field gestures', (tester) async {
       await pumpLoop(tester);
       // Setup: a runner on third (the play found her there).
       await container
@@ -857,12 +876,15 @@ void main() {
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: 110, y: 180);
 
-      await runGestures(9, [
+      // Eight, not nine: with fielder's choice off the runner menu (v0.56 —
+      // it is how the *batter* reaches first, never a runner's answer),
+      // scoring R3 on a clean single has one possible answer and costs no
+      // tap.
+      await runGestures(8, [
         () => tapKey(tester, trajectoryKey(Trajectory.LINE)),
         () => dragFielder(tester, 9, spot),
-        () => tapKey(tester, fielderPlayKey('picked_up')),
+        () => tapKey(tester, fielderPlayKey('fielded')),
         () => dragToken(tester, 3, 4, target: 'base'), // R3 home
-        () => tapKey(tester, safeChipKey('hit')),
         () => dragBall(tester, spot, standardSpot(6)), // the 9-6 throw
         () => dragToken(tester, 1, 2, target: 'out', originFrom: 0),
         () => tapKey(tester, outChipKey('tag')),
@@ -1184,7 +1206,11 @@ void main() {
       await dragToken(tester, 3, 4, target: 'base');
       expect(find.text('Tagged up'), findsOneWidget);
       expect(find.text('On the hit'), findsNothing);
-      expect(find.text('On the throw'), findsOneWidget);
+      // v0.56: "on the throw" is the batter's answer alone — on her leg the
+      // enabler caps hit rank, and on a runner's it rules nothing. What a
+      // throw does put on a runner's menu is the two ways it can go bad.
+      expect(find.text('On the throw'), findsNothing);
+      expect(find.text('The throw was wild'), findsOneWidget);
       expect(find.text("Fielder's choice"), findsNothing);
       await tapKey(tester, safeChipKey('hit'));
       await tapKey(tester, fieldCommitKey);
@@ -1206,9 +1232,19 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded'));
 
       await dragToken(tester, 1, 2, originFrom: 0);
+      // Nobody threw and nothing was misplayed, so *double* is the only
+      // answer left — and one possible answer is not a question (v0.56
+      // took fielder's choice off this menu, which is what leaves one).
       expect(find.text('On the throw'), findsNothing);
-      // The batter's own answer names the hit she got.
-      expect(find.text('Double'), findsOneWidget);
+      expect(find.text('Double'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final advance = RunnerAdvance.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerAdvance').payload,
+      );
+      expect(advance.to, 2);
+      expect(advance.enabledByTouchId, isNull);
     });
   });
 
@@ -1225,7 +1261,6 @@ void main() {
 
       await dragToken(tester, 1, 2, originFrom: 0);
       expect(find.text('On an error'), findsNothing);
-      await tapKey(tester, safeChipKey('hit'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1243,8 +1278,13 @@ void main() {
       await tapKey(tester, fielderPlayKey('booted'));
 
       await dragToken(tester, 1, 2, originFrom: 0);
-      expect(find.text('On an error'), findsOneWidget);
-      await tapKey(tester, safeChipKey('error'));
+      // Named, not generic: the scorer charges the boot, not "an error".
+      expect(find.text('On the fielding error'), findsOneWidget);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+      // How the bases divide is the second question (§13.2 v0.56): none of
+      // them earned, so both legs link to the boot.
+      expect(find.text('Single and an error'), findsOneWidget);
+      await tapKey(tester, safeChipKey('earned-0'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1252,6 +1292,219 @@ void main() {
       final advance = events.lastWhere((e) => e.type == 'RunnerAdvance');
       expect(advance.payload['enabledByTouchId'], touch.id);
       expect(advance.payload['reason'], 'error');
+    });
+
+    testWidgets('the earned breakdown splits the dragged leg: a double, then '
+        'third on the boot (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('booted'));
+
+      await dragToken(tester, 1, 3, originFrom: 0);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+      // Mark's wording: the hit she earned, then the error that gave her
+      // the rest. One base given reads "and an error"; two reads "2 base".
+      expect(find.text('Double and an error'), findsOneWidget);
+      expect(find.text('Single, 2 base error'), findsOneWidget);
+      expect(find.text('3 base error'), findsOneWidget);
+      await tapKey(tester, safeChipKey('earned-2'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touch = events.firstWhere((e) => e.type == 'FielderTouch');
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      // Three legs, because three separate things are true: she earned
+      // first, she earned second, and the boot gave her third.
+      expect(legs, hasLength(3));
+      expect(legs.map((e) => (e.payload['from'], e.payload['to'])), [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+      ]);
+      expect(legs[0].payload['enabledByTouchId'], isNull);
+      expect(legs[1].payload['enabledByTouchId'], isNull);
+      expect(legs[2].payload['enabledByTouchId'], touch.id);
+      expect(legs[2].payload['reason'], 'error');
+    });
+
+    testWidgets('two misplays: earning nothing is two errors, not one of '
+        'three bases (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      final spot = FieldCoord(x: -50, y: 95);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, spot);
+      await tapKey(tester, fielderPlayKey('booted')); // key 1
+      // The throw mints her recovery (key 2) and the reception (key 3);
+      // marking it wild retypes the recovery and takes the reception off.
+      await tapWorld(tester, standardSpot(3));
+      await tapKey(tester, chainNodeKey(3));
+      await tapKey(tester, chainChipKey('throw_was_wild'));
+
+      await dragToken(tester, 1, 3, originFrom: 0);
+      // Both errors are on offer by name; the throw is what gave her these
+      // bases, so that is the one charged for them.
+      expect(find.text('On the fielding error'), findsOneWidget);
+      expect(find.text('On the throwing error'), findsOneWidget);
+      await tapKey(tester, safeChipKey('error-throwing-6'));
+      // The play reads as two errors — "reached first on a fielding error by
+      // SS; reached third on a two base throwing error by SS" — so earning
+      // nothing here says nothing about the reach, and a "3 base error" chip
+      // would state a count that was never one error.
+      expect(find.text('None of it earned'), findsOneWidget);
+      expect(find.text('3 base error'), findsNothing);
+      await tapKey(tester, safeChipKey('earned-0'));
+      // The reach is still open on purpose: the ✓ asks who put her on first.
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      final boot = touches.first;
+      final wild = touches.last;
+      expect(boot.payload['touchType'], 'booted');
+      expect(wild.payload['touchType'], 'wild_throw');
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      expect(legs, hasLength(2));
+      // Each base is charged to the misplay that actually gave it.
+      expect(legs[0].payload['enabledByTouchId'], boot.id);
+      expect((legs[0].payload['from'], legs[0].payload['to']), (0, 1));
+      expect(legs[1].payload['enabledByTouchId'], wild.id);
+      expect((legs[1].payload['from'], legs[1].payload['to']), (1, 3));
+    });
+
+    testWidgets('the breakdown is offered after the reach is settled too, '
+        'and stops at the base she stands on (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      final spot = FieldCoord(x: -50, y: 95);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, spot);
+      await tapKey(tester, fielderPlayKey('booted'));
+      await tapWorld(tester, standardSpot(3)); // the throw to first
+      // She beat it out: the reach is settled as a hit, right here.
+      await tapPill(tester, 1);
+      await tapKey(tester, safeChipKey('hit'));
+
+      // Now she takes third on the same boot. The breakdown still opens —
+      // dividing those bases is a question whether or not the reach was
+      // open — but "she earned none of it" is gone, because she has already
+      // been credited the single it would contradict.
+      // No originFrom: she is standing on first now, not running to it.
+      await dragToken(tester, 1, 3);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+      expect(find.text('Double and an error'), findsOneWidget);
+      expect(find.text('Single, 2 base error'), findsOneWidget);
+      expect(find.text('3 base error'), findsNothing);
+      expect(find.text('None of it earned'), findsNothing);
+
+      await tapKey(tester, safeChipKey('earned-2'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final boot = events.firstWhere((e) => e.type == 'FielderTouch');
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      expect(legs.map((e) => (e.payload['from'], e.payload['to'])), [
+        (0, 1),
+        (1, 2),
+        (2, 3),
+      ]);
+      expect(legs[0].payload['enabledByTouchId'], isNull); // the single
+      expect(legs[1].payload['enabledByTouchId'], isNull); // earned second
+      expect(legs[2].payload['enabledByTouchId'], boot.id); // third on the boot
+    });
+
+    testWidgets('a runner already aboard gets no breakdown — she has no hit '
+        'to divide (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('booted'));
+
+      // The batter's walk-up already forced R1 to second, so she is running
+      // there; the boot then sends her on to third. Naming the error is the
+      // whole answer — no "double and an error" ladder, which would describe
+      // a hit she never took.
+      await dragToken(tester, 2, 3, originFrom: 1);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+      expect(find.text('How much did she earn?'), findsNothing);
+
+      // The batter's own reach is still open, so the ✓ asks it — hers is
+      // the only hit on the play to divide.
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+
+      final events = await stream();
+      final boot = events.firstWhere((e) => e.type == 'FielderTouch');
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      // Last, not first: the setup advance that put her on first is in the
+      // stream too.
+      final r1Leg = legs.lastWhere((e) => e.payload['runnerId'] == 'r1');
+      // One leg, linked whole: no split, no hit rank invented for her.
+      expect((r1Leg.payload['from'], r1Leg.payload['to']), (2, 3));
+      expect(r1Leg.payload['enabledByTouchId'], boot.id);
+    });
+
+    testWidgets('SAFE on the force play asks what the boot cost — it no '
+        'longer settles her silently (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('booted'));
+      await tapWorld(tester, standardSpot(3)); // the throw to first
+
+      // Affirming alone would commit a plain unattributed reach, which
+      // derives a *hit* — the boot swallowed in the other direction.
+      await tapPill(tester, 1);
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+      // Answered here, so the ✓ has nothing left to ask and commits.
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final boot = events.firstWhere((e) => e.type == 'FielderTouch');
+      expect(boot.payload['touchType'], 'booted');
+      final advance = events.lastWhere((e) => e.type == 'RunnerAdvance');
+      expect(advance.payload['enabledByTouchId'], boot.id);
+      expect(advance.payload['reason'], 'error');
+    });
+
+    testWidgets('answering Single leaves the hit standing and charges the '
+        'boot nothing (§13.2 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('booted'));
+
+      // Nobody touched her, so the ✓ is where the question surfaces.
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      await tapKey(tester, safeChipKey('hit'));
+
+      final events = await stream();
+      final advance = events.lastWhere((e) => e.type == 'RunnerAdvance');
+      expect(advance.payload['enabledByTouchId'], isNull);
+      expect(advance.payload['reason'], 'batted_ball');
+      // The misplay stays on the record; it simply cost nothing.
+      final touch = events.firstWhere((e) => e.type == 'FielderTouch');
+      expect(touch.payload['touchType'], 'booted');
     });
   });
 
@@ -1423,8 +1676,8 @@ void main() {
   });
 
   group('chips and prompts (§15.3–15.4)', () {
-    testWidgets('a throw to first never guesses at a drop: the runner is '
-        'presumed, not ruled, and nothing is asked', (tester) async {
+    testWidgets('a throw to first never guesses at a drop: SAFE offers the '
+        'vocabulary and volunteers nothing', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
@@ -1433,11 +1686,19 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded'));
       await tapWorld(tester, standardSpot(3)); // the throw
 
-      // The pills ask the force play. Nothing else is asked, and SAFE
-      // settles her without inventing a misplay.
-      expect(find.textContaining('drop'), findsNothing);
+      // Nothing is volunteered: no chip suggests a drop before she is
+      // asked about, which is §15.4's withdrawn first-base prompt staying
+      // withdrawn.
+      expect(find.textContaining('rop'), findsNothing);
       await tapPill(tester, 1);
-      expect(find.textContaining('drop'), findsNothing);
+      // v0.56: SAFE asks the same question the drag does, and the routine
+      // answer leads. "Dropped the throw" is *offered* here — that is the
+      // point, since it was previously reachable only from the chain strip
+      // — but offering an answer is not guessing at one, and taking the
+      // hit leaves the record exactly as it was before.
+      expect(find.text('Dropped the throw'), findsOneWidget);
+      await tapKey(tester, safeChipKey('hit'));
+      expect(find.textContaining('rop'), findsNothing);
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1460,6 +1721,7 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded')); // key 1
       await tapWorld(tester, standardSpot(3)); // key 2, the throw
       await tapPill(tester, 1); // safe
+      await tapKey(tester, safeChipKey('hit'));
 
       await tapKey(tester, chainNodeKey(2));
       await tapKey(tester, chainChipKey('dropped'));
@@ -1469,7 +1731,220 @@ void main() {
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       expect(touch.payload['touchType'], 'dropped');
       expect(touch.payload['position'], 3);
-      expect(touch.payload['ordinaryEffort'], isTrue);
+    });
+
+    testWidgets('dropping a runner where the walk-up already put her still '
+        'asks what settled her (§15.1 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(2)); // the throw home
+
+      // The walk-up already shows R3 at the plate, so this is the ordinary
+      // gesture rather than an edge case — and before v0.56 it settled her
+      // silently as batted-ball movement.
+      await dragToken(tester, 4, 4, target: 'base', originFrom: 3);
+      expect(find.text('On the play'), findsOneWidget);
+      expect(find.text('The throw was wild'), findsOneWidget);
+      await tapKey(tester, safeChipKey('wild_throw'));
+
+      // Same for the batter dropped on first: it used to settle her reach
+      // *and* leave the ✓ with nothing to ask.
+      await dragToken(tester, 1, 1, target: 'base', originFrom: 0);
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      expect(find.text("Fielder's choice"), findsOneWidget);
+      await tapKey(tester, safeChipKey('fc'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      final wild = events.firstWhere(
+        (e) =>
+            e.type == 'FielderTouch' && e.payload['touchType'] == 'wild_throw',
+      );
+      final scored = legs.lastWhere((e) => e.payload['runnerId'] == 'r3');
+      expect(scored.payload['to'], 4);
+      expect(scored.payload['enabledByTouchId'], wild.id);
+      final reach = legs.lastWhere((e) => e.payload['from'] == 0);
+      expect(reach.payload['reason'], 'fielders_choice');
+    });
+
+    testWidgets('an out on a runner the batter pushed up a base is a '
+        "fielder's choice, asked of nobody (§15.1 v0.56)", (tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(4)); // the throw to second
+      // R1 retired there — pushed up exactly one base by the batter's reach.
+      await dragToken(tester, 2, 2, target: 'out', originFrom: 1);
+      await tapKey(tester, outChipKey('force'));
+
+      // Retiring the runner the batter's contact pushed up *is* the defense
+      // choosing her over the batter, so nothing is asked.
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Safe at 1B — how?'), findsNothing);
+
+      final events = await stream();
+      final reach = events.firstWhere(
+        (e) =>
+            e.type == 'RunnerAdvance' &&
+            e.payload['from'] == 0 &&
+            e.payload['runnerId'] != 'r1',
+      );
+      expect(reach.payload['reason'], 'fielders_choice');
+      expect(reach.payload['enabledByTouchId'], isNull);
+    });
+
+    testWidgets('an out does not drop the ball: after a force at third the '
+        'third baseman still holds it, so the catcher is a throw', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -60, y: 80));
+      await tapWorld(tester, standardSpot(5));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await dragToken(tester, 3, 3, target: 'out', originFrom: 2);
+      await tapKey(tester, outChipKey('force'));
+      // Recording the out leaves possession alone, so the catcher is a
+      // throw and no what-happened popup is raised.
+      await tapWorld(tester, standardSpot(2));
+      expect(find.textContaining('What happened at'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      expect(touches.map((e) => e.payload['touchType']), [
+        'fielded',
+        'received_throw',
+      ]);
+      expect(touches.map((e) => e.payload['position']), [5, 2]);
+    });
+
+    testWidgets('bases loaded, throw home, the throw was wild: enterable '
+        'from the SAFE pill, no trip to the chain strip (§15.1 v0.56)', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(2)); // the throw home
+
+      // The force play at the plate. Before v0.56 SAFE settled R3 silently
+      // as batted-ball movement: an earned run, an RBI, and no error, with
+      // the throw's story reachable only from the chain strip.
+      await tapPill(tester, 4);
+      await tapKey(tester, safeChipKey('wild_throw'));
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-throwing-6'));
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      // SS threw it away; the catcher is not credited with receiving it.
+      expect(touches.map((e) => e.payload['touchType']), ['wild_throw']);
+      expect(touches.single.payload['position'], 6);
+      final home = events.lastWhere(
+        (e) => e.type == 'RunnerAdvance' && e.payload['runnerId'] == 'r3',
+      );
+      expect(home.payload['to'], 4);
+      expect(home.payload['enabledByTouchId'], touches.single.id);
+      // A leg off a wild throw keeps that as its reason (§14 play-02 does
+      // the same); the charge comes from the link, not the word.
+      expect(home.payload['reason'], 'wild_throw');
+    });
+
+    testWidgets('marking a throw wild takes the reception off — nobody '
+        'receives a wild throw (§15.3 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded')); // key 1
+      await tapWorld(tester, standardSpot(3)); // key 2, the throw
+      expect(find.byKey(chainNodeKey(2)), findsOneWidget);
+
+      await tapKey(tester, chainNodeKey(2));
+      await tapKey(tester, chainChipKey('throw_was_wild'));
+      // The reception is gone from the chain, not merely retyped.
+      expect(find.byKey(chainNodeKey(2)), findsNothing);
+
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-throwing-6'));
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      // One touch by one fielder: her pickup *became* the wild throw (the
+      // chip retypes the thrower, which is what §14 play-02's own encoding
+      // shows), and 1B is not credited with catching a ball that sailed
+      // past her.
+      expect(touches, hasLength(1));
+      expect(touches.single.payload['touchType'], 'wild_throw');
+      expect(touches.single.payload['position'], 6);
     });
 
     testWidgets('arrival quality on a receiving node: underline info, '
@@ -1482,6 +1957,7 @@ void main() {
       await tapKey(tester, fielderPlayKey('fielded')); // entry key 1
       await tapWorld(tester, standardSpot(3)); // tap = throw, key 2
       await tapPill(tester, 1); // SAFE — the throw's story comes next
+      await tapKey(tester, safeChipKey('hit'));
 
       await tapKey(tester, chainNodeKey(2));
       await tapKey(tester, chainChipKey('short_hop'));
@@ -1493,21 +1969,28 @@ void main() {
       expect(touch.payload['touchType'], 'received_throw');
     });
 
-    testWidgets('the §13.2 judgment switch: fixture 02 variant — boot '
-        'judged no-play commits ordinaryEffort false', (tester) async {
+    testWidgets('fixture 02 variant, v0.56: the boot she beat out is the '
+        'link left unmade, not a switch flipped', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
-      await tapKey(tester, fielderPlayKey('booted')); // key 1, reordered
-      await tapKey(tester, chainNodeKey(1));
-      await tapKey(tester, chainChipKey('ordinaryEffort'));
+      await tapKey(tester, fielderPlayKey('booted')); // key 1
+      // There is no ordinary-effort switch on the node any more: the whole
+      // judgment is which answer she gives here.
       await tapKey(tester, fieldCommitKey);
+      expect(find.text('Ordinary effort?'), findsNothing);
+      await tapKey(tester, safeChipKey('hit'));
 
       final events = await stream();
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       expect(touch.payload['touchType'], 'booted');
-      expect(touch.payload['ordinaryEffort'], isFalse);
+      expect(touch.payload.containsKey('ordinaryEffort'), isFalse);
+      // The misplay is on the record and charges nothing, because she says
+      // she beat it out — the pair the flag could never express.
+      final advance = events.lastWhere((e) => e.type == 'RunnerAdvance');
+      expect(advance.payload['enabledByTouchId'], isNull);
+      expect(advance.payload['reason'], 'batted_ball');
     });
 
     testWidgets('a ⚖ on the runner consequence: obstruction inserts before '
@@ -1519,9 +2002,11 @@ void main() {
       await dragToken(tester, 1, 2, originFrom: 0); // batter 1B → 2B
       // Not on the first-pass menu: a ⚖ is a correction, found on the node.
       expect(find.text('Obstruction'), findsNothing);
-      await tapKey(tester, safeChipKey('hit'));
 
-      await tapKey(tester, chainNodeKey(1)); // the leg she just took
+      // Key 2: answering the drag settles her reach as well (a double is a
+      // two-base hit, so she earned first by definition), and that reach
+      // leg is minted before this one.
+      await tapKey(tester, chainNodeKey(2)); // the leg she just took
       await tapKey(tester, chainChipKey('obstruction'));
       // The call names a fielder — obstruction is charged to her (§13.2).
       expect(find.text('Obstructed by?'), findsOneWidget);
@@ -1623,8 +2108,11 @@ void main() {
       expect(find.text('How did it come off the bat?'), findsNothing);
       expect(find.byKey(chainNodeKey(1)), findsOneWidget); // the boot node
 
-      // And the restored draft still commits, location and reach intact.
+      // And the restored draft still commits, location and reach intact —
+      // the ✓ asking what the boot cost, since the draft came back with the
+      // question still open (§13.2 v0.56).
       await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
       final events = await stream(from: second);
       expect(events.last.type, 'RunnerAdvance'); // the claimed reach
       expect(events.last.payload['reason'], 'error');
@@ -1774,7 +2262,6 @@ void main() {
       final payload = FielderTouch.fromJson(touch.payload);
       expect(payload.position, 2);
       expect(payload.touchType, TouchType.MISSED_CATCH);
-      expect(payload.ordinaryEffort, isTrue);
       // Anchored to the pitch, not a BallInPlay — there is no batted ball.
       final lastPitch = events.lastWhere((e) => e.type == 'PitchThrown');
       expect(payload.anchorEventId, lastPitch.id);
@@ -1977,11 +2464,10 @@ void main() {
       await tester.pumpAndSettle();
       await tapKey(tester, chainNodeKey(2));
       await tapKey(tester, chainChipKey('wild_throw'));
-      // A wild throw's ordinaryEffort defaults to null — "a throw can be
-      // wild and still change nothing" (§13.2 v0.43) — so the error is not
-      // charged until the scorer says it was one. This one was.
-      await tapKey(tester, chainNodeKey(2));
-      await tapKey(tester, chainChipKey('ordinaryEffort'));
+      // v0.56: nothing further is needed to make this chargeable. The throw
+      // charges because a runner advanced on it, full stop — until v0.56 it
+      // defaulted to "unresolved" and charged nobody unless the scorer found
+      // a switch, which meant real throwing errors went unrecorded.
 
       // The throw arriving at first with her running raises the force
       // question at the bag: she beat it, because it sailed.
