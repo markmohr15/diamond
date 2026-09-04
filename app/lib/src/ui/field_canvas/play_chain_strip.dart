@@ -332,16 +332,21 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       Wrap(
         spacing: 6,
         children: [
+          // Deflected is infield-only, here as on the what-happened popup
+          // (§15.1 v0.56): an outfielder can miss a ball, not carom it to
+          // somebody standing there to take it. Retyping is a third way in
+          // to the same vocabulary, so it takes the same rule.
           for (final entry in _misplayLabels.entries)
-            ChoiceChip(
-              key: chainChipKey(touchTypeValues.reverse[entry.key]!),
-              label: Text(entry.value),
-              selected: touch.touchType == entry.key,
-              onSelected: (_) {
-                controller.setTouchType(touch.key, entry.key);
-                Navigator.pop(context);
-              },
-            ),
+            if (entry.key != TouchType.DEFLECTED || touch.position <= 6)
+              ChoiceChip(
+                key: chainChipKey(touchTypeValues.reverse[entry.key]!),
+                label: Text(entry.value),
+                selected: touch.touchType == entry.key,
+                onSelected: (_) {
+                  controller.setTouchType(touch.key, entry.key);
+                  Navigator.pop(context);
+                },
+              ),
         ],
       ),
       // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
