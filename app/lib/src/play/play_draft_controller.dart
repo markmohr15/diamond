@@ -233,8 +233,64 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
 
   /// SAFE tapped on a force play (§15.1 v0.43): her provisional walk-up
   /// becomes an answer, so she stands on the base instead of running.
-  Future<void> affirmSafe(String runnerId) {
-    return _mutate((draft) => draft.affirmingSafe(runnerId));
+  Future<void> affirmSafe(
+    String runnerId, {
+    int? enabledByKey,
+    RunnerAdvanceReason? reason,
+  }) {
+    return _mutate(
+      (draft) => draft.affirmingSafe(
+        runnerId,
+        enabledByKey: enabledByKey,
+        reason: reason,
+      ),
+    );
+  }
+
+  /// *"The throw was wild"* answered from the SAFE popup (v0.56): the
+  /// thrower is retyped, the reception comes off, and the runner's leg is
+  /// settled against the throw that got her there — §13.2's pair, written
+  /// in one tap the way §15.6's passed-ball chip already writes it.
+  ///
+  /// [affirmRunnerId] settles a runner standing on her walk-up; leave it
+  /// null when the leg was authored by a drag and the caller settles it.
+  Future<void> safeOnWildThrow({
+    required int throwerKey,
+    required int receiverKey,
+    String? affirmRunnerId,
+  }) {
+    return _mutate((draft) {
+      var next = draft
+          .updatingEntry(
+            throwerKey,
+            (entry) =>
+                (entry as TouchEntry).copyWith(touchType: TouchType.WILD_THROW),
+          )
+          .removingEntry(receiverKey);
+      if (affirmRunnerId != null) {
+        next = next.affirmingSafe(affirmRunnerId, enabledByKey: throwerKey);
+      }
+      return next;
+    });
+  }
+
+  /// *"Dropped the throw"* answered from the SAFE popup (v0.56): the
+  /// reception becomes the muff, and the runner is safe on it. The throw
+  /// itself was fine, so the thrower keeps her touch and her assist.
+  Future<void> safeOnDroppedThrow({
+    required int receiverKey,
+    String? affirmRunnerId,
+  }) {
+    return _mutate((draft) {
+      var next = draft.updatingEntry(
+        receiverKey,
+        (entry) => (entry as TouchEntry).copyWith(touchType: TouchType.DROPPED),
+      );
+      if (affirmRunnerId != null) {
+        next = next.affirmingSafe(affirmRunnerId, enabledByKey: receiverKey);
+      }
+      return next;
+    });
   }
 
   /// The hit-vs-error answer on the batter's reach (§13.2 v0.56): she

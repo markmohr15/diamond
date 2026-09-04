@@ -440,7 +440,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
           _showReachDialog();
           return;
         }
-        controller.affirmSafe(pending.runnerId);
+        // The pill is a second gesture for the event the drag already
+        // raises, so it asks the same question (v0.56). Affirming silently
+        // committed every force play as plain batted-ball movement — an
+        // earned run and no error — with no way to say the throw was bad
+        // short of going to the chain strip.
+        _showSafeDialog(
+          pending.base,
+          isBatter: pending.runnerId == _draft.batterId,
+          moves: const [],
+          affirmRunnerId: pending.runnerId,
+        );
         return;
       }
       // Anything else proceeds normally; the question stays up.
@@ -716,6 +726,72 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     4: 'Home run',
   };
 
+  /// One SAFE answer applied, whichever gesture raised the question
+  /// (v0.56). [affirmRunnerId] means the runner is standing on her walk-up
+  /// and the answer settles that leg in place; otherwise the answer applies
+  /// to the legs [moves] describes.
+  ///
+  /// The two bad-throw answers are not classifications of an existing
+  /// record — they *write* one, retyping the throw that just arrived and
+  /// settling her against it together.
+  Future<void> _answerSafe(
+    List<CascadedMove> moves,
+    String id,
+    SafeResolution resolution, {
+    int? earned,
+    int? errorTouchKey,
+    String? affirmRunnerId,
+  }) async {
+    final controller = ref.read(playDraftProvider.notifier);
+    final throwPair = _draft.lastThrow;
+    if (throwPair != null && (id == 'wild_throw' || id == 'dropped_throw')) {
+      final charged = id == 'wild_throw'
+          ? throwPair.thrower.key
+          : throwPair.receiver.key;
+      if (id == 'wild_throw') {
+        await controller.safeOnWildThrow(
+          throwerKey: throwPair.thrower.key,
+          receiverKey: throwPair.receiver.key,
+          affirmRunnerId: affirmRunnerId,
+        );
+      } else {
+        await controller.safeOnDroppedThrow(
+          receiverKey: throwPair.receiver.key,
+          affirmRunnerId: affirmRunnerId,
+        );
+      }
+      if (affirmRunnerId == null) {
+        await controller.resolveSafe(
+          moves,
+          SafeResolution.onError,
+          errorTouchKey: charged,
+        );
+      }
+      return;
+    }
+    if (affirmRunnerId != null) {
+      await controller.affirmSafe(
+        affirmRunnerId,
+        enabledByKey: switch (resolution) {
+          SafeResolution.onError =>
+            errorTouchKey ?? _draft.latestMisplayTouchKey,
+          SafeResolution.onTheThrow => _draft.latestTouchKey,
+          _ => null,
+        },
+        reason: resolution == SafeResolution.fieldersChoice
+            ? RunnerAdvanceReason.FIELDERS_CHOICE
+            : null,
+      );
+      return;
+    }
+    await _resolveSafe(
+      moves,
+      resolution,
+      earned: earned,
+      errorTouchKey: errorTouchKey,
+    );
+  }
+
   /// The SAFE answer applied: the dragged leg's classification, and — when
   /// the chip said so — how the bases divide between the hit and the misplay
   /// (§13.2 v0.56). [earned] is the last base she earned; null means the chip
@@ -874,6 +950,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     int base, {
     required bool isBatter,
     required List<CascadedMove> moves,
+    String? affirmRunnerId,
   }) {
     final draft = _draft;
     final caught = draft.caughtInFlight;
@@ -924,6 +1001,26 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             // they leave the reach to the ✓ rather than answering for her.
             if (draft.hasThrow)
               ('throw', 'On the throw', SafeResolution.onTheThrow, null),
+            // The throw that just arrived can be the reason she is safe,
+            // and until v0.56 there was no way to say so from here: the
+            // error chips only offer misplays that already exist, and a
+            // clean chain has none. These two write the misplay and settle
+            // her against it in one tap — §13.2's pair, the shape §15.6's
+            // passed-ball chip already uses.
+            if (draft.lastThrow != null) ...[
+              (
+                'wild_throw',
+                'The throw was wild',
+                SafeResolution.onError,
+                null,
+              ),
+              (
+                'dropped_throw',
+                'Dropped the throw',
+                SafeResolution.onError,
+                null,
+              ),
+            ],
             // Only offered when there is a misplay to point at: an advance that
             // claims an error but links to nothing derives as a hit (§13.2), so
             // the answer must not exist without its cause.
@@ -942,7 +1039,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // costs the gesture that moved her and nothing more.
     if (choices.length == 1) {
       final only = choices.single;
-      unawaited(_resolveSafe(moves, only.$3, earned: only.$4));
+      unawaited(
+        _answerSafe(
+          moves,
+          only.$1,
+          only.$3,
+          earned: only.$4,
+          affirmRunnerId: affirmRunnerId,
+        ),
+      );
       return;
     }
     _centeredDialog('Safe at ${_baseLabels[base]} — how?', [
@@ -976,11 +1081,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                   return;
                 }
                 unawaited(
-                  _resolveSafe(
+                  _answerSafe(
                     moves,
+                    id,
                     resolution,
                     earned: earned,
                     errorTouchKey: named?.touchKey,
+                    affirmRunnerId: affirmRunnerId,
                   ),
                 );
               },
