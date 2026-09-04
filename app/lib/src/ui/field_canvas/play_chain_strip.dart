@@ -358,7 +358,10 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
           key: chainChipKey('throw_was_wild'),
           label: const Text('The throw was wild'),
           onPressed: () {
-            controller.setTouchType(thrower.key, TouchType.WILD_THROW);
+            controller.markThrowWild(
+              throwerKey: thrower.key,
+              receiverKey: touch.key,
+            );
             Navigator.pop(context);
           },
         ),

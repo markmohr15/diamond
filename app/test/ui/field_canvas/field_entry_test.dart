@@ -432,17 +432,22 @@ void main() {
       expect(container.read(gameControllerProvider).value!.bases.first, isNull);
     });
 
-    testWidgets('a loose ball is not throwable: after a drop, tapping '
-        'another fielder is a play on the ball', (tester) async {
+    testWidgets('a drop leaves the ball at her feet; one tap on her says it '
+        'caromed, and then the next fielder is picking it up', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await dragFielder(tester, 8, FieldCoord(x: 10, y: 150));
       await tapKey(tester, fielderPlayKey('dropped'));
 
-      // The ball is on the ground: LF coming over is a pickup, not a
-      // reception — the popup asks, and it no longer offers to catch a ball
-      // that is already down.
+      // A drop leaves the ball at her feet, so Diamond shows CF holding it
+      // and the next fielder tapped would be receiving a throw. It caromed
+      // away instead — one tap on CF says so, and the ball is loose again
+      // (§15.1 v0.56). That gesture is the whole escape hatch for a
+      // possession Diamond inferred wrongly.
+      await tapWorld(tester, FieldCoord(x: 10, y: 150)); // where she stands
+      // LF coming over is now a pickup, not a reception — the popup asks,
+      // and it no longer offers to catch a ball that is already down.
       await tapWorld(tester, standardSpot(7));
       expect(find.text('Caught'), findsNothing);
       expect(find.byKey(fielderPlayKey('fielded')), findsOneWidget);
@@ -576,10 +581,12 @@ void main() {
       expect(find.text('Caught'), findsOneWidget);
       await tapKey(tester, fielderPlayKey('dropped'));
 
+      await tapWorld(tester, FieldCoord(x: 20, y: 170)); // CF does not have it
       await tapWorld(tester, standardSpot(9));
       expect(find.text('Caught'), findsNothing);
       expect(find.text('Fielded'), findsOneWidget);
-      expect(find.text('Deflected'), findsOneWidget);
+      // Mark, 2026-09-04: outfielders can't deflect, they can only miss.
+      expect(find.text('Deflected'), findsNothing);
     });
 
     testWidgets('a liner caroms: deflected off the pitcher, still in the '
@@ -747,19 +754,20 @@ void main() {
   });
 
   group('fixtures through the UI (DIA-008 accept)', () {
-    testWidgets('play 01 — dropped liner, out anyway: 8 field gestures', (
+    testWidgets('play 01 — dropped liner, out anyway: 6 field gestures', (
       tester,
     ) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: -45, y: 120);
 
-      await runGestures(8, [
+      // Six, not eight (v0.56): a drop leaves the ball at her feet, so the
+      // scorer no longer tells Diamond she picked it up — throwing it is
+      // the proof, and the recovery touch is minted there.
+      await runGestures(6, [
         () => tapKey(tester, trajectoryKey(Trajectory.LINE)),
         () => dragFielder(tester, 6, spot), // she goes to the ball
         () => tapKey(tester, fielderPlayKey('dropped')),
-        () => tapWorld(tester, spot), // the pickup, where she stands
-        () => tapKey(tester, fielderPlayKey('fielded')),
         () => tapWorld(tester, standardSpot(3)), // tap 1B = the throw
         // The throw arrived at first with the batter heading there: the
         // SAFE/OUT pair is up at the bag — OUT resolves the force play.
@@ -790,26 +798,29 @@ void main() {
       expect(container.read(gameControllerProvider).value!.outs, 1);
     });
 
-    testWidgets('play 02 — boot then throw-away, batter to third: 12 field '
+    testWidgets('play 02 — boot then throw-away, batter to third: 11 field '
         'gestures', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: -50, y: 95);
 
-      // Twelve, not ten. v0.56 stopped the boot from claiming her reach, and
-      // this play carries *two* errors — the boot put her on first, the
-      // throw gave her second and third — so the scorer names each on the
-      // leg it caused instead of the app picking one misplay for all three
-      // bases. Those two taps are the point of the ticket; the old count
-      // meant the app was guessing.
-      await runGestures(12, [
+      // Eleven. v0.56 stopped the boot from claiming her reach, and this
+      // play carries *two* errors — the boot put her on first, the throw
+      // gave her second and third — so the scorer names each on the leg it
+      // caused instead of the app picking one misplay for all three bases.
+      // Those two taps are the point of the ticket. Against them, the boot
+      // no longer needs a "she picked it up" tap, and marking the throw
+      // wild takes the reception off rather than leaving 1B credited with
+      // catching a ball that sailed past her.
+      await runGestures(11, [
         () => tapKey(tester, trajectoryKey(Trajectory.GROUND)),
         () => dragFielder(tester, 6, spot),
         () => tapKey(tester, fielderPlayKey('booted')),
-        () => tapWorld(tester, spot), // the recovery
-        () => tapKey(tester, fielderPlayKey('fielded')), // entry key 2
-        () => tapKey(tester, chainNodeKey(2)),
-        () => tapKey(tester, chainChipKey('wild_throw')),
+        () => tapWorld(tester, standardSpot(3)), // the throw to first
+        // Key 3: the throw minted her recovery (key 2) and then the
+        // reception, so the reception is the node after it.
+        () => tapKey(tester, chainNodeKey(3)),
+        () => tapKey(tester, chainChipKey('throw_was_wild')),
         () => dragToken(tester, 1, 3, originFrom: 0),
         () => tapKey(tester, safeChipKey('error-throwing-6')),
         () => tapKey(tester, safeChipKey('earned-0')), // she earned none
@@ -864,7 +875,7 @@ void main() {
       await runGestures(9, [
         () => tapKey(tester, trajectoryKey(Trajectory.LINE)),
         () => dragFielder(tester, 9, spot),
-        () => tapKey(tester, fielderPlayKey('picked_up')),
+        () => tapKey(tester, fielderPlayKey('fielded')),
         () => dragToken(tester, 3, 4, target: 'base'), // R3 home
         () => tapKey(tester, safeChipKey('hit')),
         () => dragBall(tester, spot, standardSpot(6)), // the 9-6 throw
@@ -1306,10 +1317,11 @@ void main() {
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await dragFielder(tester, 6, spot);
       await tapKey(tester, fielderPlayKey('booted')); // key 1
-      await tapWorld(tester, spot); // the recovery
-      await tapKey(tester, fielderPlayKey('fielded')); // key 2
-      await tapKey(tester, chainNodeKey(2));
-      await tapKey(tester, chainChipKey('wild_throw'));
+      // The throw mints her recovery (key 2) and the reception (key 3);
+      // marking it wild retypes the recovery and takes the reception off.
+      await tapWorld(tester, standardSpot(3));
+      await tapKey(tester, chainNodeKey(3));
+      await tapKey(tester, chainChipKey('throw_was_wild'));
 
       await dragToken(tester, 1, 3, originFrom: 0);
       // Both errors are on offer by name; the throw is what gave her these
@@ -1351,8 +1363,6 @@ void main() {
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await dragFielder(tester, 6, spot);
       await tapKey(tester, fielderPlayKey('booted'));
-      await tapWorld(tester, spot); // the recovery
-      await tapKey(tester, fielderPlayKey('fielded'));
       await tapWorld(tester, standardSpot(3)); // the throw to first
       // She beat it out: the reach is settled as a hit, right here.
       await tapPill(tester, 1);
@@ -1437,8 +1447,6 @@ void main() {
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
       await tapKey(tester, fielderPlayKey('booted'));
-      await tapWorld(tester, FieldCoord(x: -50, y: 95)); // the recovery
-      await tapKey(tester, fielderPlayKey('fielded'));
       await tapWorld(tester, standardSpot(3)); // the throw to first
 
       // Affirming alone would commit a plain unattributed reach, which
@@ -1694,6 +1702,36 @@ void main() {
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       expect(touch.payload['touchType'], 'dropped');
       expect(touch.payload['position'], 3);
+    });
+
+    testWidgets('marking a throw wild takes the reception off — nobody '
+        'receives a wild throw (§15.3 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded')); // key 1
+      await tapWorld(tester, standardSpot(3)); // key 2, the throw
+      expect(find.byKey(chainNodeKey(2)), findsOneWidget);
+
+      await tapKey(tester, chainNodeKey(2));
+      await tapKey(tester, chainChipKey('throw_was_wild'));
+      // The reception is gone from the chain, not merely retyped.
+      expect(find.byKey(chainNodeKey(2)), findsNothing);
+
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-throwing-6'));
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      // One touch by one fielder: her pickup *became* the wild throw (the
+      // chip retypes the thrower, which is what §14 play-02's own encoding
+      // shows), and 1B is not credited with catching a ball that sailed
+      // past her.
+      expect(touches, hasLength(1));
+      expect(touches.single.payload['touchType'], 'wild_throw');
+      expect(touches.single.payload['position'], 6);
     });
 
     testWidgets('arrival quality on a receiving node: underline info, '

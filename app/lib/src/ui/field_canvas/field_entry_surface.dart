@@ -332,6 +332,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// not have to have gone anywhere. It can deflect off her shin guards and
   /// sit three feet away, and the claim being made is only that she is not
   /// the one holding it.
+  /// Positions 1–6. Everything above is an outfielder (7/8/9, plus 10 —
+  /// softball's fourth outfielder, §4.2).
+  static bool _isInfield(int position) => position <= 6;
+
   String get _possessionLabel {
     final holder = _draft.holderPosition;
     if (holder == null) return 'Ball is loose — tap the fielder who gets it';
@@ -533,13 +537,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       final position = drag.fielderPosition!;
       // Seed included: between pitches the catcher holds it without a
       // touch to prove it (§15.6), and a tap on the holder says she never
-      // had it — the pitch got past her.
+      // had it — the pitch got past her. Since v0.56 the same tap works
+      // when possession came from a *touch* too: Diamond states its belief
+      // about who has the ball and takes one tap to be told otherwise,
+      // rather than asking after every play.
       final holder = _draft.holderPosition;
       final spot = moved
           ? geometry.toField(drag.current)
           : _currentFielderSpot(position, geometry);
       if (position == holder && !moved) {
-        unawaited(controller.setHeldBy(null));
+        unawaited(controller.releaseBall());
         return;
       }
       // A loose ball falls through to the what-happened popup in BOTH
@@ -1161,18 +1168,26 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       ] else if (airborne && inFlight) ...[
         ('caught', 'Caught', TouchType.CAUGHT),
         ('dropped', 'Dropped', TouchType.DROPPED),
-        // Only a liner caroms. A pop-up one fielder touches and another
-        // catches is two fielders on one ball, not a deflection.
-        if (_draft.trajectory == Trajectory.LINE)
+        // Only a liner caroms, and only in the infield. Mark, 2026-09-04:
+        // *"outfielders can't deflect, they can only miss"* — a ball off an
+        // outfielder is a play she did not make, not a carom another
+        // fielder is standing there to pick up. A pop-up one fielder
+        // touches and another catches is likewise two fielders on one ball.
+        if (_draft.trajectory == Trajectory.LINE && _isInfield(position))
           ('deflected', 'Deflected', TouchType.DEFLECTED),
         ('missed', 'Missed it', null),
-        ('picked_up', 'Picked it up', TouchType.FIELDED),
+        // *Fielded*, not "picked it up": a liner still in flight is a
+        // batted ball, and you field a batted ball — picking up is what you
+        // do to a loose one (§15.1).
+        ('fielded', 'Fielded', TouchType.FIELDED),
       ] else ...[
         ('fielded', 'Fielded', TouchType.FIELDED),
         ('booted', 'Booted', TouchType.BOOTED),
         // It hit her and caromed away with no play to be made: a physical
         // fact, never an error candidate (§13.2), and the ball stays loose.
-        ('deflected', 'Deflected', TouchType.DEFLECTED),
+        // Infield only — see the liner branch above.
+        if (_isInfield(position))
+          ('deflected', 'Deflected', TouchType.DEFLECTED),
         ('missed', 'Missed it', null),
       ],
     ];

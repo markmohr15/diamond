@@ -329,6 +329,7 @@ class PlayDraft {
     this.nextKey = 0,
     this.battedBall = true,
     this.heldBy,
+    this.looseAfterKey,
   });
 
   factory PlayDraft.fromJson(Map<String, dynamic> json) => PlayDraft(
@@ -358,6 +359,7 @@ class PlayDraft {
     nextKey: json['nextKey'] as int? ?? 0,
     battedBall: json['battedBall'] as bool? ?? true,
     heldBy: json['heldBy'] as int?,
+    looseAfterKey: json['looseAfterKey'] as int?,
   );
 
   /// The committed `PitchThrown` this play hangs off (§4.2's link).
@@ -387,6 +389,17 @@ class PlayDraft {
   /// ball is loose — the pitch got past her. Ignored once a touch secures
   /// it, which is why [holderPosition] prefers [securedTouch].
   final int? heldBy;
+
+  /// The touch after which the scorer said the ball is **not** where Diamond
+  /// thinks it is (v0.56) — set by tapping the fielder shown holding it.
+  ///
+  /// Possession is inferred from the chain, and inference is sometimes
+  /// wrong: a boot can carom to another fielder, and a seeded catcher may
+  /// never have had it. Rather than ask who has the ball after every touch,
+  /// the surface states its belief and takes one tap to be told otherwise.
+  /// It lapses on its own — the next touch is a later key — so nothing has
+  /// to clear it.
+  final int? looseAfterKey;
 
   /// **Where the ball is** — the one answer, so nothing has to guess twice.
   ///
@@ -418,7 +431,8 @@ class PlayDraft {
   }
 
   /// Who has the ball right now, seed included.
-  int? get holderPosition => securedTouch?.position ?? heldBy;
+  int? get holderPosition =>
+      (securedTouch ?? recoverableTouch)?.position ?? heldBy;
 
   final Trajectory? trajectory;
 
@@ -600,6 +614,7 @@ class PlayDraft {
     int? openingLegCount,
     int? nextKey,
     Object? heldBy = _unset,
+    Object? looseAfterKey = _unset,
   }) {
     return PlayDraft(
       pitchEventId: pitchEventId,
@@ -615,6 +630,9 @@ class PlayDraft {
       nextKey: nextKey ?? this.nextKey,
       battedBall: battedBall,
       heldBy: heldBy == _unset ? this.heldBy : heldBy as int?,
+      looseAfterKey: looseAfterKey == _unset
+          ? this.looseAfterKey
+          : looseAfterKey as int?,
     );
   }
 
@@ -635,8 +653,12 @@ class PlayDraft {
 
   /// The touch types that leave the ball *in hand* — a tap on another
   /// fielder while one of these is the latest touch is a throw. After a
-  /// drop, a boot, a missed catch, or a throw away, the ball is loose and
-  /// the next fielder interaction is a play on the ball, not a reception.
+  /// missed catch or a throw away the ball is genuinely past somebody, so
+  /// the next fielder interaction is a play on it rather than a reception.
+  ///
+  /// A boot or a drop used to sit here too; since v0.56 they leave the ball
+  /// at her feet instead ([_recoverableTypes]) — she is shown holding it,
+  /// and a tap on her says otherwise.
   static const _securingTypes = {
     TouchType.FIELDED,
     TouchType.CAUGHT,
@@ -645,16 +667,54 @@ class PlayDraft {
     TouchType.BOBBLED, // momentary misplay, ball stays with the fielder
   };
 
+  /// Misplays that leave the ball **at her feet** (v0.56): she booted it or
+  /// dropped it, so she is the one who picks it up. Deliberately not
+  /// [_securingTypes] — no possession has been recorded yet, and the
+  /// recovery touch is minted only when the play needs one
+  /// ([recoveringLooseBall]), which keeps putouts and the wild-throw
+  /// retype pointing at a real pickup rather than at the misplay.
+  ///
+  /// `missed_catch` and `wild_throw` are not here: there the ball is
+  /// genuinely past somebody, and treating her as holding it would be a
+  /// lie the rest of the grammar then builds on.
+  static const _recoverableTypes = {TouchType.BOOTED, TouchType.DROPPED};
+
   /// Who holds the ball right now: the chain's last touch when it secured
   /// the ball, null when the ball is loose (or untouched). The accent ring
   /// and the tap-to-throw grammar key on this.
-  TouchEntry? get securedTouch {
+  TouchEntry? get securedTouch => _lastTouchIf(_securingTypes);
+
+  /// The misplay that left the ball at her feet, if that is the last thing
+  /// that happened. She is shown holding it and the next tap is a throw;
+  /// the pickup is minted at that moment.
+  TouchEntry? get recoverableTouch => _lastTouchIf(_recoverableTypes);
+
+  TouchEntry? _lastTouchIf(Set<TouchType> types) {
     for (final entry in entries.reversed) {
       if (entry is TouchEntry) {
-        return _securingTypes.contains(entry.touchType) ? entry : null;
+        // The scorer said she does not have it, whatever the type implies.
+        if (entry.key == looseAfterKey) return null;
+        return types.contains(entry.touchType) ? entry : null;
       }
     }
     return null;
+  }
+
+  /// The pickup after a boot or a drop (v0.56), minted at the moment the
+  /// play needs her to hold the ball rather than asked for as a second
+  /// dialog. Mark, 2026-09-04: *"when we boot a ball, we don't pick it up"*
+  /// — the scorer should not have to say she did.
+  ///
+  /// A no-op unless the last touch is a [recoverableTouch], so callers can
+  /// apply it unconditionally before anything that assumes possession.
+  PlayDraft recoveringLooseBall() {
+    final loose = recoverableTouch;
+    if (loose == null) return this;
+    return addingTouch(
+      loose.position,
+      TouchType.FIELDED,
+      location: loose.location,
+    );
   }
 
   PlayDraft addingTouch(
@@ -1191,6 +1251,7 @@ class PlayDraft {
     'nextKey': nextKey,
     'battedBall': battedBall,
     'heldBy': heldBy,
+    'looseAfterKey': looseAfterKey,
   };
 
   /// The atomic commit sequence (§15.5): `BallInPlay` first, then the chain
