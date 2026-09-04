@@ -25,8 +25,10 @@ const _sheet = Size(680, 470);
 /// It taps the real node rather than rebuilding the sheet's contents here,
 /// so the golden cannot drift away from the widget that had the bug.
 ///
-/// What to look at: every line of the sheet reads against the dialog —
-/// the chips, the `Ordinary effort?` row, and `Remove` with its icon.
+/// What to look at: every line of the sheet reads against the dialog — the
+/// misplay chips and `Remove` with its icon. The `Ordinary effort?` row that
+/// sat between them is gone as of v0.56: the judgment is no longer a flag on
+/// the touch, it is which advance the scorer links to it (§13.2).
 void main() {
   final draft = const PlayDraft(pitchEventId: 'p', batterId: 'b')
       .copyWith(
@@ -83,6 +85,6 @@ void main() {
     );
   }
 
-  sheetGolden('booted node, judgment unresolved', Brightness.light);
-  sheetGolden('booted node, judgment unresolved', Brightness.dark);
+  sheetGolden('booted node — retype or remove', Brightness.light);
+  sheetGolden('booted node — retype or remove', Brightness.dark);
 }
