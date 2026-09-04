@@ -76,6 +76,48 @@ void main() {
           ),
         ),
         GoldenTestScenario(
+          name:
+              'bases loaded, ground ball: the forced runner from third is '
+              'running home, not done',
+          constraints: BoxConstraints.tight(_canvasSize),
+          child: canvas(
+            landing: FieldCoord(x: -50, y: 95),
+            tokens: const [
+              RunnerToken(
+                runnerId: 'b1',
+                label: 'B',
+                base: 1,
+                origin: 0,
+                inMotion: true,
+              ),
+              RunnerToken(
+                runnerId: 'r1',
+                label: '1',
+                base: 2,
+                origin: 1,
+                inMotion: true,
+              ),
+              RunnerToken(
+                runnerId: 'r2',
+                label: '2',
+                base: 3,
+                origin: 2,
+                inMotion: true,
+              ),
+              // The one this scenario exists for: forced home by the
+              // walk-up, so she reads like every other runner in motion
+              // rather than like a run already in.
+              RunnerToken(
+                runnerId: 'r3',
+                label: '3',
+                base: 4,
+                origin: 3,
+                inMotion: true,
+              ),
+            ],
+          ),
+        ),
+        GoldenTestScenario(
           name: 'gap shot rolled to the wall; batter to second, R1 scored',
           constraints: BoxConstraints.tight(_canvasSize),
           child: canvas(

@@ -386,7 +386,14 @@ class FieldPainter extends CustomPainter {
               origin: token.origin,
               inMotion: token.inMotion,
             );
-      final scored = token.base == 4;
+      // Faded means *done* — she scored and the play no longer concerns
+      // her. A runner still in motion at home has not: on a bases-loaded
+      // ground ball the walk-up forces the runner from third all the way
+      // home, and she is the one whose fate is least settled, not the most.
+      // §15.1's rule is that "she's going there" and "she got there" stay
+      // visually different until the scorer answers; fading on base alone
+      // gave that answer a step early.
+      final scored = token.base == 4 && !token.inMotion;
       final fill = Paint()
         ..color = dragging
             ? accent
