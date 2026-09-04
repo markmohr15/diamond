@@ -1770,6 +1770,47 @@ void main() {
       expect(reach.payload['enabledByTouchId'], isNull);
     });
 
+    testWidgets('an out does not drop the ball: after a force at third the '
+        'third baseman still holds it, so the catcher is a throw', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -60, y: 80));
+      await tapWorld(tester, standardSpot(5));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await dragToken(tester, 3, 3, target: 'out', originFrom: 2);
+      await tapKey(tester, outChipKey('force'));
+      // Recording the out leaves possession alone, so the catcher is a
+      // throw and no what-happened popup is raised.
+      await tapWorld(tester, standardSpot(2));
+      expect(find.textContaining('What happened at'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touches = events.where((e) => e.type == 'FielderTouch').toList();
+      expect(touches.map((e) => e.payload['touchType']), [
+        'fielded',
+        'received_throw',
+      ]);
+      expect(touches.map((e) => e.payload['position']), [5, 2]);
+    });
+
     testWidgets('bases loaded, throw home, the throw was wild: enterable '
         'from the SAFE pill, no trip to the chain strip (§15.1 v0.56)', (
       tester,
