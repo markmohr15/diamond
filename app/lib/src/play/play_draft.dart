@@ -1005,10 +1005,7 @@ class PlayDraft {
   /// both directions, so the question is now asked — on the SAFE popup when
   /// she is resolved there, at the ✓ otherwise.
   bool get reachNeedsAnswer =>
-      battedBall &&
-      chargeableMisplays.isNotEmpty &&
-      provisionalReach != null &&
-      !isOut(batterId);
+      battedBall && provisionalReach != null && !isOut(batterId);
 
   /// Her walk-up leg to first while it is still a presumption (§15.1).
   ///
@@ -1035,28 +1032,40 @@ class PlayDraft {
   /// Replaces the provisional leg rather than editing it, exactly as
   /// [affirmingSafe] does — a presumption becoming an answer is a new leg,
   /// and keeping the old key would leave it looking provisional forever.
-  PlayDraft resolvingReach({required bool earned, int? misplayKey}) {
-    misplayKey ??= latestMisplayTouchKey;
+  PlayDraft resolvingReach({
+    required bool earned,
+    int? misplayKey,
+    RunnerAdvanceReason? reason,
+  }) {
     final leg = provisionalReach;
-    if (leg == null || misplayKey == null) return this;
+    if (leg == null) return this;
+    final enabler = earned ? null : (misplayKey ?? latestMisplayTouchKey);
     final resolved = LegEntry(
       key: nextKey,
       runnerId: batterId,
       from: leg.from,
       to: leg.to,
-      enabledByKey: earned ? null : misplayKey,
+      enabledByKey: enabler,
+      reasonOverride: reason,
     );
     // Narrative order: the touch that opened the play, then the reach it
     // does or does not explain, then whatever she did afterwards. Appending
     // would leave her reach *behind* legs she took later — the strip
     // reading 1→3 above 0→1, which is the ordering complaint the old
     // auto-claim also produced, from the other direction.
+    // Narrative order: the touch that explains her reach, then the reach.
+    // With nothing to explain it — a hit, a fielder's choice — she keeps the
+    // walk-up's place at the head of the chain, where she has been since
+    // contact.
     final next = <PlayEntry>[];
-    var placed = false;
+    var placed = enabler == null;
     for (final entry in entries) {
-      if (entry.key == leg.key) continue;
+      if (entry.key == leg.key) {
+        if (enabler == null) next.add(resolved);
+        continue;
+      }
       next.add(entry);
-      if (!placed && entry.key == misplayKey) {
+      if (!placed && entry.key == enabler) {
         next.add(resolved);
         placed = true;
       }
