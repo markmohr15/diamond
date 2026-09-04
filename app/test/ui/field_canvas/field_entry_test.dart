@@ -1206,7 +1206,11 @@ void main() {
       await dragToken(tester, 3, 4, target: 'base');
       expect(find.text('Tagged up'), findsOneWidget);
       expect(find.text('On the hit'), findsNothing);
-      expect(find.text('On the throw'), findsOneWidget);
+      // v0.56: "on the throw" is the batter's answer alone — on her leg the
+      // enabler caps hit rank, and on a runner's it rules nothing. What a
+      // throw does put on a runner's menu is the two ways it can go bad.
+      expect(find.text('On the throw'), findsNothing);
+      expect(find.text('The throw was wild'), findsOneWidget);
       expect(find.text("Fielder's choice"), findsNothing);
       await tapKey(tester, safeChipKey('hit'));
       await tapKey(tester, fieldCommitKey);
@@ -1727,6 +1731,59 @@ void main() {
       final touch = events.lastWhere((e) => e.type == 'FielderTouch');
       expect(touch.payload['touchType'], 'dropped');
       expect(touch.payload['position'], 3);
+    });
+
+    testWidgets('dropping a runner where the walk-up already put her still '
+        'asks what settled her (§15.1 v0.56)', (tester) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2), ('r3', 3)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(2)); // the throw home
+
+      // The walk-up already shows R3 at the plate, so this is the ordinary
+      // gesture rather than an edge case — and before v0.56 it settled her
+      // silently as batted-ball movement.
+      await dragToken(tester, 4, 4, target: 'base', originFrom: 3);
+      expect(find.text('On the play'), findsOneWidget);
+      expect(find.text('The throw was wild'), findsOneWidget);
+      await tapKey(tester, safeChipKey('wild_throw'));
+
+      // Same for the batter dropped on first: it used to settle her reach
+      // *and* leave the ✓ with nothing to ask.
+      await dragToken(tester, 1, 1, target: 'base', originFrom: 0);
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      expect(find.text("Fielder's choice"), findsOneWidget);
+      await tapKey(tester, safeChipKey('fc'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      final wild = events.firstWhere(
+        (e) =>
+            e.type == 'FielderTouch' && e.payload['touchType'] == 'wild_throw',
+      );
+      final scored = legs.lastWhere((e) => e.payload['runnerId'] == 'r3');
+      expect(scored.payload['to'], 4);
+      expect(scored.payload['enabledByTouchId'], wild.id);
+      final reach = legs.lastWhere((e) => e.payload['from'] == 0);
+      expect(reach.payload['reason'], 'fielders_choice');
     });
 
     testWidgets('an out on a runner the batter pushed up a base is a '

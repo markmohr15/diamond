@@ -356,12 +356,19 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     return false;
   }
 
-  /// A throw taken anywhere but first: the defense had somewhere else to go
-  /// with it, so a fielder's choice is on the table even though nobody was
-  /// retired.
-  bool get _threwElsewhere => _draft.entries.whereType<TouchEntry>().any(
-    (t) => t.touchType == TouchType.RECEIVED_THROW && t.position != 3,
-  );
+  /// Somebody threw it, so a fielder's choice is on the table even though
+  /// nobody was retired.
+  ///
+  /// Deliberately *any* throw rather than one taken away from first. Where
+  /// the throw was going is not recorded, and marking a throw wild deletes
+  /// the reception that used to imply it — so keying on that made the answer
+  /// set depend on whether a **different** answer had eaten its own
+  /// evidence. Bases loaded, grounder to short, throw home and away: the
+  /// textbook fielder's choice, and it was offering *single* only. Mark's
+  /// test is the scorer's anyway — "a single if there really was no play to
+  /// be made, or a FC if they could have gotten an out elsewhere" — which is
+  /// a judgment, not something the record settles.
+  bool get _threwElsewhere => _draft.hasThrow;
 
   /// Positions 1–6. Everything above is an outfielder (7/8/9, plus 10 —
   /// softball's fourth outfielder, §4.2).
@@ -653,11 +660,32 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (base == null) return;
     // Dropped on the base she is already standing on: that is not a move,
     // it is "safe right there". Settling her says so without minting a
-    // from==to leg, which §4.3 reserves for surviving a rundown.
+    // from==to leg, which §4.3 reserves for surviving a rundown — but it is
+    // still an answer, so it asks what settled her (v0.56).
+    //
+    // This is the third way into the same question and the last one that
+    // was silent. It matters more than it sounds: the walk-up already
+    // displays every forced runner at her next base, so *dropping her where
+    // she stands is the ordinary gesture*, not an edge case. Settling the
+    // batter this way also nulls her provisional reach, which meant the ✓
+    // then had nothing left to ask and the whole play committed unclassified.
     final standingOn = tokens.firstWhere((t) => t.runnerId == runnerId).base;
     final pill = geometry.pillAt(base, drag.current);
     if (base == standingOn && pill != BaseCall.out) {
-      controller.affirmSafe(runnerId);
+      if (runnerId == _draft.batterId) {
+        if (_draft.reachNeedsAnswer) {
+          _showReachDialog();
+        } else {
+          controller.affirmSafe(runnerId);
+        }
+      } else {
+        _showSafeDialog(
+          base,
+          isBatter: false,
+          moves: const [],
+          affirmRunnerId: runnerId,
+        );
+      }
       return;
     }
     if (pill == BaseCall.out) {
@@ -1101,9 +1129,14 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         : <(String, String, SafeResolution, int?)>[
             (
               'hit',
+              // *On the play*, not "on the hit" (v0.56). For a runner
+              // already aboard the two old answers were the same answer:
+              // linking her leg to a clean throw changes no ruling, since
+              // the enabler only caps **hit rank**, which is the batter's
+              // affair. Mark: "there's really no difference there."
               isBatter
                   ? _hitLabels[base]!
-                  : (caught ? 'Tagged up' : 'On the hit'),
+                  : (caught ? 'Tagged up' : 'On the play'),
               SafeResolution.onTheHit,
               // A two-base hit off a reach on an error does not exist, so
               // `Double` settles the reach by definition rather than by
@@ -1113,7 +1146,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             // "On the throw" and a fielder's choice say nothing about how she
             // reached first — both facts can be live on the same play — so
             // they leave the reach to the ✓ rather than answering for her.
-            if (draft.hasThrow)
+            // The batter's alone: on her leg the enabler caps hit rank —
+            // "took second on the throw" is a single plus an advance, not a
+            // double (§13.2 v0.43) — and on a runner's it means nothing.
+            if (isBatter && draft.hasThrow)
               ('throw', 'On the throw', SafeResolution.onTheThrow, null),
             // The throw that just arrived can be the reason she is safe,
             // and until v0.56 there was no way to say so from here: the
