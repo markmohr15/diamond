@@ -6,7 +6,7 @@ scoring with pitch calling (wristband codes), pitch locations (intended AND actu
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.55). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.56). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -18,8 +18,10 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 3. **Offline-first is the prime directive**: all projections run on-device against Drift/SQLite. No feature
    may require connectivity to record or view anything during a game (§12.6, §19.1, §21.5).
 4. The scorer records **physics, not rulings** (§13): touch types are physical (`dropped`, `booted`,
-   `wild_throw`…); official error charging, hit-vs-error, and earned runs are derived, gated by one
-   scorer-judgment flag (`ordinaryEffort`).
+   `wild_throw`…); official error charging, hit-vs-error, and earned runs are derived from what a
+   misplay **cost** — the advance the scorer linked to it, and which misplay she named. There is no
+   judgment flag on a touch; v0.56 deleted `ordinaryEffort` because a proxy for a ruling is neither
+   physics nor the ruling, and it could contradict the link.
 5. Multi-device uses **disjoint streams** (primary scores; secondaries annotate) so sync is a conflict-free
    set union over pluggable transports (§12).
 
@@ -38,7 +40,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.55)
+docs/spec.md        authoritative spec (v0.56)
 docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)

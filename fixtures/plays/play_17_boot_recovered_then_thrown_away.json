@@ -1,0 +1,24 @@
+{
+  "id": "play-17",
+  "title": "Boot, recovered in time, then the throw is thrown away — the throw is the error",
+  "specRef": "§13.2 (v0.56 hit-vs-error), §13.4",
+  "setup": { "outs": 1, "count": { "balls": 0, "strikes": 1 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": -0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "landing": { "x": -50, "y": 95 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "booted", "location": { "x": -50, "y": 95 } } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "fielded", "location": { "x": -50, "y": 95 } } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "wild_throw" } },
+    { "id": "e6", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "error", "enabledByTouchId": "e5" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [{ "position": 6, "kind": "throwing", "basis": "reached" }],
+    "misplays": [{ "position": 6, "touchType": "booted" }, { "position": 6, "touchType": "wild_throw" }],
+    "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false, "atBat": true },
+    "runnerBases": { "b1": 1 },
+    "earnedRunFlags": { "b1": "unearned_if_scores" },
+    "note": "She had time after the boot, so the boot cost nothing and only the throw put the batter on: one error, and it is the throwing one. Both misplays stay in the development ledger. The engine charges what the link says, so this play and play-02 — identical touch types in the same order — score differently because the scorer attributed the reach differently. That is the judgment DIA-022 hands back to her: no physical record distinguishes these two plays, which is exactly why the app must not guess between them."
+  }
+}

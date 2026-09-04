@@ -247,12 +247,12 @@ void main() {
   });
 
   group('the batter runs on contact (§15.1 v0.43)', () {
-    final walkedUp = landed.addingLeg(
-      'opp-1',
-      from: 0,
-      to: 1,
-      attribute: false,
-    );
+    // The walk-up as the surface actually builds it (§15.1): the leg plus
+    // the count that marks it provisional. Without the count nothing can
+    // tell her presumed reach from one the scorer authored.
+    final walkedUp = landed
+        .addingLeg('opp-1', from: 0, to: 1, attribute: false)
+        .copyWith(openingLegCount: 1);
 
     test('an out at the reached base absorbs the leg — no phantom advance', () {
       final draft = walkedUp.addingOut('opp-1', atBase: 1, how: How.FORCE);
@@ -281,18 +281,38 @@ void main() {
       expect(draft.landingIsCaught, isTrue);
     });
 
-    test('a misplay first touch claims the reach and the chain reorders to '
-        'narrative order (§13.2)', () {
+    test('a misplay first touch raises the reach question, it does not '
+        'answer it (§13.2 v0.56)', () {
       final draft = walkedUp.recordingFielderPlay(
         6,
         spot: FieldCoord(x: -50, y: 95),
         touchType: TouchType.BOOTED,
       );
       expect(draft.entries, hasLength(2));
+      final reach = draft.entries.whereType<LegEntry>().single;
+      // Untouched: claiming it here derived hit-vs-error from an answer the
+      // scorer never gave, and destroyed the clean single a later misplay
+      // only added to.
+      expect(reach.enabledByKey, isNull);
+      expect(draft.reachNeedsAnswer, isTrue);
+    });
+
+    test('resolvingReach links the reach to the first-touch misplay, in '
+        'narrative order (§13.2 v0.56)', () {
+      final draft = walkedUp
+          .recordingFielderPlay(
+            6,
+            spot: FieldCoord(x: -50, y: 95),
+            touchType: TouchType.BOOTED,
+          )
+          .resolvingReach(earned: false);
+
       final touch = draft.entries[0] as TouchEntry;
       expect(touch.touchType, TouchType.BOOTED);
+      // The touch, then the reach it explains — never the other way round.
       final reach = draft.entries[1] as LegEntry;
       expect(reach.enabledByKey, touch.key);
+      expect(draft.reachNeedsAnswer, isFalse);
 
       final events = draft.toEvents();
       expect(events.map((e) => e.type), [
@@ -301,6 +321,24 @@ void main() {
         'RunnerAdvance',
       ]);
       expect(events[2].payload['reason'], 'error');
+    });
+
+    test('resolvingReach with the base earned leaves the reach a hit '
+        '(§13.2 v0.56)', () {
+      final draft = walkedUp
+          .recordingFielderPlay(
+            6,
+            spot: FieldCoord(x: -50, y: 95),
+            touchType: TouchType.BOOTED,
+          )
+          .resolvingReach(earned: true);
+
+      final reach = draft.entries.whereType<LegEntry>().single;
+      expect(reach.enabledByKey, isNull);
+      expect(draft.reachNeedsAnswer, isFalse);
+      // A misplay nobody linked to anything charges nothing and the hit
+      // stands — the pair one boolean could never express.
+      expect(draft.toEvents()[2].payload['reason'], 'batted_ball');
     });
 
     test('a clean first touch leaves the reach alone — the hit stands', () {
@@ -522,9 +560,7 @@ void main() {
       ]);
       expect(events[0].payload['landingIsCaught'], isFalse);
       expect(events[1].payload['touchType'], 'dropped');
-      expect(events[1].payload['ordinaryEffort'], isTrue); // §13.2 default
       expect(events[1].payload['anchorEventId'], localRef('bip'));
-      expect(events[2].payload['ordinaryEffort'], isNull); // clean touch
       expect(events[4].payload['how'], 'force');
       expect(events[4].payload['putoutTouchId'], localRef('e2'));
     });
@@ -551,30 +587,17 @@ void main() {
       ]);
       expect(events[2].payload['reason'], 'error');
       expect(events[2].payload['enabledByTouchId'], localRef('e0'));
-      expect(
-        events[3].payload['ordinaryEffort'],
-        isNull,
-        reason:
-            'wild_throw stays a judgment call (§13.2): a throw can sail '
-            'and cost nothing',
-      );
       expect(events[4].payload['reason'], 'wild_throw');
       expect(events[4].payload['enabledByTouchId'], localRef('e2'));
     });
 
-    test('an explicit OE judgment beats the default; obstruction legs carry '
-        'their reason without a touch link', () {
+    test('obstruction legs carry their reason without a touch link', () {
       final draft = landed
           .addingTouch(6, TouchType.BOOTED)
-          .updatingEntry(
-            0,
-            (e) => (e as TouchEntry).copyWith(ordinaryEffort: false),
-          )
           .addingRuleCall(CallType.OBSTRUCTION)
           .addingLeg('opp-1', from: 0, to: 2);
 
       final events = draft.toEvents();
-      expect(events[1].payload['ordinaryEffort'], isFalse);
       expect(events[2].payload['callType'], 'obstruction');
       expect(events[3].payload['reason'], 'obstruction');
       expect(events[3].payload['enabledByTouchId'], isNull);

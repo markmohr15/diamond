@@ -531,7 +531,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
             anchorEventId: offer.pitchEventId,
             position: 2,
             touchType: TouchType.MISSED_CATCH,
-            ordinaryEffort: true,
           ).toJson(),
         ),
       for (final (base, runnerId) in offer.occupied)
@@ -671,7 +670,6 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           anchorEventId: offer.pitchEventId,
           position: 2,
           touchType: TouchType.MISSED_CATCH,
-          ordinaryEffort: true,
         ).toJson(),
       ),
       PendingEvent(

@@ -52,7 +52,6 @@ void main() {
         anchorEventId: 'bip1',
         position: 6,
         touchType: TouchType.BOOTED,
-        ordinaryEffort: true,
       ),
       b.runnerAdvance(
         id: 'reach',
@@ -97,7 +96,6 @@ void main() {
         anchorEventId: 'bip1',
         position: 5,
         touchType: TouchType.DROPPED,
-        ordinaryEffort: true,
       ),
       inPlay(b, 'p2', 'b1'),
       b.ballInPlay(id: 'bip2', pitchEventId: 'p2'),
@@ -131,7 +129,6 @@ void main() {
         anchorEventId: 'bip1',
         position: 9,
         touchType: TouchType.WILD_THROW,
-        ordinaryEffort: true,
       ),
       b.runnerAdvance(
         id: 'to-third',
@@ -166,7 +163,6 @@ void main() {
         anchorEventId: 'bip1',
         position: 6,
         touchType: TouchType.BOOTED,
-        ordinaryEffort: true,
       ),
       // The reach that should have been out #3.
       b.runnerAdvance(

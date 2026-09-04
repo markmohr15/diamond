@@ -140,11 +140,7 @@ export interface FielderTouch {
      */
     fielderId?: string;
     location?:  FieldCoord;
-    /**
-     * scorer judgment on misplays; inferred default, overridable post-hoc (§13.2)
-     */
-    ordinaryEffort?: boolean;
-    position:        number;
+    position:   number;
     /**
      * how a received_throw arrived (§13, §22.1). Default clean; purely developmental, never
      * affects official scoring.
@@ -704,7 +700,6 @@ const typeMap: any = {
         { json: "anchorEventId", js: "anchorEventId", typ: "" },
         { json: "fielderId", js: "fielderId", typ: u(undefined, "") },
         { json: "location", js: "location", typ: u(undefined, r("FieldCoord")) },
-        { json: "ordinaryEffort", js: "ordinaryEffort", typ: u(undefined, true) },
         { json: "position", js: "position", typ: 0 },
         { json: "receivedQuality", js: "receivedQuality", typ: u(undefined, r("ReceivedQuality")) },
         { json: "touchType", js: "touchType", typ: r("TouchType") },

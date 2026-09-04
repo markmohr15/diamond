@@ -144,7 +144,6 @@ class EventBuilder {
     required String anchorEventId,
     required int position,
     required TouchType touchType,
-    bool? ordinaryEffort,
   }) {
     return make(
       id: id,
@@ -153,7 +152,6 @@ class EventBuilder {
         anchorEventId: anchorEventId,
         position: position,
         touchType: touchType,
-        ordinaryEffort: ordinaryEffort,
       ).toJson(),
     );
   }

@@ -8,7 +8,7 @@
     { "id": "e1", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 3, "touchType": "received_throw" } },
     { "id": "e2", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 6, "touchType": "received_throw" } },
     { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 3, "touchType": "received_throw" } },
-    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 4, "touchType": "missed_catch", "ordinaryEffort": true } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e0", "position": 4, "touchType": "missed_catch" } },
     { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 1, "reason": "error", "enabledByTouchId": "e4" } }
   ],
   "expect": {

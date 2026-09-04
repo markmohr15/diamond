@@ -1,0 +1,23 @@
+{
+  "id": "play-18",
+  "title": "Routine grounder fielded cleanly, throw sails — reached on the throwing error, no hit",
+  "specRef": "§13.2 (v0.56 hit-vs-error)",
+  "setup": { "outs": 0, "count": { "balls": 1, "strikes": 0 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.1, "y": -0.2 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "landing": { "x": -50, "y": 95 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "fielded", "location": { "x": -50, "y": 95 } } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "wild_throw" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "error", "enabledByTouchId": "e4" } }
+  ],
+  "expect": {
+    "outs": 0,
+    "runs": 0,
+    "officialErrors": [{ "position": 6, "kind": "throwing", "basis": "reached" }],
+    "misplays": [{ "position": 6, "touchType": "wild_throw" }],
+    "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false, "atBat": true },
+    "runnerBases": { "b1": 1 },
+    "earnedRunFlags": { "b1": "unearned_if_scores" },
+    "note": "No misplay on the first touch at all — she fielded it clean and threw it away. Before v0.56 the reach question was only raised by a misplay *opening* the play, so this scored as a single with nothing charged: the plainest E6 in the book, invisible. The trigger is now any misplay the scorer could charge the reach to, and she names which one."
+  }
+}

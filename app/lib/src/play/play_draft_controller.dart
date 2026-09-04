@@ -237,6 +237,14 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     return _mutate((draft) => draft.affirmingSafe(runnerId));
   }
 
+  /// The hit-vs-error answer on the batter's reach (§13.2 v0.56): she
+  /// earned first, or the misplay that opened the play gave it to her.
+  Future<void> resolveReach({required bool earned, int? misplayKey}) {
+    return _mutate(
+      (draft) => draft.resolvingReach(earned: earned, misplayKey: misplayKey),
+    );
+  }
+
   /// A runner released SAFE (§15.1 v0.43): the dragged move plus its
   /// forced cascade, with the popup's classification applied to the
   /// dragged leg — one mutation, one journal write.
@@ -244,12 +252,16 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     List<CascadedMove> moves,
     SafeResolution classification, {
     int? againstPosition,
+    int? earnedThrough,
+    int? errorTouchKey,
   }) {
     return _mutate(
       (draft) => draft.resolvingSafe(
         moves,
         classification,
         againstPosition: againstPosition,
+        earnedThrough: earnedThrough,
+        errorTouchKey: errorTouchKey,
       ),
     );
   }
@@ -342,16 +354,12 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     });
   }
 
-  /// A chip on a touch node (§15.3): retype in place. Retyping resets any
-  /// explicit ordinary-effort judgment — it was about the old type.
+  /// A chip on a touch node (§15.3): retype in place.
   Future<void> setTouchType(int key, TouchType touchType) {
     return _mutate(
       (draft) => draft.updatingEntry(
         key,
-        (entry) => (entry as TouchEntry).copyWith(
-          touchType: touchType,
-          ordinaryEffort: null,
-        ),
+        (entry) => (entry as TouchEntry).copyWith(touchType: touchType),
       ),
     );
   }
@@ -363,17 +371,6 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
       (draft) => draft.updatingEntry(
         key,
         (entry) => (entry as TouchEntry).copyWith(receivedQuality: quality),
-      ),
-    );
-  }
-
-  /// The scorer's §13.2 judgment, when made in the moment.
-  Future<void> setOrdinaryEffort(int key, {required bool ordinaryEffort}) {
-    return _mutate(
-      (draft) => draft.updatingEntry(
-        key,
-        (entry) =>
-            (entry as TouchEntry).copyWith(ordinaryEffort: ordinaryEffort),
       ),
     );
   }

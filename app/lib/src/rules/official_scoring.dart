@@ -151,7 +151,6 @@ class MisplayRecord {
     required this.touchEventId,
     required this.position,
     required this.touchType,
-    required this.ordinaryEffort,
   });
 
   final String touchEventId;
@@ -161,7 +160,6 @@ class MisplayRecord {
   /// Resolved judgment: the explicit flag if recorded, else the §13.2
   /// default (`booted`/`missed_catch`/`dropped` -> true), else null —
   /// "prompt the scorer", unresolved, and never charged while null.
-  final bool? ordinaryEffort;
 }
 
 /// The batter's official result for one plate appearance.
@@ -453,8 +451,8 @@ OfficialScoring foldOfficialScoring(
     state = foldGameState([event], startingFrom: state);
   }
 
-  // Pass B: misplay ledger, then §13.2 error charging: ordinaryEffort
-  // resolves true AND the misplay had a consequence.
+  // Pass B: misplay ledger, then §13.2 error charging (v0.56): the misplay
+  // cost something. That is the whole test — rule 9.12 read literally.
   final misplays = <MisplayRecord>[];
   final errors = <OfficialError>[];
 
@@ -462,17 +460,13 @@ OfficialScoring foldOfficialScoring(
     final t = touch.payload;
     if (!misplayTouchTypes.contains(t.touchType)) continue;
 
-    final resolvedEffort =
-        t.ordinaryEffort ?? defaultOrdinaryEffort(t.touchType);
     misplays.add(
       MisplayRecord(
         touchEventId: touch.eventId,
         position: t.position,
         touchType: t.touchType,
-        ordinaryEffort: resolvedEffort,
       ),
     );
-    if (resolvedEffort != true) continue;
 
     // §13.2: a passed ball is not an error — they are two separate
     // statistics. A pitch that gets away from the catcher is charged to
@@ -507,7 +501,7 @@ OfficialScoring foldOfficialScoring(
       OfficialError(
         touchEventId: touch.eventId,
         position: t.position,
-        kind: _kindOf(t.touchType),
+        kind: officialErrorKindOf(t.touchType),
         basis: basis,
       ),
     );
@@ -663,8 +657,6 @@ List<PitchGetaway> _pitchGetaways({
     final t = touch.payload;
     if (!pitchReceivingTouchTypes.contains(t.touchType)) continue;
     if (!pitchEventIds.contains(t.anchorEventId)) continue;
-    final effort = t.ordinaryEffort ?? defaultOrdinaryEffort(t.touchType);
-    if (effort != true) continue;
     misplayOnPitch.putIfAbsent(t.anchorEventId, () => touch);
   }
 
@@ -728,32 +720,11 @@ List<PitchGetaway> _pitchGetaways({
   ];
 }
 
-/// §13.2 defaults: `booted`, `missed_catch`, `dropped` resolve true when
-/// the scorer recorded no judgment. Everything else stays null —
-/// "prompt the scorer" — and is never charged until resolved.
-/// §13.2's `ordinaryEffort` inference — the single definition, read both
-/// here (when a touch carries no explicit judgment) and by the play draft
-/// at commit, so the two can never drift.
-///
-/// v0.43 adds `tag_missed`: recording a missed tag is itself the claim that
-/// she should have made it. `wild_throw` deliberately stays a judgment call
-/// — a throw can sail and cost nothing, the runner ending up exactly where
-/// a good throw would have left her. Null means "prompt" — unresolved, and
-/// never charged while it stays that way.
-bool? defaultOrdinaryEffort(TouchType type) {
-  switch (type) {
-    case TouchType.BOOTED:
-    case TouchType.MISSED_CATCH:
-    case TouchType.DROPPED:
-    case TouchType.TAG_MISSED:
-      return true;
-    // ignore: no_default_cases - the misplay set is filtered before this.
-    default:
-      return null;
-  }
-}
-
-OfficialErrorKind _kindOf(TouchType type) {
+/// Which kind of official error a misplay touch charges (§13.2). Public
+/// because the entry surface names the error the scorer is charging — "on
+/// the throwing error" — and that naming must come from the same mapping
+/// the projection charges by, never a second copy of it.
+OfficialErrorKind officialErrorKindOf(TouchType type) {
   switch (type) {
     case TouchType.BOOTED:
     case TouchType.BOBBLED:
@@ -955,9 +926,9 @@ BatterOutcome _batterOutcome(
     );
   }
 
-  // Hit vs. error (§13.2): the judgment lives on the first touch. If the
-  // reach was enabled by a *charged* error the batter reached on it; an
-  // uncharged misplay (ordinaryEffort false) means the reach was a hit.
+  // Hit vs. error (§13.2): the judgment is the link the scorer made. If the
+  // reach was enabled by a *charged* error the batter reached on it; a
+  // misplay she linked nothing to means the reach was a hit.
   // Reached on an error: either the enabling touch was charged, or the
   // scorer said `error` with nothing to link — an advance that claims an
   // error is not a hit just because its cause went unrecorded.
