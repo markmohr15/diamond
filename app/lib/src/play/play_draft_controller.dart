@@ -295,9 +295,17 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
 
   /// The hit-vs-error answer on the batter's reach (§13.2 v0.56): she
   /// earned first, or the misplay that opened the play gave it to her.
-  Future<void> resolveReach({required bool earned, int? misplayKey}) {
+  Future<void> resolveReach({
+    required bool earned,
+    int? misplayKey,
+    RunnerAdvanceReason? reason,
+  }) {
     return _mutate(
-      (draft) => draft.resolvingReach(earned: earned, misplayKey: misplayKey),
+      (draft) => draft.resolvingReach(
+        earned: earned,
+        misplayKey: misplayKey,
+        reason: reason,
+      ),
     );
   }
 

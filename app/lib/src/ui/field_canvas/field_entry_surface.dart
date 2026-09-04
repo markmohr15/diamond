@@ -332,6 +332,37 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// not have to have gone anywhere. It can deflect off her shin guards and
   /// sit three feet away, and the claim being made is only that she is not
   /// the one holding it.
+  /// An out on a runner the batter's contact pushed — retired at the base
+  /// she started from, or one beyond it (§15.1 v0.56).
+  ///
+  /// This *is* the defense choosing her over the batter, so the reach is a
+  /// fielder's choice and nothing is asked. Mark, 2026-09-04: the deciding
+  /// factor is "did we get an out on a runner attempting to move up one
+  /// base". Two bases is a different play — a runner going first to third on
+  /// a ball through the infield is running on her own, and the batter
+  /// standing on first got there on the hit.
+  bool get _outOnPushedRunner {
+    final bases = _foldBases;
+    final origins = <String, int>{
+      if (bases.first != null) bases.first!: 1,
+      if (bases.second != null) bases.second!: 2,
+      if (bases.third != null) bases.third!: 3,
+    };
+    for (final entry in _draft.entries) {
+      if (entry is! OutEntry || entry.runnerId == _draft.batterId) continue;
+      final origin = origins[entry.runnerId];
+      if (origin != null && entry.atBase - origin <= 1) return true;
+    }
+    return false;
+  }
+
+  /// A throw taken anywhere but first: the defense had somewhere else to go
+  /// with it, so a fielder's choice is on the table even though nobody was
+  /// retired.
+  bool get _threwElsewhere => _draft.entries.whereType<TouchEntry>().any(
+    (t) => t.touchType == TouchType.RECEIVED_THROW && t.position != 3,
+  );
+
   /// Positions 1–6. Everything above is an outfielder (7/8/9, plus 10 —
   /// softball's fourth outfielder, §4.2).
   static bool _isInfield(int position) => position <= 6;
@@ -840,40 +871,101 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// answer leads: a misplay on the first touch usually is what put her
   /// there, so the common play stays one tap.
   void _showReachDialog({bool thenCommit = false}) {
-    final choices = _errorChoices(_draft);
+    // Determined, not asked (v0.56): retiring a runner the batter pushed up
+    // a base *is* the defense choosing her over the batter.
+    if (_outOnPushedRunner) {
+      unawaited(
+        _answerReach(
+          id: 'fc',
+          earned: true,
+          reason: RunnerAdvanceReason.FIELDERS_CHOICE,
+          thenCommit: thenCommit,
+        ),
+      );
+      return;
+    }
+    // Everything the record leaves open, and nothing it doesn't. The errors
+    // lead — a misplay on a play where she is still standing on first
+    // usually is what put her there — and each names its own charge, so the
+    // app never picks between the boot and the throw that followed it.
+    final answers =
+        <({String id, String label, bool earned, int? key, bool fc})>[
+          for (final choice in _errorChoices(_draft))
+            (
+              id: choice.id,
+              label: choice.label,
+              earned: false,
+              key: choice.touchKey,
+              fc: false,
+            ),
+          // The throw that just arrived can be why she is safe, and a clean
+          // chain has no misplay for the error answers to point at. These
+          // write one — the same pair the SAFE popup offers a runner.
+          if (_draft.lastThrow != null) ...[
+            (
+              id: 'wild_throw',
+              label: 'The throw was wild',
+              earned: false,
+              key: null,
+              fc: false,
+            ),
+            (
+              id: 'dropped_throw',
+              label: 'Dropped the throw',
+              earned: false,
+              key: null,
+              fc: false,
+            ),
+          ],
+          if (_threwElsewhere)
+            (
+              id: 'fc',
+              label: "Fielder's choice",
+              earned: true,
+              key: null,
+              fc: true,
+            ),
+          (id: 'hit', label: 'Single', earned: true, key: null, fc: false),
+        ];
+    // One possible answer is not a question: a clean single costs the
+    // scorer nothing, which is what lets this gate run on every play.
+    if (answers.length == 1) {
+      final only = answers.single;
+      unawaited(
+        _answerReach(
+          id: only.id,
+          earned: only.earned,
+          misplayKey: only.key,
+          thenCommit: thenCommit,
+        ),
+      );
+      return;
+    }
     _centeredDialog('Safe at 1B — how?', [
       Wrap(
         spacing: 8,
         runSpacing: 8,
         alignment: WrapAlignment.center,
         children: [
-          // The errors lead: a misplay on a play where she is still standing
-          // on first usually is what put her there, so the common answer
-          // stays one tap. Each names its own charge — the app never picks
-          // between the boot and the throw that followed it.
-          for (final choice in choices)
+          for (final answer in answers)
             ActionChip(
-              key: safeChipKey(choice.id),
-              label: Text(choice.label),
+              key: safeChipKey(answer.id),
+              label: Text(answer.label),
               onPressed: () {
                 Navigator.pop(context);
                 unawaited(
                   _answerReach(
-                    earned: false,
-                    misplayKey: choice.touchKey,
+                    id: answer.id,
+                    earned: answer.earned,
+                    misplayKey: answer.key,
+                    reason: answer.fc
+                        ? RunnerAdvanceReason.FIELDERS_CHOICE
+                        : null,
                     thenCommit: thenCommit,
                   ),
                 );
               },
             ),
-          ActionChip(
-            key: safeChipKey('hit'),
-            label: const Text('Single'),
-            onPressed: () {
-              Navigator.pop(context);
-              unawaited(_answerReach(earned: true, thenCommit: thenCommit));
-            },
-          ),
         ],
       ),
     ]);
@@ -935,12 +1027,34 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   }
 
   Future<void> _answerReach({
+    required String id,
     required bool earned,
     required bool thenCommit,
     int? misplayKey,
+    RunnerAdvanceReason? reason,
   }) async {
     final controller = ref.read(playDraftProvider.notifier);
-    await controller.resolveReach(earned: earned, misplayKey: misplayKey);
+    final throwPair = _draft.lastThrow;
+    // The two answers that write the misplay they name rather than pointing
+    // at one already on the chain.
+    if (throwPair != null && id == 'wild_throw') {
+      await controller.safeOnWildThrow(
+        throwerKey: throwPair.thrower.key,
+        receiverKey: throwPair.receiver.key,
+        affirmRunnerId: _draft.batterId,
+      );
+    } else if (throwPair != null && id == 'dropped_throw') {
+      await controller.safeOnDroppedThrow(
+        receiverKey: throwPair.receiver.key,
+        affirmRunnerId: _draft.batterId,
+      );
+    } else {
+      await controller.resolveReach(
+        earned: earned,
+        misplayKey: misplayKey,
+        reason: reason,
+      );
+    }
     if (thenCommit) await controller.commit();
   }
 
@@ -1031,8 +1145,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             // cause.
             for (final choice in _errorChoices(draft))
               (choice.id, choice.label, SafeResolution.onError, null),
-            if (!caught)
-              ('fc', "Fielder's choice", SafeResolution.fieldersChoice, null),
+            // No fielder's choice here (v0.56). Mark: it is how the *batter*
+            // reaches first when the defense elects to throw somewhere else,
+            // so it is never an answer about a runner already aboard — and
+            // at home it was nonsense. The batter's own reach question owns
+            // it now.
           ];
 
     // One possible answer is not a question: tagging up on a routine fly

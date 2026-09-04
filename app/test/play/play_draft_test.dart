@@ -337,8 +337,15 @@ void main() {
       expect(reach.enabledByKey, isNull);
       expect(draft.reachNeedsAnswer, isFalse);
       // A misplay nobody linked to anything charges nothing and the hit
-      // stands — the pair one boolean could never express.
-      expect(draft.toEvents()[2].payload['reason'], 'batted_ball');
+      // stands — the pair one boolean could never express. With nothing
+      // explaining her reach she keeps the walk-up's place at the head of
+      // the chain, ahead of the boot, which is the order §14 play-16 shows.
+      expect(draft.toEvents().map((e) => e.type), [
+        'BallInPlay',
+        'RunnerAdvance',
+        'FielderTouch',
+      ]);
+      expect(draft.toEvents()[1].payload['reason'], 'batted_ball');
     });
 
     test('a clean first touch leaves the reach alone — the hit stands', () {

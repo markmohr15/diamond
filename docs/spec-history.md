@@ -96,6 +96,18 @@ they name — *the throw was wild* retypes the thrower and removes the reception
 retypes the reception — because the error answers only ever offered misplays already on the chain,
 and a clean chain has none.
 
+**Fielder's choice moved to the batter's reach question**, where it belongs: Mark, 2026-09-04, it is
+how the batter reaches first when the defense throws somewhere else, never an answer about a runner
+already aboard. Offered on the SAFE menu it was noise at second and third and nonsense at the plate.
+
+The reach question therefore runs on every play rather than only when a misplay exists, and pays for
+itself by collapsing: one possible answer is not a question, so a clean single applies itself and the
+scorer is asked only where the record genuinely leaves the answer open. An out on a runner the
+batter's contact pushed — retired at the base she started from or one beyond it — decides the
+fielder's choice with no question at all. Two bases is a different play, and the distinction is
+Mark's: a runner going first to third on a ball through the infield is running on her own, so the
+batter standing on first got there on the hit.
+
 That partly reverses v0.43, which withdrew a first-base prompt and answered the case with "a misplay
 stays one tap away on the node that took the throw." The withdrawal stands: Diamond volunteers
 nothing, the routine answer leads, and offering an answer is not guessing at one. The consolation
