@@ -15,6 +15,7 @@
     "sameBatterStillUp": true,
     "officialErrors": [ { "position": 5, "kind": "catching", "basis": "prolonged_at_bat" } ],
     "earnedRunFlags": { "b1": "unearned_if_scores_this_pa" },
+    "line": "b1 remained at bat on a dropped pop up error by the 3B.",
     "note": "Error with the at-bat continuing — count advances to 2-2 (foul with <2 strikes)."
   }
 }

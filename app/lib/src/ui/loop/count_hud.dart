@@ -3,6 +3,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
+import 'package:diamond/src/ui/loop/play_log_sheet.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -18,6 +19,7 @@ const Key countHudKey = Key('countHud');
 const Key countHudUndoKey = Key('countHudUndo');
 @visibleForTesting
 const Key countHudThemeKey = Key('countHudTheme');
+const Key countHudLogKey = Key('countHudLog');
 @visibleForTesting
 const Key countHudCancelKey = Key('countHudCancel');
 @visibleForTesting
@@ -143,6 +145,16 @@ class CountHud extends ConsumerWidget {
             style: text.headlineMedium!.copyWith(color: foreground).code,
           ),
           const SizedBox(width: 12),
+          // DIA-024b: the half-inning, read back. Hidden by default and
+          // opened from here (Mark, 2026-09-29) — review rather than
+          // chrome, so it takes a tap and no permanent space. It sits
+          // outside the ↺/✕ pair, which is one cluster with one meaning.
+          IconButton(
+            key: countHudLogKey,
+            onPressed: () => showPlayLog(context),
+            icon: Icon(Icons.list_alt_outlined, color: foreground),
+            tooltip: 'Plays',
+          ),
           // Left of undo, per the design's top-right cluster (Mark,
           // 2026-09-01). A direct toggle rather than a settings surface:
           // light/dark does not belong to the pitch screens, and its real

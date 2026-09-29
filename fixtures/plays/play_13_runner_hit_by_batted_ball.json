@@ -17,6 +17,7 @@
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
     "runnerBases": { "b1": 1 },
+    "line": "b1 singled to right-center, r1 out advancing.",
     "note": "The dead-ball case with no fielder touch at all: nobody fielded the ball, so the out has no `putoutTouchId` — it is the umpire's call that retires her, anchored by `enabledByCallId`. The batter is credited a single by rule even though the ball never reached a fielder, which is why hit credit cannot be conditioned on anyone having touched it."
   }
 }

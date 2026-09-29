@@ -16,6 +16,7 @@
     "runs": 0,
     "officialErrors": [ { "position": 4, "kind": "catching", "basis": "runner_survived" } ],
     "runnerBases": { "r1": 1 },
+    "line": "r1 safe at first on a missed catch by the 2B.",
     "note": "from==to advance records surviving the rundown, attributed to the misplay. Anchored to the pitch (e0), which is what §15.6 v0.45 writes: a between-pitch entry hangs its touches off the pitch that already exists. It previously anchored to the literal string 'pickoff' and asked for a PickoffAttempt event to be formalized — that event is not coming (DIA-008d solved anchoring generally), and the string resolved to nothing, so this play was validating a shape the app cannot produce."
   }
 }

@@ -17,6 +17,7 @@
     "batterResult": { "batterId": "b1", "scoring": "dropped_third_strike", "hit": false, "rbi": 0, "atBat": true },
     "runnerBases": { "b1": 1 },
     "pitchGetaways": [ { "kind": "passed_ball", "pitcherId": "p1", "position": 2, "advances": 1 } ],
+    "line": "b1 struck out, reached first on a passed ball.",
     "note": "A passed ball is not an error (§13.2) — the two are separate statistics, and the rulebook charges a batter reaching on a passed ball or wild pitch on strike three to nobody's glove. The catcher's miss is still recorded as a misplay: layer 1 is physics and does not depend on what official scoring makes of it. `missed_catch` is the one spelling for failing to receive a pitch (\u00a713.2) \u2014 whether she got a glove on it is not a judgment the scorer is asked to make. Contrast play-05, where the catcher's *throw* to first sails and E2 throwing is charged — a thrown ball is not a pitch."
   }
 }

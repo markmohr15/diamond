@@ -17,6 +17,7 @@
     "officialErrors": [],
     "misplays": [ { "position": 6, "touchType": "dropped" } ],
     "batterResult": { "batterId": "b1", "scoring": "out", "hit": false },
+    "line": "b1 lined to SS, b1 out at first.",
     "note": "Misplay logged for development view; NO official error (no consequence, §13.2)."
   }
 }
