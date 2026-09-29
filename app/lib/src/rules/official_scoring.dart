@@ -371,6 +371,8 @@ class PlayRecord {
     required this.pitchEventId,
     required this.batterId,
     required this.plateAppearanceIndex,
+    required this.inning,
+    required this.half,
     required this.ballInPlay,
     required this.touches,
     required this.advances,
@@ -392,6 +394,11 @@ class PlayRecord {
   /// outcomes by batter id would get it wrong the moment a lineup bats
   /// around.
   final int plateAppearanceIndex;
+
+  /// When it happened, so a reader can scope to the half-inning in front of
+  /// her rather than the whole game.
+  final int inning;
+  final Half? half;
 
   /// Her batted ball, when this pitch was put in play.
   final ({String eventId, BallInPlay payload})? ballInPlay;
@@ -430,6 +437,7 @@ OfficialScoring foldOfficialScoring(
   final pitcherOfPitch = <String, String>{};
   final batterOfPitch = <String, String>{};
   final paOfPitch = <String, int>{};
+  final inningOfPitch = <String, ({int inning, Half? half})>{};
   final touches = <_TouchRecord>[];
   final advances = <_AdvanceRecord>[];
   final outs = <_OutRecord>[];
@@ -466,6 +474,7 @@ OfficialScoring foldOfficialScoring(
         }
         batterOfPitch[event.id] = pitch.batterId;
         paOfPitch[event.id] = plateAppearances.length - 1;
+        inningOfPitch[event.id] = (inning: state.inning, half: state.half);
         if (pitch.outcome != Outcome.UNKNOWN) {
           // Count context comes from the running GameState fold, so this
           // stays correct across CountCorrection checkpoints.
@@ -693,6 +702,8 @@ OfficialScoring foldOfficialScoring(
           pitchEventId: pitchId,
           batterId: batterOfPitch[pitchId] ?? '',
           plateAppearanceIndex: paOfPitch[pitchId] ?? -1,
+          inning: inningOfPitch[pitchId]?.inning ?? 1,
+          half: inningOfPitch[pitchId]?.half,
           ballInPlay: bip,
           // A touch hangs off the ball in play when there was one, and off
           // the pitch itself when there was not (§15.6 v0.45).

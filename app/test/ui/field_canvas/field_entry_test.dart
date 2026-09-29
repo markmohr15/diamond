@@ -13,6 +13,7 @@ import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
+import 'package:diamond/src/ui/loop/play_log_sheet.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:drift/native.dart';
@@ -466,6 +467,35 @@ void main() {
       expect(touches, hasLength(2));
       expect(touches.last.payload['touchType'], 'fielded');
       expect(touches.last.payload['position'], 7);
+    });
+  });
+
+  group('the play log (DIA-024b)', () {
+    testWidgets('a committed play is readable from the top bar, in the '
+        "scorer's own words", (tester) async {
+      await pumpLoop(tester);
+      // Empty before anything is scored, and it says so rather than
+      // opening a blank box.
+      await tapKey(tester, countHudLogKey);
+      expect(find.byKey(playLogEmptyKey), findsOneWidget);
+      await tapKey(tester, playLogCloseKey);
+
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('booted'));
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, safeChipKey('error-fielding-6'));
+
+      // The point of the whole ticket: what she just entered, said back to
+      // her, without leaving the loop or reading the database.
+      await tapKey(tester, countHudLogKey);
+      expect(find.byKey(playLogKey), findsOneWidget);
+      expect(
+        find.textContaining('On a fielding error by the SS'),
+        findsOneWidget,
+      );
     });
   });
 
