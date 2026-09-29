@@ -14,6 +14,9 @@ analyzer:
     # quicktype output (tools/codegen) — not hand-maintained, not held to our
     # lint conventions (e.g. enum member casing quicktype doesn't let us set).
     - lib/src/events/generated/**
+    - build/**
+    - android/**
+    - ios/**
 
 linter:
   # The lint rules applied to this project can be customized in the
