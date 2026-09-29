@@ -233,6 +233,7 @@ class OfficialScoring {
     required this.strikeoutsByPitcher,
     required this.pitchGetaways,
     required this.unearnedConditions,
+    required this.plays,
   });
 
   final List<OfficialError> errors;
@@ -245,6 +246,10 @@ class OfficialScoring {
   /// §13.2's wild pitches and passed balls, in stream order — one entry
   /// per pitch that got away and let somebody move.
   final List<PitchGetaway> pitchGetaways;
+
+  /// The stream partitioned into happenings, in order (DIA-024). Pitches
+  /// that were only pitches are not here — see [PlayRecord.isEmpty].
+  final List<PlayRecord> plays;
 
   /// WP charged to each pitcher, the counterpart to [strikeoutsByPitcher].
   Map<String, int> get wildPitchesByPitcher {
@@ -328,10 +333,15 @@ class _AdvanceRecord {
 }
 
 class _OutRecord {
-  _OutRecord(this.eventId, this.payload);
+  _OutRecord(this.eventId, this.payload, this.pitchAtTime);
 
   final String eventId;
   final RunnerOut payload;
+
+  /// The pitch this out happened on. Advances have carried one since
+  /// §13.2's WP/PB derivation needed it; outs need it for the same reason
+  /// the log does — the pitch is what groups a happening together.
+  final String? pitchAtTime;
 }
 
 class _TouchRecord {
@@ -340,6 +350,60 @@ class _TouchRecord {
   final String eventId;
   final FielderTouch payload;
   final String? batterAtTime;
+}
+
+/// One thing that happened, with everything the stream attributes to it
+/// (DIA-024).
+///
+/// **The pitch is the grouping key**, for both kinds of happening. A batted
+/// ball hangs off the pitch it was hit on, and §15.6 v0.45 has a
+/// between-pitch entry hang off the pitch that already exists — so a steal,
+/// a wild pitch and a ground ball are all "a pitch and what followed it",
+/// and reading them in pitch order reads the half-inning in order.
+///
+/// Published rather than recomputed. The engine already partitions the
+/// stream this way internally; a consumer that re-derived it would be
+/// keeping a second copy of a subtle rule, which is the failure §21.5
+/// forbids for the schema and that applies here for the same reason.
+/// §17's stat filters want the same grouping.
+class PlayRecord {
+  const PlayRecord({
+    required this.pitchEventId,
+    required this.batterId,
+    required this.plateAppearanceIndex,
+    required this.ballInPlay,
+    required this.touches,
+    required this.advances,
+    required this.outs,
+  });
+
+  final String pitchEventId;
+
+  /// Who was up. Carried so a consumer never has to ask the stream again.
+  final String batterId;
+
+  /// Which plate appearance this pitch belonged to — an index into
+  /// [OfficialScoring.batterOutcomes], which is built from the same
+  /// partition in the same order.
+  ///
+  /// Published for the same reason the grouping is: the boundary rule is
+  /// subtle (a half-inning ending closes an open PA, and the batter who was
+  /// up starts a new one rather than continuing), and a consumer matching
+  /// outcomes by batter id would get it wrong the moment a lineup bats
+  /// around.
+  final int plateAppearanceIndex;
+
+  /// Her batted ball, when this pitch was put in play.
+  final ({String eventId, BallInPlay payload})? ballInPlay;
+
+  final List<({String eventId, FielderTouch payload})> touches;
+  final List<({String eventId, RunnerAdvance payload})> advances;
+  final List<({String eventId, RunnerOut payload})> outs;
+
+  /// Whether anything followed the pitch. A called strike is a pitch and
+  /// not a happening; nothing reading this wants a line for it.
+  bool get isEmpty =>
+      ballInPlay == null && advances.isEmpty && outs.isEmpty && touches.isEmpty;
 }
 
 /// Derives [OfficialScoring] from the visible, logically-ordered stream.
@@ -364,6 +428,8 @@ OfficialScoring foldOfficialScoring(
   // charges WP/PB on rather than an error.
   final pitchEventIds = <String>{};
   final pitcherOfPitch = <String, String>{};
+  final batterOfPitch = <String, String>{};
+  final paOfPitch = <String, int>{};
   final touches = <_TouchRecord>[];
   final advances = <_AdvanceRecord>[];
   final outs = <_OutRecord>[];
@@ -398,6 +464,8 @@ OfficialScoring foldOfficialScoring(
           openPa = _PlateAppearance(pitch.batterId);
           plateAppearances.add(openPa);
         }
+        batterOfPitch[event.id] = pitch.batterId;
+        paOfPitch[event.id] = plateAppearances.length - 1;
         if (pitch.outcome != Outcome.UNKNOWN) {
           // Count context comes from the running GameState fold, so this
           // stays correct across CountCorrection checkpoints.
@@ -432,7 +500,11 @@ OfficialScoring foldOfficialScoring(
         advances.add(advance);
         openPa?.advances.add(advance);
       case 'RunnerOut':
-        final out = _OutRecord(event.id, RunnerOut.fromJson(event.payload));
+        final out = _OutRecord(
+          event.id,
+          RunnerOut.fromJson(event.payload),
+          pitchOfRecord,
+        );
         outs.add(out);
         openPa?.outs.add(out);
       case 'InningHalfStart':
@@ -606,6 +678,44 @@ OfficialScoring foldOfficialScoring(
     }
   }
 
+  // Pass D: the partition, in pitch order (DIA-024). Everything it needs
+  // was collected above; this only groups what the passes already have, so
+  // it cannot disagree with them.
+  final bipByPitch = {
+    for (final MapEntry(key: id, value: bip) in ballInPlayById.entries)
+      bip.pitchEventId: (eventId: id, payload: bip),
+  };
+  final plays = <PlayRecord>[
+    for (final pitchId in pitchEventIds)
+      () {
+        final bip = bipByPitch[pitchId];
+        return PlayRecord(
+          pitchEventId: pitchId,
+          batterId: batterOfPitch[pitchId] ?? '',
+          plateAppearanceIndex: paOfPitch[pitchId] ?? -1,
+          ballInPlay: bip,
+          // A touch hangs off the ball in play when there was one, and off
+          // the pitch itself when there was not (§15.6 v0.45).
+          touches: [
+            for (final t in touches)
+              if (t.payload.anchorEventId == bip?.eventId ||
+                  t.payload.anchorEventId == pitchId)
+                (eventId: t.eventId, payload: t.payload),
+          ],
+          advances: [
+            for (final a in advances)
+              if (a.pitchAtTime == pitchId)
+                (eventId: a.eventId, payload: a.payload),
+          ],
+          outs: [
+            for (final o in outs)
+              if (o.pitchAtTime == pitchId)
+                (eventId: o.eventId, payload: o.payload),
+          ],
+        );
+      }(),
+  ];
+
   return OfficialScoring(
     errors: errors,
     misplays: misplays,
@@ -615,6 +725,7 @@ OfficialScoring foldOfficialScoring(
     strikeoutsByPitcher: strikeouts,
     pitchGetaways: pitchGetaways,
     unearnedConditions: unearned,
+    plays: plays,
   );
 }
 

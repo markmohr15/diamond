@@ -18,6 +18,7 @@
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
     "runnerBases": { "b1": 1 },
+    "line": "b1 singled to left, r2 scored on obstruction.",
     "note": "Obstruction where it actually happens — a fielder without the ball in a runner's path between the bases. No error: the E-charge for obstruction is scoped to the batter-runner awarded first (§13.2 v0.43), who did not hit her way on. The obstructed runner's award still counts as a run but earns no RBI, since the leg's reason is the umpire's award, not the batted ball."
   }
 }

@@ -18,6 +18,7 @@
     "runs": 1,
     "officialErrors": [],
     "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 1 },
+    "line": "b1 singled to right, b1 out at second, r3 scored.",
     "note": "A hit AND an out on the same play — the template-breaking combination."
   }
 }

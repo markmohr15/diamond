@@ -5,6 +5,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
+import 'package:diamond/src/rules/play_line.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Runs every §14 acceptance play in `fixtures/plays/` against the rules
@@ -139,6 +140,7 @@ void _assertExpectations(
     'earnedRunFlags',
     'pitcherStrikeouts',
     'pitchGetaways',
+    'line',
     'note',
     'variant',
   });
@@ -147,6 +149,14 @@ void _assertExpectations(
     switch (key) {
       case 'note' || 'variant':
         break;
+      // DIA-024: what the play scored as, said in a sentence. Asserted
+      // here because these 19 plays were chosen to cover the cases that
+      // break things, so each is a string worth pinning — and because a
+      // wording change should have to face them all at once.
+      case 'line':
+        final lines = playLines(scoring);
+        expect(lines, hasLength(1), reason: '$id: one happening expected');
+        expect(lines.single.text, value, reason: '$id: line');
       case 'outs':
         expect(state.outs, value, reason: '$id: outs');
       case 'runs':
