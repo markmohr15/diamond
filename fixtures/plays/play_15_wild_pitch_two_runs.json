@@ -17,6 +17,7 @@
     "officialErrors": [],
     "runnerBases": { "r1": 2 },
     "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 4 } ],
+    "line": "Wild pitch, r3 scored, r2 scored, r1 advanced to second.",
     "note": "Rule 9.13 charges a wild pitch per *pitch*, never per runner: four advances, two runs, one charge. r2 appears twice — 2→3 with the pack, then 3→4 on her own — which is legal and is the case a naive per-advance count gets wrong. Entered exactly this way in the simulator (2026-08-30): §11.1's one-tap 'all runners up one' wrote e2–e4, then the field surface wrote e5. No touch is recorded because a wild pitch's physics is the *absence* of one (§13.2), and no error follows for the same reason. The count still advances on ball two."
   }
 }

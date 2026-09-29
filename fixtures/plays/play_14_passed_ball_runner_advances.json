@@ -16,6 +16,7 @@
     "misplays": [ { "position": 2, "touchType": "missed_catch" } ],
     "runnerBases": { "r2": 3 },
     "pitchGetaways": [ { "kind": "passed_ball", "pitcherId": "p1", "position": 2, "advances": 1 } ],
+    "line": "Passed ball, r2 advanced to third.",
     "note": "The passed ball away from a dropped third strike — §15.6's between-pitch entry, where the at-bat simply continues. Charging an error here was the general form of the same bug play-11 pins: the exemption is about the ball being a *pitch*, not about a strikeout being involved. The count still advances on ball one."
   }
 }

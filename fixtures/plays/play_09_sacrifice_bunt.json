@@ -18,6 +18,7 @@
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "sacrifice_bunt", "hit": false, "rbi": 0, "atBat": false },
     "runnerBases": { "r1": 2 },
+    "line": "b1 out on a sacrifice bunt to 3B, r1 advanced to second.",
     "note": "The bunt is the one sacrifice that cannot derive (§13.6): nothing physical separates giving herself up from bunting for a hit, so `sacrifice: true` on the batted ball is scorer judgment. Everything else here is an ordinary 5-3 — the flag's only effect is that this plate appearance is not an at-bat.",
     "variant": "Drop `sacrifice` (or set it false) and the identical stream is an ordinary groundout: scoring `out`, at-bat charged."
   }

@@ -18,6 +18,7 @@
     "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false, "atBat": true },
     "runnerBases": { "b1": 1 },
     "earnedRunFlags": { "b1": "unearned_if_scores" },
+    "line": "b1 grounded to SS. On a throwing error by the SS, b1 advanced to first.",
     "note": "No misplay on the first touch at all — she fielded it clean and threw it away. Before v0.56 the reach question was only raised by a misplay *opening* the play, so this scored as a single with nothing charged: the plainest E6 in the book, invisible. The trigger is now any misplay the scorer could charge the reach to, and she names which one."
   }
 }

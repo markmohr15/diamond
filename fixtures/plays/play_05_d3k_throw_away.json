@@ -17,6 +17,7 @@
     "officialErrors": [ { "position": 2, "kind": "throwing" } ],
     "runnerBases": { "b1": 2, "r1": 3 },
     "pitchGetaways": [ { "kind": "wild_pitch", "pitcherId": "p1", "advances": 1 } ],
+    "line": "b1 struck out, reached first on a wild pitch. On a throwing error by the C, b1 advanced to second and r1 advanced to third.",
     "note": "K credited, no out recorded. The reach carries reason=dropped_third_strike (why she was entitled to run) and cause=wild_pitch (what happened to the ball) — two facts that shared one field until v0.50, which is why this used to be inferred from the absence of a catcher touch. bounceLocation corroborates and decides nothing."
   }
 }
