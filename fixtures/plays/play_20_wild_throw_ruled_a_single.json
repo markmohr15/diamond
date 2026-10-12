@@ -1,0 +1,26 @@
+{
+  "id": "play-20",
+  "title": "Wild throw on an infield single; batter out stretching, so nothing is charged",
+  "specRef": "§13.2 (v0.56 hit-vs-error), §14, DIA-024",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 2 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.1, "y": -0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "landing": { "x": -55, "y": 100 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "fielded", "location": { "x": -55, "y": 100 } } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "wild_throw" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e6", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 9, "touchType": "fielded" } },
+    { "id": "e7", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 4, "touchType": "received_throw" } },
+    { "id": "e8", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 4, "touchType": "tag_applied" } },
+    { "id": "e9", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 2, "how": "tag", "putoutTouchId": "e8" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "misplays": [{ "position": 6, "touchType": "wild_throw" }],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
+    "line": "b1 singled to SS, b1 out at second.",
+    "note": "A misplay that cost nothing charges nothing (§13.2 v0.56), and this is the shape where that is easiest to get wrong. The throw sailed, but the scorer ruled she beat it out — so her reach links to nothing and is a hit, and the wild throw has no consequence to charge. She then tried for second on the loose ball and was thrown out, which takes a base away rather than granting one. The misplay survives in the development ledger either way: layer 1 is physics and does not depend on what official scoring makes of it."
+  }
+}
