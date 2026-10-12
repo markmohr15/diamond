@@ -16,7 +16,8 @@ const _sheet = Size(660, 360);
 /// What to look at: the sentences carry the ink and nothing frames them
 /// (§18.7, data-ink first); a play whose error is a second sentence reads
 /// as one paragraph rather than two rows, because it is one play; and the
-/// newest is at the top, which is where the eye lands.
+/// inning reads top to bottom, the way a scorebook does, with the viewport
+/// parked at the end so the newest play is in view anyway.
 void main() {
   // Real output, taken from the §14 fixtures: a play whose error is a
   // second sentence, a wild pitch moving three runners, both sacrifices,
@@ -62,7 +63,7 @@ void main() {
     builder: () => GoldenTestGroup(
       children: [
         GoldenTestScenario(
-          name: 'a half-inning, newest first',
+          name: 'a half-inning, in the order it happened',
           constraints: BoxConstraints.tight(_sheet),
           child: log(Brightness.light),
         ),

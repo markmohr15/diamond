@@ -496,6 +496,30 @@ void main() {
         find.textContaining('On a fielding error by the SS'),
         findsOneWidget,
       );
+      await tapKey(tester, playLogCloseKey);
+
+      // A second play, to pin the order. A scorebook reads top to bottom
+      // because the state carries forward — backwards, a runner scores
+      // above the advance that put her in position to (Mark, 2026-10-12).
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.LINE));
+      await tapWorld(tester, FieldCoord(x: -45, y: 120));
+      await tapKey(tester, fieldCommitKey);
+
+      await tapKey(tester, countHudLogKey);
+      final rendered = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(playLogKey),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((t) => t.data)
+          .whereType<String>()
+          .toList();
+      expect(rendered, hasLength(2));
+      expect(rendered.first, contains('On a fielding error by the SS'));
+      expect(rendered.last, contains('singled to left-center'));
     });
   });
 
