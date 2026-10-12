@@ -68,9 +68,29 @@ List<String> _sentences(
   // charged on it — a dropped foul pop — and then the error sentence is the
   // whole story, so describing the pop first would say it twice.
   final fair = play.ballInPlay?.payload.fair ?? false;
+  // An out belongs with the sentence that carries the runner's last
+  // advance, not always with the ball. She bunted, reached first on the
+  // throw, then was thrown out trying for second: the out is the end of
+  // that story, and rendering it with the bunt put it before the reach it
+  // followed (Mark, 2026-10-12).
+  final outHome = <String, String?>{};
+  for (final out in play.outs) {
+    String? home;
+    for (final MapEntry(key: cause, value: legs) in byCause.entries) {
+      for (final leg in legs) {
+        if (leg.payload.runnerId == out.payload.runnerId) home = cause;
+      }
+    }
+    outHome[out.eventId] = home;
+  }
+
   final sentences = <String>[
     if (play.ballInPlay != null) ...[
-      if (fair) _battedBall(play, scoring, label, byCause[null] ?? const []),
+      if (fair)
+        _battedBall(play, scoring, label, byCause[null] ?? const [], [
+          for (final o in play.outs)
+            if (outHome[o.eventId] == null) o,
+        ]),
     ] else
       ..._betweenPitches(play, label, byCause[null] ?? const []),
   ];
@@ -110,8 +130,18 @@ List<String> _sentences(
         if (a.payload.from != a.payload.to) _advanceClause(a.payload, label),
     ];
     if (moved.isEmpty) continue;
+    // Her out closes the sentence, after the base somebody was charged for
+    // giving her — but on a comma rather than joined to the advances with
+    // "and", which would read as though the error caused it. It did not:
+    // she reached on the throw and was thrown out trying for one more.
+    final after = [
+      for (final out in play.outs)
+        if (outHome[out.eventId] == touch.eventId)
+          _outClause(out.payload, null, label),
+    ];
     sentences.add(
-      'On a ${error.kind.name} error by the $who, ${_andJoin(moved)}.',
+      'On a ${error.kind.name} error by the $who, ${_andJoin(moved)}'
+      '${after.isEmpty ? '' : ', ${_join(after)}'}.',
     );
   }
   return sentences;
@@ -150,6 +180,7 @@ String _battedBall(
   OfficialScoring scoring,
   PlayerLabel label,
   List<({String eventId, RunnerAdvance payload})> plain,
+  List<({String eventId, RunnerOut payload})> outs,
 ) {
   final bip = play.ballInPlay!.payload;
   final outcome = play.plateAppearanceIndex >= 0
@@ -201,7 +232,7 @@ String _battedBall(
       : sectorFor(bip.landing).label;
 
   final clauses = <String>['$batter $verb to $place'];
-  for (final out in play.outs) {
+  for (final out in outs) {
     // Her own out is already in the verb when the catch or the sacrifice
     // said it; repeating it as "out at first" is the clause Mark cut.
     if (identical(out, retired) && (caught != null || sacrificed)) continue;

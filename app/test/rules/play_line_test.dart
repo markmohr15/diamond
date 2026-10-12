@@ -228,6 +228,57 @@ void main() {
     );
   });
 
+  test('an out closes the sentence it belongs to, not the one before it', () {
+    // She bunted, reached first on the throw, then was thrown out trying
+    // for second. Rendering the out with the bunt put it ahead of the reach
+    // it followed (Mark, 2026-10-12) — and joining it to the advances with
+    // "and" would read as though the error caused it, which it did not.
+    final b = EventBuilder();
+    expect(
+      linesFor([
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.ballInPlay(
+          id: 'bip',
+          pitchEventId: 'p',
+          trajectory: Trajectory.BUNT,
+          landing: FieldCoord(x: -40, y: 50),
+        ),
+        b.fielderTouch(
+          id: 't',
+          anchorEventId: 'bip',
+          position: 5,
+          touchType: TouchType.FIELDED,
+        ),
+        b.fielderTouch(
+          id: 'wt',
+          anchorEventId: 'bip',
+          position: 5,
+          touchType: TouchType.WILD_THROW,
+        ),
+        b.runnerAdvance(
+          id: 'a',
+          runnerId: 'b1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.ERROR,
+          enabledByTouchId: 'wt',
+        ),
+        b.runnerOut(id: 'o', runnerId: 'b1', atBase: 2, how: How.TAG),
+      ]),
+      [
+        // One expected line, wrapped to fit the column limit.
+        // ignore: no_adjacent_strings_in_list
+        'Jones bunted to 3B. On a throwing error by the 3B, '
+            'Jones advanced to first, Jones out at second.',
+      ],
+    );
+  });
+
   test('an error is its own sentence, led by the charge', () {
     // "Jones doubled to left, Simmons advanced to third.
     //  On a fielding error by LF, Simmons scored and Jones advanced to third."
