@@ -428,9 +428,15 @@ String _outClause(
   if (out.how == How.BATTED_BALL_CONTACT) {
     return '${label(out.runnerId)} out struck by batted ball';
   }
-  final base = chain != null
-      ? '${label(out.runnerId)} out $chain'
-      : '${label(out.runnerId)} out at ${_baseName(out.atBase)}';
+  // At first the chain already says where: 1B *is* first base, so naming
+  // it twice is the brevity Mark cut. Anywhere else the base has to be
+  // stated — a tag at second by the shortstop reads "RF to SS", and
+  // nothing in that says second (Mark, 2026-10-13).
+  final who = label(out.runnerId);
+  final base = out.atBase == 1
+      ? (chain != null ? '$who out $chain' : '$who out at first')
+      : '$who out advancing to ${_baseName(out.atBase)}'
+            '${chain == null ? '' : ' $chain'}';
   // Said once, on the out that earned it: the batter reached because the
   // defense took somebody else.
   return outcome?.scoring == 'fielders_choice'

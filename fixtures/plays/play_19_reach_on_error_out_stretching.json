@@ -19,7 +19,7 @@
     "officialErrors": [{ "position": 9, "kind": "fielding", "basis": "reached" }],
     "misplays": [{ "position": 9, "touchType": "booted" }],
     "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false, "rbi": 0, "atBat": true },
-    "line": "b1 lined to right. On a fielding error by the RF, b1 advanced to first, b1 out RF to SS.",
+    "line": "b1 lined to right. On a fielding error by the RF, b1 advanced to first, b1 out advancing to second RF to SS.",
     "note": "DIA-024's ordering case, from the simulator: she reached because of the misplay and was then thrown out trying for one more. The out belongs to the sentence carrying her last advance — rendering every out with the ball put it ahead of the reach it followed. The comma matters too: joined with 'and' the line would read as though the error cost her the out, and it did not. The boot still charges, because it is why she is on base at all; being retired afterwards does not give the base back."
   }
 }

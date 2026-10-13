@@ -222,7 +222,7 @@ void main() {
         // One expected line, wrapped to fit the column limit — not two
         // list entries.
         // ignore: no_adjacent_strings_in_list
-        'Jones grounded to SS, Simmons out at second '
+        'Jones grounded to SS, Simmons out advancing to second '
             "on a fielder's choice, Jones to first.",
       ],
     );
@@ -274,7 +274,7 @@ void main() {
         // One expected line, wrapped to fit the column limit.
         // ignore: no_adjacent_strings_in_list
         'Jones bunted to 3B. On a throwing error by the 3B, '
-            'Jones advanced to first, Jones out at second.',
+            'Jones advanced to first, Jones out advancing to second.',
       ],
     );
   });
