@@ -16,6 +16,7 @@
     "officialErrors": [],
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "sacrifice_fly", "hit": false, "rbi": 1, "atBat": false },
+    "line": "b1 out on a sacrifice fly to CF, r3 scored.",
     "note": "Derived, not entered (§13.6): caught fly, fewer than two outs, batter retired, a runner scoring from third on the ball, and no error anywhere. A plate appearance but not an at-bat — the sac bunt is the one that needs the scorer, since nothing physical separates giving herself up from bunting for a hit."
   }
 }

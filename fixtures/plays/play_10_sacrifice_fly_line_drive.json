@@ -16,6 +16,7 @@
     "officialErrors": [],
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "sacrifice_fly", "hit": false, "rbi": 1, "atBat": false },
+    "line": "b1 out on a sacrifice fly to LF, r3 scored.",
     "note": "A sac fly does not require trajectory `fly` (§13.6, v0.43): the rulebook credits it on any ball caught in the air, line drives included. Play-08 covers the ordinary fly; this one exists to pin the trajectory set, since narrowing it to fly/popup would silently turn this plate appearance back into an at-bat."
   }
 }

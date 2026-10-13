@@ -1,0 +1,25 @@
+{
+  "id": "play-19",
+  "title": "Reaches on the right fielder's error, then thrown out at second 9-6",
+  "specRef": "§13.2 (v0.56 hit-vs-error), §14, DIA-024",
+  "setup": { "outs": 0, "count": { "balls": 2, "strikes": 1 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.3, "y": -0.1 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": 140, "y": 190 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 9, "touchType": "booted", "location": { "x": 145, "y": 195 } } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "error", "enabledByTouchId": "e3" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 9, "touchType": "fielded", "location": { "x": 145, "y": 195 } } },
+    { "id": "e6", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "received_throw" } },
+    { "id": "e7", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "tag_applied" } },
+    { "id": "e8", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 2, "how": "tag", "putoutTouchId": "e7" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [{ "position": 9, "kind": "fielding", "basis": "reached" }],
+    "misplays": [{ "position": 9, "touchType": "booted" }],
+    "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false, "rbi": 0, "atBat": true },
+    "line": "b1 lined to right. On a fielding error by the RF, b1 advanced to first, b1 out advancing to second RF to SS.",
+    "note": "DIA-024's ordering case, from the simulator: she reached because of the misplay and was then thrown out trying for one more. The out belongs to the sentence carrying her last advance — rendering every out with the ball put it ahead of the reach it followed. The comma matters too: joined with 'and' the line would read as though the error cost her the out, and it did not. The boot still charges, because it is why she is on base at all; being retired afterwards does not give the base back."
+  }
+}

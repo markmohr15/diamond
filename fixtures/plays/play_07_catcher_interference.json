@@ -17,6 +17,7 @@
     "misplays": [],
     "batterResult": { "batterId": "b1", "scoring": "catcher_interference", "hit": false, "atBat": false },
     "runnerBases": { "b1": 1, "r1": 2 },
+    "line": "b1 reached on catcher's interference, r1 advanced to second.",
     "note": "Dead ball, no count effect, PA over (§4.1 v0.43). E2 charged by rule with no misplay touch — the ⚖ anchors the charge. The count resets because the plate appearance ended."
   }
 }
