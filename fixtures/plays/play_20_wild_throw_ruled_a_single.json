@@ -20,7 +20,7 @@
     "officialErrors": [],
     "misplays": [{ "position": 6, "touchType": "wild_throw" }],
     "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
-    "line": "b1 singled to SS, b1 out at second.",
+    "line": "b1 singled to SS, b1 out RF to 2B.",
     "note": "A misplay that cost nothing charges nothing (§13.2 v0.56), and this is the shape where that is easiest to get wrong. The throw sailed, but the scorer ruled she beat it out — so her reach links to nothing and is a hit, and the wild throw has no consequence to charge. She then tried for second on the loose ball and was thrown out, which takes a base away rather than granting one. The misplay survives in the development ledger either way: layer 1 is physics and does not depend on what official scoring makes of it."
   }
 }

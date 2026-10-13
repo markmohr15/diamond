@@ -137,7 +137,12 @@ List<String> _sentences(
     final after = [
       for (final out in play.outs)
         if (outHome[out.eventId] == touch.eventId)
-          _outClause(out.payload, null, label),
+          _outClause(
+            out.payload,
+            null,
+            label,
+            chain: _putoutChain(out.payload, play),
+          ),
     ];
     sentences.add(
       'On a ${error.kind.name} error by the $who, ${_andJoin(moved)}'
@@ -231,12 +236,31 @@ String _battedBall(
       ? (positionAbbreviations[first.position] ?? '${first.position}')
       : sectorFor(bip.landing).label;
 
-  final clauses = <String>['$batter $verb to $place'];
+  // A ball that struck a runner is **dead where it stopped**, and nobody
+  // fielded it — so there is no fielder to name and no sector either. The
+  // sector namer assumes an untouched ball reached the outfield, which
+  // holds because in the infield somebody picks it up eventually; a dead
+  // ball is the exception, and reporting the landing's bearing would claim
+  // geography the record does not support (Mark, 2026-10-13: *b1 singled,
+  // r1 out struck by batted ball*).
+  final deadOnContact = play.outs.any(
+    (o) => o.payload.how == How.BATTED_BALL_CONTACT,
+  );
+  final clauses = <String>[
+    if (deadOnContact) '$batter $verb' else '$batter $verb to $place',
+  ];
   for (final out in outs) {
     // Her own out is already in the verb when the catch or the sacrifice
     // said it; repeating it as "out at first" is the clause Mark cut.
     if (identical(out, retired) && (caught != null || sacrificed)) continue;
-    clauses.add(_outClause(out.payload, outcome, label));
+    clauses.add(
+      _outClause(
+        out.payload,
+        outcome,
+        label,
+        chain: _putoutChain(out.payload, play),
+      ),
+    );
   }
   for (final a in _finalLegs(plain)) {
     if (a.payload.runnerId == play.batterId) continue;
@@ -367,13 +391,46 @@ String _advanceClause(RunnerAdvance a, PlayerLabel label) {
   };
 }
 
-String _outClause(RunnerOut out, BatterOutcome? outcome, PlayerLabel label) {
+/// Who threw and who caught it, when a throw is what made the out — the
+/// spoken form of a 6-3. Abbreviations throughout, because brevity is the
+/// point (Mark, 2026-10-13); the base goes unsaid, as it does in "6-3".
+///
+/// Null when nobody threw: an unassisted putout has no chain, and naming
+/// the base is what carries the information there instead.
+String? _putoutChain(RunnerOut out, PlayRecord play) {
+  final putout = play.touches
+      .where((t) => t.eventId == out.putoutTouchId)
+      .firstOrNull;
+  if (putout == null) return null;
+  final index = play.touches.indexWhere((t) => t.eventId == putout.eventId);
+  final thrower = play.touches
+      .take(index)
+      .where((t) => t.payload.position != putout.payload.position)
+      .lastOrNull;
+  if (thrower == null) return null;
+  final from =
+      positionAbbreviations[thrower.payload.position] ??
+      '${thrower.payload.position}';
+  final to =
+      positionAbbreviations[putout.payload.position] ??
+      '${putout.payload.position}';
+  return '$from to $to';
+}
+
+String _outClause(
+  RunnerOut out,
+  BatterOutcome? outcome,
+  PlayerLabel label, {
+  String? chain,
+}) {
   // The ball found her; there is no base to name, and no fielder made a
   // play. Mark: *"Simmons out advancing."*
   if (out.how == How.BATTED_BALL_CONTACT) {
-    return '${label(out.runnerId)} out advancing';
+    return '${label(out.runnerId)} out struck by batted ball';
   }
-  final base = '${label(out.runnerId)} out at ${_baseName(out.atBase)}';
+  final base = chain != null
+      ? '${label(out.runnerId)} out $chain'
+      : '${label(out.runnerId)} out at ${_baseName(out.atBase)}';
   // Said once, on the out that earned it: the batter reached because the
   // defense took somebody else.
   return outcome?.scoring == 'fielders_choice'
