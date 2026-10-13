@@ -222,7 +222,7 @@ void main() {
         // One expected line, wrapped to fit the column limit — not two
         // list entries.
         // ignore: no_adjacent_strings_in_list
-        'Jones grounded to SS, Simmons out advancing to second '
+        'Jones grounded to SS, Simmons out at second '
             "on a fielder's choice, Jones to first.",
       ],
     );
@@ -276,6 +276,52 @@ void main() {
         'Jones bunted to 3B. On a throwing error by the 3B, '
             'Jones advanced to first, Jones out advancing to second.',
       ],
+    );
+  });
+
+  test('a runner doubled off is not advancing — she is tagged where she '
+      'started', () {
+    // The other half of the rule. A force is compelled, so it is not an
+    // attempt at anything; and being out at a base she had already reached
+    // is the opposite of trying for an extra one (Mark, 2026-10-13).
+    final b = EventBuilder();
+    expect(
+      linesFor([
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.ballInPlay(
+          id: 'bip',
+          pitchEventId: 'p',
+          trajectory: Trajectory.LINE,
+          landing: FieldCoord(x: -40, y: 95),
+        ),
+        b.fielderTouch(
+          id: 'c',
+          anchorEventId: 'bip',
+          position: 6,
+          touchType: TouchType.CAUGHT,
+        ),
+        b.runnerOut(id: 'o1', runnerId: 'b1', atBase: 1, how: How.FLY_OUT),
+        // Off the bag when it was caught, and thrown back to first.
+        b.fielderTouch(
+          id: 'back',
+          anchorEventId: 'bip',
+          position: 3,
+          touchType: TouchType.RECEIVED_THROW,
+        ),
+        b.runnerOut(
+          id: 'o2',
+          runnerId: 'r1',
+          atBase: 1,
+          how: How.TAG,
+          putoutTouchId: 'back',
+        ),
+      ]),
+      ['Jones lined out to SS, Simmons out SS to 1B.'],
     );
   });
 

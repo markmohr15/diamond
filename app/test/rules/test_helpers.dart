@@ -106,13 +106,19 @@ class EventBuilder {
     required String runnerId,
     required int atBase,
     required How how,
+    String? putoutTouchId,
     String? corrects,
     String? effectiveAfter,
   }) {
     return make(
       id: id,
       type: 'RunnerOut',
-      payload: RunnerOut(runnerId: runnerId, atBase: atBase, how: how).toJson(),
+      payload: RunnerOut(
+        runnerId: runnerId,
+        atBase: atBase,
+        how: how,
+        putoutTouchId: putoutTouchId,
+      ).toJson(),
       corrects: corrects,
       effectiveAfter: effectiveAfter,
     );

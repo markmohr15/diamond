@@ -142,6 +142,7 @@ List<String> _sentences(
             null,
             label,
             chain: _putoutChain(out.payload, play),
+            advancing: _wasAdvancing(out.payload, play),
           ),
     ];
     sentences.add(
@@ -259,6 +260,7 @@ String _battedBall(
         outcome,
         label,
         chain: _putoutChain(out.payload, play),
+        advancing: _wasAdvancing(out.payload, play),
       ),
     );
   }
@@ -417,11 +419,29 @@ String? _putoutChain(RunnerOut out, PlayRecord play) {
   return '$from to $to';
 }
 
+/// Whether she was *trying for an extra base*, which is the only thing
+/// "advancing" should say (Mark, 2026-10-13).
+///
+/// Two signals, and both are needed. A **force** is compelled — she had to
+/// go, so taking second on a fielder's choice is not an attempt at
+/// anything. And she must be out **beyond** a base she had already
+/// reached on this play: a runner doubled off is tagged where she started,
+/// which is the opposite of advancing.
+bool _wasAdvancing(RunnerOut out, PlayRecord play) {
+  if (out.how == How.FORCE) return false;
+  final reached = play.advances
+      .where((a) => a.payload.runnerId == out.runnerId)
+      .map((a) => a.payload.to)
+      .fold<int?>(null, (held, to) => held == null || to > held ? to : held);
+  return reached != null && out.atBase > reached;
+}
+
 String _outClause(
   RunnerOut out,
   BatterOutcome? outcome,
   PlayerLabel label, {
   String? chain,
+  bool advancing = false,
 }) {
   // The ball found her; there is no base to name, and no fielder made a
   // play. Mark: *"Simmons out advancing."*
@@ -433,10 +453,12 @@ String _outClause(
   // stated — a tag at second by the shortstop reads "RF to SS", and
   // nothing in that says second (Mark, 2026-10-13).
   final who = label(out.runnerId);
-  final base = out.atBase == 1
-      ? (chain != null ? '$who out $chain' : '$who out at first')
-      : '$who out advancing to ${_baseName(out.atBase)}'
-            '${chain == null ? '' : ' $chain'}';
+  final where = advancing
+      ? 'out advancing to ${_baseName(out.atBase)}'
+      : 'out at ${_baseName(out.atBase)}';
+  final base = out.atBase == 1 && chain != null
+      ? '$who out $chain'
+      : '$who $where${chain == null ? '' : ' $chain'}';
   // Said once, on the out that earned it: the batter reached because the
   // defense took somebody else.
   return outcome?.scoring == 'fielders_choice'
