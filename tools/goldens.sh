@@ -18,7 +18,7 @@
 #   tools/goldens.sh -n zone  regenerate only tests matching "zone"
 set -euo pipefail
 
-FLUTTER_VERSION=3.41.8
+FLUTTER_VERSION=3.44.0
 IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
