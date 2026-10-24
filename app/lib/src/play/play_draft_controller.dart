@@ -277,6 +277,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// *"Dropped the throw"* answered from the SAFE popup (v0.56): the
   /// reception becomes the muff, and the runner is safe on it. The throw
   /// itself was fine, so the thrower keeps her touch and her assist.
+
   Future<void> safeOnDroppedThrow({
     required int receiverKey,
     String? affirmRunnerId,
@@ -409,6 +410,19 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   }) {
     return _mutate((draft) {
       var next = draft;
+      // The pitcher is credited with the putout (Mark, 2026-10-23), and she
+      // does have the ball: both calls are made with it in the circle. The
+      // touch is what a putout points at. Nothing else here is a defensive
+      // event — leaving early is sometimes done deliberately, as a mercy.
+      if (_pitchersPutout.contains(how)) {
+        next = next.addingTouch(1, TouchType.FIELDED);
+        return next.addingOut(
+          runnerId,
+          atBase: atBase,
+          how: how,
+          putoutKey: next.entries.last.key,
+        );
+      }
       if (how == How.TAG && !interference) {
         final holder = next.securedTouch;
         if (holder != null) {
@@ -486,14 +500,63 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   }
 
   /// Override an out's inferred `how` (§15.1: "confirmable").
+  ///
+  /// The putout follows the `how` where the `how` decides it. Retyping an
+  /// out to leaving early or the look-back rule credits the pitcher, exactly
+  /// as entering it that way does ([addOut]); retyping it away takes that
+  /// pitcher touch back off and returns the putout to whoever last had the
+  /// ball before the out.
   Future<void> setOutHow(int key, How how) {
-    return _mutate(
-      (draft) => draft.updatingEntry(
-        key,
-        (entry) => (entry as OutEntry).copyWith(how: how),
-      ),
-    );
+    return _mutate((draft) {
+      final out = draft.entryByKey(key)! as OutEntry;
+      final wasPitchers = _pitchersPutout.contains(out.how);
+      final isPitchers = _pitchersPutout.contains(how);
+      var next = draft.updatingEntry(key, (_) => out.copyWith(how: how));
+      if (isPitchers && !wasPitchers) {
+        final touch = TouchEntry(
+          key: next.nextKey,
+          position: 1,
+          touchType: TouchType.FIELDED,
+        );
+        next = next.copyWith(
+          nextKey: next.nextKey + 1,
+          entries: [
+            for (final entry in next.entries) ...[
+              if (entry.key == key) touch,
+              if (entry.key == key)
+                (entry as OutEntry).copyWith(putoutKey: touch.key)
+              else
+                entry,
+            ],
+          ],
+        );
+      } else if (wasPitchers && !isPitchers) {
+        final minted = out.putoutKey;
+        if (minted != null) next = next.removingEntry(minted);
+        final holder = next.entries
+            .takeWhile((entry) => entry.key != key)
+            .whereType<TouchEntry>()
+            .where((touch) => _heldBeforeOut.contains(touch.touchType))
+            .lastOrNull;
+        next = next.updatingEntry(
+          key,
+          (entry) => (entry as OutEntry).copyWith(putoutKey: holder?.key),
+        );
+      }
+      return next;
+    });
   }
+
+  /// The outs whose putout is the pitcher's (Mark, 2026-10-23).
+  static const _pitchersPutout = {How.LEFT_EARLY, How.LOOK_BACK_RULE};
+
+  /// Touches after which she has the ball, so a putout can be hers.
+  static const _heldBeforeOut = {
+    TouchType.FIELDED,
+    TouchType.CAUGHT,
+    TouchType.RECEIVED_THROW,
+    TouchType.TAG_APPLIED,
+  };
 
   /// §13.4's two-tap re-attribution: this leg was enabled by that entry.
   Future<void> reattributeLeg(int legKey, int? enablerKey) {

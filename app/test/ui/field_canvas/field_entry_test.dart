@@ -3,6 +3,8 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
+import 'package:diamond/src/play/play_draft.dart';
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/play/play_journal_store.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
@@ -1765,6 +1767,44 @@ void main() {
       expect(advance.to, 1);
     });
 
+    testWidgets("bases empty, a throw to first: no fielder's choice, since "
+        'nobody was there to choose (DIA-019 H)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(3)); // the throw
+      await tapPill(tester, 1);
+
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      expect(find.text("Fielder's choice"), findsNothing);
+      expect(find.text('Single'), findsOneWidget);
+    });
+
+    testWidgets('"Dropped the throw" is a drop: it fell at her feet, and '
+        'the error is hers (DIA-019 H)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(3)); // the throw
+      await tapPill(tester, 1);
+      await tapKey(tester, safeChipKey('dropped_throw'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touch = events.lastWhere((e) => e.type == 'FielderTouch');
+      expect(touch.payload['touchType'], 'dropped');
+      expect(touch.payload['position'], 3);
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.errors.single.position, 3);
+      expect(scoring.errors.single.kind, OfficialErrorKind.catching);
+    });
+
     testWidgets('the drop is still one tap when it happened — on the node '
         'that took the throw', (tester) async {
       await pumpLoop(tester);
@@ -1777,7 +1817,11 @@ void main() {
       await tapPill(tester, 1); // safe
       await tapKey(tester, safeChipKey('hit'));
 
+      // A reception offers both: dropped leaves the ball at her feet,
+      // missed puts it past her (DIA-019 H).
       await tapKey(tester, chainNodeKey(2));
+      expect(find.byKey(chainChipKey('missed_catch')), findsOneWidget);
+      expect(find.byKey(chainChipKey('wild_throw')), findsNothing);
       await tapKey(tester, chainChipKey('dropped'));
       await tapKey(tester, fieldCommitKey);
 
@@ -2410,6 +2454,110 @@ void main() {
       expect(container.read(gameControllerProvider).value!.outs, 0);
     });
 
+    for (final (id, how) in [
+      ('left_early', How.LEFT_EARLY),
+      ('look_back', How.LOOK_BACK_RULE),
+    ]) {
+      testWidgets('$id: an out between pitches, putout to the pitcher '
+          '(DIA-019 H)', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'out');
+        await tapKey(tester, outChipKey(id));
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, how);
+        // She has the ball in the circle, so the touch is real; nobody
+        // threw, so nobody assists.
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.putoutsByPosition, {1: 1});
+        expect(scoring.assistsByPosition, isEmpty);
+        expect(container.read(gameControllerProvider).value!.outs, 1);
+        expect(
+          container.read(gameControllerProvider).value!.bases.first,
+          isNull,
+        );
+      });
+    }
+
+    testWidgets("an out's sheet between pitches never offers a force "
+        '(DIA-019 H)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+
+      final draft = container.read(playDraftProvider).value!;
+      final out = draft.entries.whereType<OutEntry>().single;
+      await tapKey(tester, chainNodeKey(out.key));
+      expect(find.byKey(chainChipKey('caught_stealing')), findsOneWidget);
+      expect(find.byKey(chainChipKey('force')), findsNothing);
+      expect(find.byKey(chainChipKey('fly_out')), findsNothing);
+      expect(find.byKey(chainChipKey('left_early')), findsOneWidget);
+    });
+
+    testWidgets('retyping an out to left early credits the pitcher, and '
+        'retyping it back returns the putout (DIA-019 H)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+
+      int outKey() => container
+          .read(playDraftProvider)
+          .value!
+          .entries
+          .whereType<OutEntry>()
+          .single
+          .key;
+      int? putoutPosition() {
+        final draft = container.read(playDraftProvider).value!;
+        final out = draft.entries.whereType<OutEntry>().single;
+        final touch = draft.entryByKey(out.putoutKey ?? -1);
+        return touch is TouchEntry ? touch.position : null;
+      }
+
+      expect(putoutPosition(), 6);
+      await tapKey(tester, chainNodeKey(outKey()));
+      await tapKey(tester, chainChipKey('left_early'));
+      expect(putoutPosition(), 1);
+
+      await tapKey(tester, chainNodeKey(outKey()));
+      await tapKey(tester, chainChipKey('caught_stealing'));
+      expect(putoutPosition(), 6);
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final touches = events
+          .where((e) => e.type == 'FielderTouch')
+          .map((e) => FielderTouch.fromJson(e.payload));
+      expect(touches.map((t) => t.position), [2, 6]);
+      expect(foldOfficialScoring(events).putoutsByPosition, {6: 1});
+    });
+
+    testWidgets('a batted ball offers neither — both are dead ball, no '
+        'pitch (DIA-019 H)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await dragToken(tester, 1, 1, target: 'out', originFrom: 0);
+      expect(find.byKey(outChipKey('tag')), findsOneWidget);
+      expect(find.byKey(outChipKey('left_early')), findsNothing);
+      expect(find.byKey(outChipKey('look_back')), findsNothing);
+    });
+
     testWidgets('a wild pitch is the advance alone — no touch is minted', (
       tester,
     ) async {
@@ -2516,8 +2664,11 @@ void main() {
             geometry.toPx(standardFielderSpots(geometry.profile)[3]!),
       );
       await tester.pumpAndSettle();
-      await tapKey(tester, chainNodeKey(2));
-      await tapKey(tester, chainChipKey('wild_throw'));
+      // Said on the node that received it, and charged to the catcher who
+      // threw it — the retype menu no longer offers *Wild throw* at all
+      // (DIA-019 H).
+      await tapKey(tester, chainNodeKey(3));
+      await tapKey(tester, chainChipKey('throw_was_wild'));
       // v0.56: nothing further is needed to make this chargeable. The throw
       // charges because a runner advanced on it, full stop — until v0.56 it
       // defaulted to "unresolved" and charged nobody unless the scorer found

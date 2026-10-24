@@ -98,6 +98,12 @@ const positionAbbreviations = <int, String>{
   10: 'OF4',
 };
 
+/// Positions 1–6. Everything above is an outfielder (7/8/9, plus 10 —
+/// softball's fourth outfielder, §4.2), and a later `OF4` stays one: a named
+/// predicate rather than a repeated `position <= 6`, so that holds in one
+/// place.
+bool isInfield(int position) => position <= 6;
+
 /// Profile-scaled standard defensive spots (§16.4's render defaults), keyed
 /// by position number. Draft placements: bearings and depths are eyeballed
 /// literals scaled by the profile's dimensions, good enough to render a
