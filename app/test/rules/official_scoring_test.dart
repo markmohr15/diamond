@@ -888,6 +888,50 @@ void main() {
     expect(scoring.assistsByPosition, {6: 1});
   });
 
+  for (final how in [How.LEFT_EARLY, How.LOOK_BACK_RULE]) {
+    test('${how.name}: the putout alone — a throw before the call assists '
+        'nobody (DIA-019 H)', () {
+      final b = EventBuilder();
+      final events = [
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.BALL,
+        ),
+        b.fielderTouch(
+          id: 'catcher',
+          anchorEventId: 'p',
+          position: 2,
+          touchType: TouchType.FIELDED,
+        ),
+        b.fielderTouch(
+          id: 'short',
+          anchorEventId: 'p',
+          position: 6,
+          touchType: TouchType.RECEIVED_THROW,
+        ),
+        b.fielderTouch(
+          id: 'pitcher',
+          anchorEventId: 'p',
+          position: 1,
+          touchType: TouchType.FIELDED,
+        ),
+        b.runnerOut(
+          id: 'out',
+          runnerId: 'r1',
+          atBase: 2,
+          how: how,
+          putoutTouchId: 'pitcher',
+        ),
+      ];
+
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {1: 1});
+      expect(scoring.assistsByPosition, isEmpty);
+    });
+  }
+
   group('wild pitches and passed balls (§13.2, rule 9.13)', () {
     List<GameEvent> getaway({
       TouchType? catcherTouch,

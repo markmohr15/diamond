@@ -657,6 +657,11 @@ OfficialScoring foldOfficialScoring(
     final putoutTouch = touchById[out.payload.putoutTouchId];
     if (putoutTouch == null) continue; // no touch data (e.g. strikeout)
     putouts.update(putoutTouch.position, (v) => v + 1, ifAbsent: () => 1);
+    // A ruling, not a play: the pitcher is credited with the putout and
+    // nobody assists, whatever the ball did before the call (Mark,
+    // 2026-10-23). A throw the scorer entered stays in the record; it just
+    // earns nothing on this out.
+    if (_putoutOnlyHows.contains(out.payload.how)) continue;
     final credited = <int>{};
     for (final t in touches) {
       if (t.eventId == out.payload.putoutTouchId) break;
@@ -889,6 +894,10 @@ OfficialErrorBasis? _consequenceBasis(
   }
   return null;
 }
+
+/// Outs that credit the putout alone (DIA-019 H): leaving early and the
+/// look-back rule are dead-ball rulings, so no fielder assisted them.
+const _putoutOnlyHows = {How.LEFT_EARLY, How.LOOK_BACK_RULE};
 
 const _hitByBase = {1: 'single', 2: 'double', 3: 'triple', 4: 'home_run'};
 
