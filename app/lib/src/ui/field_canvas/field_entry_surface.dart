@@ -5,6 +5,7 @@ import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
+import 'package:diamond/src/play/possible_entries.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
@@ -368,11 +369,18 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// test is the scorer's anyway — "a single if there really was no play to
   /// be made, or a FC if they could have gotten an out elsewhere" — which is
   /// a judgment, not something the record settles.
-  bool get _threwElsewhere => _draft.hasThrow;
-
-  /// Positions 1–6. Everything above is an outfielder (7/8/9, plus 10 —
-  /// softball's fourth outfielder, §4.2).
-  static bool _isInfield(int position) => position <= 6;
+  ///
+  /// **And somebody else was on base.** A throw alone was necessary but not
+  /// sufficient: bases empty, grounder to short, throw to first, batter safe
+  /// — and fielder's choice was offered with nobody to choose against
+  /// (DIA-019 H). An out recorded on another runner this play needs her on
+  /// base too, so this one condition covers both.
+  bool get _threwElsewhere {
+    final bases = _foldBases;
+    final someoneOn =
+        bases.first != null || bases.second != null || bases.third != null;
+    return _draft.hasThrow && someoneOn;
+  }
 
   String get _possessionLabel {
     final holder = _draft.holderPosition;
@@ -427,15 +435,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (bases.second != null) bases.second!: '2',
     if (bases.third != null) bases.third!: '3',
   };
-
-  /// The base the play found this runner on — force logic and cascade
-  /// origins read this, never a mid-play draft position.
-  int _originBase(String runnerId, BaseState bases) {
-    if (runnerId == _draft.batterId) return 0;
-    if (runnerId == bases.first) return 1;
-    if (runnerId == bases.second) return 2;
-    return 3;
-  }
 
   void _onDown(
     Offset position,
@@ -1386,70 +1385,14 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// it. "Missed it" records no touch at all — she never touched the ball,
   /// so there is officially nothing to record (§13) beyond where it went.
   void _showFielderPlaySheet(int position, FieldCoord spot) {
-    final airborne =
-        _draft.trajectory == Trajectory.FLY ||
-        _draft.trajectory == Trajectory.POPUP ||
-        _draft.trajectory == Trajectory.LINE;
-    // A ball can only be caught while it is still in the air, and it is in
-    // the air until somebody touches it — except for a deflection, the one
-    // touch that leaves it up. After any other touch it is a ball on the
-    // ground, whatever it was off the bat, so the fielder who comes over is
-    // fielding it rather than catching it.
-    final touches = _draft.entries.whereType<TouchEntry>();
-    // A traced roll is proof the ball reached the ground: the scorer said it
-    // travelled after landing, so nobody is catching it any more. Without
-    // this, tracing a ball into the corner and then tapping the left fielder
-    // still offered "Caught".
-    final inFlight =
-        (touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED) &&
-        _draft.rollEnd == null;
+    final state = nextBallState(_draft);
     final choices = <(String, String, TouchType?)>[
-      // §15.6: no batted ball, so the batted-ball verbs do not apply. A
-      // catcher cannot *boot* a pitch — booting is a ground ball off the bat
-      // played with the foot — and nothing caromed off anybody, so there is
-      // no deflection either. What is left is the honest set: she picked it
-      // up, she fumbled picking it up, or she never got to it.
-      if (!_draft.battedBall) ...[
-        // *Picked it up*, not "fielded": a catcher chasing a pitch to the
-        // backstop is the same "ball loose on the ground, take possession"
-        // case as a dropped fly, and Mark's rule is that you field a batted
-        // ball and pick up a **loose** one. Not a *dead* one — that word is
-        // taken (catcher's interference, HBP, `dead_ball_award`) and means
-        // the opposite of what happens here: this ball is live and runners
-        // are advancing on it, which is the whole reason the scorer is
-        // tapping. Same `TouchType` either way — the distinction is
-        // linguistic, not physical, and §13 charges on the physical fact.
-        ('picked_up', 'Picked it up', TouchType.FIELDED),
-        // `bobbled` rather than `dropped`: she never had it to drop. A muffed
-        // pickup is still chargeable (§13.2), which is why it is offered at
-        // all.
-        ('bobbled', 'Bobbled it', TouchType.BOBBLED),
-        ('missed', 'Missed it', null),
-      ] else if (airborne && inFlight) ...[
-        ('caught', 'Caught', TouchType.CAUGHT),
-        ('dropped', 'Dropped', TouchType.DROPPED),
-        // Only a liner caroms, and only in the infield. Mark, 2026-09-04:
-        // *"outfielders can't deflect, they can only miss"* — a ball off an
-        // outfielder is a play she did not make, not a carom another
-        // fielder is standing there to pick up. A pop-up one fielder
-        // touches and another catches is likewise two fielders on one ball.
-        if (_draft.trajectory == Trajectory.LINE && _isInfield(position))
-          ('deflected', 'Deflected', TouchType.DEFLECTED),
-        ('missed', 'Missed it', null),
-        // *Fielded*, not "picked it up": a liner still in flight is a
-        // batted ball, and you field a batted ball — picking up is what you
-        // do to a loose one (§15.1).
-        ('fielded', 'Fielded', TouchType.FIELDED),
-      ] else ...[
-        ('fielded', 'Fielded', TouchType.FIELDED),
-        ('booted', 'Booted', TouchType.BOOTED),
-        // It hit her and caromed away with no play to be made: a physical
-        // fact, never an error candidate (§13.2), and the ball stays loose.
-        // Infield only — see the liner branch above.
-        if (_isInfield(position))
-          ('deflected', 'Deflected', TouchType.DEFLECTED),
-        ('missed', 'Missed it', null),
-      ],
+      for (final type in ballPlayChoices(
+        state,
+        position: position,
+        trajectory: _draft.trajectory,
+      ))
+        _fielderPlayLabel(state, type),
     ];
     final controller = ref.read(playDraftProvider.notifier);
     _centeredDialog(
@@ -1479,93 +1422,42 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
   }
 
-  /// The `how` values physically possible for this runner at this base
-  /// (§4.3), likeliest first — the OUT dialog offers exactly these, so it
-  /// can never propose an out that couldn't have happened.
-  ///
-  /// - A **force** needs the runner headed for the very next base *and* the
-  ///   chain of occupied bases behind her (origin bases — where the play
-  ///   found everyone, with the batter always running on `in_play`). A
-  ///   runner from second with first empty is forced nowhere: thrown out at
-  ///   home, she was tagged.
-  /// - A **catch removes every force** — the batter is out in the air, so
-  ///   nobody is compelled to advance and the runners owe a retouch
-  ///   instead.
-  /// - A **fly out** is the batter's alone; the **appeal** is a runner's
-  ///   alone, and only against a catch.
+  /// The chip for one of [ballPlayChoices]'s answers. One word per thing
+  /// (§15.1): a batted ball is *fielded*, a pitch that got away is *picked
+  /// up* — the same `TouchType`, because §13 charges on the physical fact
+  /// and the distinction is linguistic. Not "dead": that word is taken
+  /// (catcher's interference, HBP, `dead_ball_award`) and this ball is live.
+  static (String, String, TouchType?) _fielderPlayLabel(
+    BallState state,
+    TouchType? type,
+  ) => switch (type) {
+    null => ('missed', 'Missed it', null),
+    TouchType.FIELDED when state == BallState.loosePitch => (
+      'picked_up',
+      'Picked it up',
+      type,
+    ),
+    TouchType.FIELDED => ('fielded', 'Fielded', type),
+    TouchType.CAUGHT => ('caught', 'Caught', type),
+    TouchType.DROPPED => ('dropped', 'Dropped', type),
+    TouchType.DEFLECTED => ('deflected', 'Deflected', type),
+    TouchType.BOOTED => ('booted', 'Booted', type),
+    // A muffed pickup is still chargeable (§13.2), which is why it is
+    // offered at all.
+    TouchType.BOBBLED => ('bobbled', 'Bobbled it', type),
+    _ => throw ArgumentError('not a play on the ball: $type'),
+  };
+
   List<(String, String, How)> _possibleHows(
     String runnerId,
     int atBase,
     BaseState bases,
-  ) {
-    final origin = _originBase(runnerId, bases);
-    final caught = _draft.caughtInFlight;
-    final isBatter = origin == 0;
-    final forced =
-        !caught && atBase == origin + 1 && _forceChainLive(origin, bases);
-    // Order is load-bearing: `_inferredHow` takes `.first` as the preselected
-    // chip, so moving an entry changes what the scorer is offered by default.
-    // That is invisible from reading the list, hence this note.
-    // §15.6: between pitches she was running on her own, so the play's
-    // vocabulary does not apply — no force without a batter, no fly out
-    // without a batted ball.
-    if (!_draft.battedBall) {
-      return [
-        ('caught_stealing', 'Caught stealing', How.CAUGHT_STEALING),
-        ('picked_off', 'Picked off', How.PICKED_OFF),
-        ('tag', 'Tag', How.TAG),
-      ];
-    }
-    return [
-      if (caught && isBatter) ('fly_out', 'Fly out', How.FLY_OUT),
-      if (forced) ('force', 'Force', How.FORCE),
-      // No tag on the batter when the ball was caught: she is out *by the
-      // catch*, and there is no tag to apply. Every other entry here was
-      // already gated; this one was not.
-      if (!caught || !isBatter) ('tag', 'Tag', How.TAG),
-      if (caught && !isBatter) ('appeal', "Didn't tag up", How.APPEAL),
-    ];
-  }
+  ) => possibleHows(_draft, runnerId, atBase, bases);
 
   /// §15.1's `how` inference — the likeliest possible out, by construction
   /// the same list the dialog shows.
   How _inferredHow(String runnerId, int atBase, BaseState bases) =>
       _possibleHows(runnerId, atBase, bases).first.$3;
-
-  /// Whether every base behind [origin] is still occupied by a runner who has
-  /// to move — which is what keeps a force alive.
-  ///
-  /// **Outs already recorded on this play count.** A force is removed when the
-  /// runner behind is retired: grounder to the first baseman, she steps on the
-  /// bag, then throws to second — that runner has to be **tagged**, and this
-  /// used to still offer "Force", preselected. Pre-pitch occupancy alone
-  /// cannot see that, because the out happened after the pitch.
-  bool _forceChainLive(int origin, BaseState bases) {
-    final retired = {
-      for (final entry in _draft.entries)
-        if (entry is OutEntry) entry.runnerId,
-    };
-
-    String? runnerOn(int base) => switch (base) {
-      1 => bases.first,
-      2 => bases.second,
-      3 => bases.third,
-      // Not a base. The old `_` arm silently read third here, so an
-      // out-of-range value answered a question about a base that does not
-      // exist.
-      _ => null,
-    };
-
-    for (var base = origin - 1; base >= 1; base--) {
-      final runner = runnerOn(base);
-      if (runner == null || retired.contains(runner)) return false;
-    }
-
-    // The batter's box pushes only while she is still live: `in_play` means
-    // she is running, but not once she has been retired on this same play.
-    final batterId = _draft.batterId;
-    return origin == 0 || !retired.contains(batterId);
-  }
 
   bool _nearFence(FieldCoord landing) {
     final geometry = FieldGeometry(

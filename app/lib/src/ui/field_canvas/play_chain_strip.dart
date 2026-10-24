@@ -1,7 +1,10 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
+import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
+import 'package:diamond/src/play/possible_entries.dart';
+import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -19,9 +22,8 @@ const Key chainRemoveKey = Key('chainRemove');
 @visibleForTesting
 const Key chainReattributeKey = Key('chainReattribute');
 
-/// What a touch node can be retyped to (§15.3's chip menu): the misplay
-/// set, plus `deflected` — not a misplay (§13.2 never charges it) but the
-/// same kind of correction, so it belongs in the same menu.
+/// Labels for what a touch node can be retyped to (§15.3's chip menu). Which
+/// of them a node offers is [retypeChoices]'s call, not this map's.
 const _misplayLabels = <TouchType, String>{
   TouchType.DROPPED: 'Dropped',
   TouchType.BOOTED: 'Booted',
@@ -38,19 +40,12 @@ const _arrivalLabels = <ReceivedQuality, String>{
   ReceivedQuality.WIDE: 'Wide',
 };
 
-const _howLabels = <How, String>{
-  How.FORCE: 'Force',
-  How.TAG: 'Tag',
-  How.FLY_OUT: 'Fly out',
-};
-
-/// Touch types that *can* be a reception. Necessary but not sufficient — the
-/// node also has to have received the ball from somebody (see the strip's
-/// `_offersArrivalQuality`).
-const _receivingTypes = {
-  TouchType.RECEIVED_THROW,
-  TouchType.MISSED_CATCH,
-  TouchType.DROPPED,
+/// Labels for an out's `how` that [possibleHows] never offers as a choice
+/// but an out can already carry — set by the ⚖ or by its own path — so the
+/// sheet can still show what she is out on.
+const _otherHowLabels = <How, String>{
+  How.INTERFERENCE: 'Interference',
+  How.BATTED_BALL_CONTACT: 'Struck by batted ball',
 };
 
 /// §15.2's play chain strip: the play as nodes — ⚾ → 6 → 4 → 3 — with
@@ -285,43 +280,13 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     );
   }
 
-  /// Whether this node should ask **how the throw arrived**.
-  ///
-  /// Gated on provenance, not on the touch type alone. `dropped` and
-  /// `missed_catch` describe muffing a **throw** *or* muffing a ball off the
-  /// bat, and the type cannot tell them apart — so dropping a routine fly used
-  /// to ask how the throw arrived, for a ball nobody threw.
-  ///
-  /// The question is only meaningful if somebody earlier in the chain had the
-  /// ball and sent it here.
-  bool _offersArrivalQuality(TouchEntry touch) {
-    if (!_receivingTypes.contains(touch.touchType)) return false;
-
-    final entries = widget.draft.entries;
-    final index = entries.indexWhere((e) => e.key == touch.key);
-    if (index <= 0) return false;
-
-    // Someone else touched it first: the ball came from a fielder rather than
-    // off the bat.
-    return entries
-        .take(index)
-        .whereType<TouchEntry>()
-        .any((earlier) => earlier.position != touch.position);
-  }
-
-  /// The touch that sent the ball to [touch], if any — the fielder whose throw
-  /// this node received, and therefore the one a wild throw belongs to.
-  TouchEntry? _throwerInto(TouchEntry touch) {
-    if (!_receivingTypes.contains(touch.touchType)) return null;
-    final entries = widget.draft.entries;
-    final index = entries.indexWhere((e) => e.key == touch.key);
-    if (index <= 0) return null;
-    return entries
-        .take(index)
-        .whereType<TouchEntry>()
-        .where((earlier) => earlier.position != touch.position)
-        .lastOrNull;
-  }
+  /// Whether this node should ask **how the throw arrived**: only a
+  /// reception, which [throwerInto] decides on provenance rather than type.
+  /// `dropped` describes muffing a throw *or* a ball off the bat, so
+  /// dropping a routine fly used to ask how the throw arrived, for a ball
+  /// nobody threw.
+  bool _offersArrivalQuality(TouchEntry touch) =>
+      throwerInto(widget.draft, touch) != null;
 
   /// §15.3's chip menu on a touch node: the misplay set, arrival quality on
   /// receiving nodes, the §13.2 judgment on misplays, and removal.
@@ -332,21 +297,20 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       Wrap(
         spacing: 6,
         children: [
-          // Deflected is infield-only, here as on the what-happened popup
-          // (§15.1 v0.56): an outfielder can miss a ball, not carom it to
-          // somebody standing there to take it. Retyping is a third way in
-          // to the same vocabulary, so it takes the same rule.
-          for (final entry in _misplayLabels.entries)
-            if (entry.key != TouchType.DEFLECTED || touch.position <= 6)
-              ChoiceChip(
-                key: chainChipKey(touchTypeValues.reverse[entry.key]!),
-                label: Text(entry.value),
-                selected: touch.touchType == entry.key,
-                onSelected: (_) {
-                  controller.setTouchType(touch.key, entry.key);
-                  Navigator.pop(context);
-                },
-              ),
+          // Retyping is another way in to the popup's vocabulary, so it
+          // offers only what the popup could have — a catcher chasing a
+          // pitch cannot be retyped to *Booted* any more than she could be
+          // entered that way (DIA-019 H).
+          for (final type in retypeChoices(widget.draft, touch))
+            ChoiceChip(
+              key: chainChipKey(touchTypeValues.reverse[type]!),
+              label: Text(_misplayLabels[type]!),
+              selected: touch.touchType == type,
+              onSelected: (_) {
+                controller.setTouchType(touch.key, type);
+                Navigator.pop(context);
+              },
+            ),
         ],
       ),
       // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
@@ -357,7 +321,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       //
       // So the receiving node offers the question in the direction the scorer
       // is actually looking, and it retypes the *thrower*.
-      if (_throwerInto(touch) case final thrower?) ...[
+      if (throwerInto(widget.draft, touch) case final thrower?) ...[
         const SizedBox(height: 8),
         ActionChip(
           key: chainChipKey('throw_was_wild'),
@@ -410,20 +374,41 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     ]);
   }
 
+  /// An out's sheet offers the same outs the OUT dialog did (§4.3) — a
+  /// between-pitch out is never a force, and neither is a runner's out
+  /// after a catch (DIA-019 H). Only outs entered before this one count
+  /// against her force; see [possibleHows]. Her current `how` always shows.
   void _showOutSheet(BuildContext context, OutEntry out) {
     final controller = ref.read(playDraftProvider.notifier);
     final who = widget.runnerLabels[out.runnerId] ?? 'Runner';
+    final bases =
+        ref.read(gameControllerProvider).valueOrNull?.bases ?? BaseState.empty;
+    final possible = [
+      for (final (_, label, how) in possibleHows(
+        widget.draft,
+        out.runnerId,
+        out.atBase,
+        bases,
+        editingKey: out.key,
+      ))
+        (label, how),
+    ];
+    final hows = [
+      if (!possible.any((choice) => choice.$2 == out.how))
+        (_otherHowLabels[out.how] ?? howValues.reverse[out.how]!, out.how),
+      ...possible,
+    ];
     _sheet(context, '$who out at ${out.atBase == 4 ? 'home' : out.atBase}', [
       Wrap(
         spacing: 6,
         children: [
-          for (final entry in _howLabels.entries)
+          for (final (label, how) in hows)
             ChoiceChip(
-              key: chainChipKey(howValues.reverse[entry.key]!),
-              label: Text(entry.value),
-              selected: out.how == entry.key,
+              key: chainChipKey(howValues.reverse[how]!),
+              label: Text(label),
+              selected: out.how == how,
               onSelected: (_) {
-                controller.setOutHow(out.key, entry.key);
+                controller.setOutHow(out.key, how);
                 Navigator.pop(context);
               },
             ),

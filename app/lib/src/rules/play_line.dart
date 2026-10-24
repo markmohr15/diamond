@@ -232,7 +232,8 @@ String _battedBall(
   // rather than somewhere the ball came down, so it names her wherever she
   // was standing — *flew out to CF*, never "flew out to center".
   final first = play.touches.isEmpty ? null : play.touches.first.payload;
-  final byFielder = first != null && (caught != null || first.position <= 6);
+  final byFielder =
+      first != null && (caught != null || isInfield(first.position));
   final place = byFielder
       ? (positionAbbreviations[first.position] ?? '${first.position}')
       : sectorFor(bip.landing).label;
@@ -301,6 +302,8 @@ List<String> _betweenPitches(
         '${label(out.payload.runnerId)} picked off '
             '${_baseName(out.payload.atBase)}',
       How.LEFT_EARLY => '${label(out.payload.runnerId)} out, left early',
+      How.LOOK_BACK_RULE =>
+        '${label(out.payload.runnerId)} out on the look-back rule',
       _ => _outClause(out.payload, null, label),
     });
   }

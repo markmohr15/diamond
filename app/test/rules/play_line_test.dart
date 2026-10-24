@@ -18,11 +18,9 @@ void main() {
       line.text,
   ];
 
-  /// §15.6's happenings — everything that occurs between pitches. All
-  /// seven read from the model today; only *left early* is not yet
-  /// enterable, since `How.LEFT_EARLY` has no writer in the UI (DIA-019
-  /// slice H). The formatter carries it regardless, so it renders the day
-  /// H makes it recordable.
+  /// §15.6's happenings — everything that occurs between pitches, each
+  /// enterable from the idle field. *Left early* and the *look-back rule*
+  /// gained their writer in DIA-019 slice H.
   group('between pitches', () {
     List<String> after(List<GameEvent> tail) {
       final b = EventBuilder();
@@ -142,6 +140,21 @@ void main() {
           b.runnerOut(id: 'le', runnerId: 'r1', atBase: 1, how: How.LEFT_EARLY),
         ]),
         ['Simmons out, left early.'],
+      );
+    });
+
+    test('a runner out on the look-back rule', () {
+      final b = EventBuilder();
+      expect(
+        after([
+          b.runnerOut(
+            id: 'lb',
+            runnerId: 'r1',
+            atBase: 1,
+            how: How.LOOK_BACK_RULE,
+          ),
+        ]),
+        ['Simmons out on the look-back rule.'],
       );
     });
 
