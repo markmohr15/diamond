@@ -1,0 +1,23 @@
+{
+  "id": "play-21",
+  "title": "Infield fly, nobody touches it: batter out, putout to the closest infielder",
+  "specRef": "§4.3, §4.5, §15.3",
+  "setup": { "outs": 0, "count": { "balls": 1, "strikes": 0 }, "runners": { "1": "r1", "2": "r2" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.8 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "popup", "landing": { "x": -25, "y": 95 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "RuleCall", "payload": { "callType": "infield_fly" } },
+    { "id": "e4", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "infield_fly", "enabledByCallId": "e3" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "out", "hit": false, "rbi": 0, "atBat": true },
+    "runnerBases": { "r1": 1, "r2": 2 },
+    "putouts": { "6": 1 },
+    "line": "b1 out on an infield fly to SS.",
+    "note": "The batter is out by the call, not by a catch, so the out carries no putoutTouchId: nobody touched the ball. The putout goes to the fielder who would have caught it (Mark, 2026-10-23: the closest infielder), derived from the landing against the profile's standard spots. Until alignment is recorded (M2) that is the standard spot, so a shifted infield can credit the wrong fielder. No force anywhere, so both runners hold without a question being asked."
+  }
+}

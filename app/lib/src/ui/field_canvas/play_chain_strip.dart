@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
@@ -19,6 +21,8 @@ Key chainNodeKey(int entryKey) => Key('chainNode-$entryKey');
 Key chainChipKey(String id) => Key('chainChip-$id');
 @visibleForTesting
 const Key chainRemoveKey = Key('chainRemove');
+@visibleForTesting
+const Key chainBallNodeKey = Key('chainBall');
 @visibleForTesting
 const Key chainReattributeKey = Key('chainReattribute');
 
@@ -161,7 +165,15 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     return Column(
       children: [
         if (head == null)
-          _node(context, scheme, label: '⚾')
+          _node(
+            context,
+            scheme,
+            key: chainBallNodeKey,
+            label: '⚾',
+            onTap: _offersInfieldFly(draft)
+                ? () => _showBallNodeSheet(context)
+                : null,
+          )
         else if (head is TouchEntry)
           _touchNode(context, head, semantics, scheme)
         else
@@ -416,6 +428,32 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
       ),
       ..._ruleCallTiles(context, out.key),
       _removeTile(context, out.key),
+    ]);
+  }
+
+  /// The ball's landing node is live only while it has something to offer
+  /// — today that is the infield fly alone (§15.3), so a node that cannot
+  /// say one is not a control.
+  bool _offersInfieldFly(PlayDraft draft) {
+    final game = ref.watch(gameControllerProvider).valueOrNull;
+    if (game == null) return false;
+    return offersInfieldFly(draft, outs: game.outs, bases: game.bases);
+  }
+
+  /// §15.3's menu on the ball's landing node. Kept findable rather than
+  /// asked: an infield fly is rare, and its value is what it turns off —
+  /// every force, and the walk-up that presumed the batter was running.
+  void _showBallNodeSheet(BuildContext context) {
+    _sheet(context, 'Ball in play', [
+      ListTile(
+        key: chainChipKey('infield_fly'),
+        leading: const Icon(Icons.balance),
+        title: const Text('Infield fly'),
+        onTap: () {
+          Navigator.pop(context);
+          unawaited(ref.read(playDraftProvider.notifier).declareInfieldFly());
+        },
+      ),
     ]);
   }
 

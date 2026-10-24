@@ -209,8 +209,12 @@ List<(String, String, How)> possibleHows(
   final origin = _originBase(draft, runnerId, bases);
   final caught = draft.caughtInFlight;
   final isBatter = origin == 0;
+  // An infield fly removes every force the way a catch does, caught or not
+  // — the batter is out by the call. Retiring her already breaks the chain
+  // below; this says why in the one place a reader looks.
   final forced =
       !caught &&
+      !draft.infieldFlyDeclared &&
       atBase == origin + 1 &&
       _forceChainLive(draft, origin, bases, editingKey: editingKey);
   // Order is load-bearing: the OUT dialog preselects `.first`, so moving an
@@ -291,4 +295,30 @@ bool _forceChainLive(
   // The batter's box pushes only while she is still live: `in_play` means
   // she is running, but not once she has been retired on this same play.
   return origin == 0 || !retired.contains(draft.batterId);
+}
+
+/// Whether the ball's landing node offers *Infield fly* (§15.3): a fair fly
+/// or pop-up — never a liner or a bunt — with fewer than two out and runners
+/// on first and second, once it has come down somewhere. The rule is the
+/// same at every level, so no `RuleSet` gates it. Not offered once
+/// declared, nor once the batter is out some other way than the catch it
+/// would replace.
+bool offersInfieldFly(
+  PlayDraft draft, {
+  required int outs,
+  required BaseState bases,
+}) {
+  if (!draft.battedBall || draft.landing == null) return false;
+  if (draft.trajectory != Trajectory.FLY &&
+      draft.trajectory != Trajectory.POPUP) {
+    return false;
+  }
+  if (outs >= 2 || bases.first == null || bases.second == null) return false;
+  if (draft.infieldFlyDeclared) return false;
+  return !draft.entries.any(
+    (entry) =>
+        entry is OutEntry &&
+        entry.runnerId == draft.batterId &&
+        entry.how != How.FLY_OUT,
+  );
 }

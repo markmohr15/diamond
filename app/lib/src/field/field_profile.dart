@@ -108,7 +108,10 @@ bool isInfield(int position) => position <= 6;
 /// by position number. Draft placements: bearings and depths are eyeballed
 /// literals scaled by the profile's dimensions, good enough to render a
 /// recognizable defense. Alignment drag (§16.4) is explicitly out of
-/// DIA-008's scope, so nothing downstream may treat these as data.
+/// DIA-008's scope, so nothing downstream may treat these as data — with one
+/// deliberate exception: official scoring credits an untouched infield fly
+/// to the infielder whose spot is closest (DIA-019 H), knowing a shifted
+/// infield can make that wrong until alignment is recorded.
 Map<int, FieldCoord> standardFielderSpots(FieldProfile profile) {
   FieldCoord at(double thetaDegrees, double r) {
     final theta = thetaDegrees * math.pi / 180;
