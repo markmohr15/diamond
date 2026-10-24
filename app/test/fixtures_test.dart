@@ -140,6 +140,7 @@ void _assertExpectations(
     'earnedRunFlags',
     'pitcherStrikeouts',
     'pitchGetaways',
+    'putouts',
     'line',
     'note',
     'variant',
@@ -225,6 +226,18 @@ void _assertExpectations(
           };
           expect(actual, base, reason: '$id: base of runner $runnerId');
         }
+      // Keyed by position as a string, JSON's only key type. The whole map
+      // is asserted, so a putout credited to a second fielder fails too.
+      case 'putouts':
+        expect(
+          {
+            for (final MapEntry(:key, :value)
+                in scoring.putoutsByPosition.entries)
+              '$key': value,
+          },
+          value,
+          reason: '$id: putouts',
+        );
       case 'earnedRunFlags':
         for (final MapEntry(key: runnerId, value: flag)
             in (value as Map<String, dynamic>).entries) {

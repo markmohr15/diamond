@@ -481,6 +481,11 @@ class PlayDraft {
         touch.touchType == TouchType.WILD_THROW,
   );
 
+  bool _caughtBy(int? touchKey) {
+    final touch = touchKey == null ? null : entryByKey(touchKey);
+    return touch is TouchEntry && touch.touchType == TouchType.CAUGHT;
+  }
+
   /// Whether anyone caught this ball in the air. This is what the rules
   /// turn on — a catch retires the batter and removes every force, whether
   /// or not it happened where the ball first came down.
@@ -763,7 +768,10 @@ class PlayDraft {
     next = next.addingTouch(position, touchType, location: spot);
     final touchKey = next.entries.last.key;
 
-    if (touchType == TouchType.CAUGHT && wasInFlight) {
+    // An infield fly already retired her by the call: the catch is still
+    // recorded, and takes the putout (see [withInfieldFlyPutout]), but it
+    // is not a second out.
+    if (touchType == TouchType.CAUGHT && wasInFlight && !isOut(batterId)) {
       next = next.copyWith(
         entries: [
           for (final entry in next.entries)
@@ -779,6 +787,84 @@ class PlayDraft {
     }
 
     return next;
+  }
+
+  /// Whether the umpire has called an infield fly on this play (§4.5).
+  bool get infieldFlyDeclared => entries.any(
+    (entry) => entry is RuleCallEntry && entry.callType == CallType.INFIELD_FLY,
+  );
+
+  /// §15.3's infield fly, said on the ball's landing node: the ⚖, and the
+  /// batter out by it (`how: infield_fly`, linked to the call) whether or
+  /// not anybody catches the ball.
+  ///
+  /// It does what a catch does to the bases, because it is the same fact by
+  /// rule: the batter is out, so nobody is forced, and the walk-up that
+  /// presumed she was running comes off. Entered after a catch — the scorer
+  /// tapped the fielder first — the fly out it minted *becomes* this one,
+  /// keeping its putout, rather than a second out beside it.
+  PlayDraft declaringInfieldFly() {
+    final callKey = nextKey;
+    final call = RuleCallEntry(key: callKey, callType: CallType.INFIELD_FLY);
+    final flyOut = entries
+        .whereType<OutEntry>()
+        .where((out) => out.runnerId == batterId && out.how == How.FLY_OUT)
+        .firstOrNull;
+    final kept = [
+      for (final entry in entries)
+        if (entry is! LegEntry || entry.enabledByKey != null) entry,
+    ];
+    if (flyOut != null) {
+      return copyWith(
+        nextKey: callKey + 1,
+        entries: [
+          for (final entry in kept) ...[
+            if (entry.key == flyOut.key) call,
+            if (entry.key == flyOut.key)
+              flyOut.copyWith(how: How.INFIELD_FLY, enabledByCallKey: callKey)
+            else
+              entry,
+          ],
+        ],
+      ).withInfieldFlyPutout();
+    }
+    return copyWith(
+      nextKey: callKey + 2,
+      entries: [
+        ...kept,
+        call,
+        OutEntry(
+          key: callKey + 1,
+          runnerId: batterId,
+          atBase: 1,
+          how: How.INFIELD_FLY,
+          enabledByCallKey: callKey,
+        ),
+      ],
+    ).withInfieldFlyPutout();
+  }
+
+  /// Keeps the infield-fly out's putout pointing at who would have caught
+  /// it (Mark, 2026-10-23): whoever caught it, or else the first fielder to
+  /// touch it. Nobody touched it leaves it null, and official scoring
+  /// credits the closest infielder from the landing. Applied after every
+  /// draft change, so a catch or a drop entered after the call — or removed
+  /// again — moves the putout with it.
+  PlayDraft withInfieldFlyPutout() {
+    final out = entries
+        .whereType<OutEntry>()
+        .where((out) => out.how == How.INFIELD_FLY)
+        .firstOrNull;
+    if (out == null) return this;
+    final touches = entries.whereType<TouchEntry>();
+    final putoutKey =
+        touches
+            .where((touch) => touch.touchType == TouchType.CAUGHT)
+            .firstOrNull
+            ?.key ??
+        touches.firstOrNull?.key;
+    if (putoutKey == out.putoutKey) return this;
+    return updatingEntry(out.key, (_) => out.copyWith(putoutKey: putoutKey));
   }
 
   /// §15.3 v0.43: a ⚖ attached to a runner consequence — inserted into the
@@ -1261,11 +1347,22 @@ class PlayDraft {
 
   /// Removes an entry. Links pointing at it are orphaned to null — never
   /// silently retargeted.
+  ///
+  /// Taking an infield fly off takes its out with it, since the call is the
+  /// only thing that retired her — unless she was caught, in which case the
+  /// out goes back to being the fly out the catch made it.
   PlayDraft removingEntry(int key) => copyWith(
     entries: [
       for (final entry in entries)
-        if (entry.key != key)
+        if (entry.key != key &&
+            !(entry is OutEntry &&
+                entry.how == How.INFIELD_FLY &&
+                entry.enabledByCallKey == key &&
+                !_caughtBy(entry.putoutKey)))
           switch (entry) {
+            OutEntry(how: How.INFIELD_FLY, enabledByCallKey: final c)
+                when c == key =>
+              entry.copyWith(how: How.FLY_OUT, enabledByCallKey: null),
             LegEntry(enabledByKey: final e) when e == key => entry.copyWith(
               enabledByKey: null,
             ),

@@ -1,9 +1,12 @@
 import 'package:alchemist/alchemist.dart';
+import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -22,7 +25,16 @@ void main() {
   ).copyWith(landing: FieldCoord(x: -50, y: 95), trajectory: Trajectory.GROUND);
 
   Widget strip(PlayDraft draft) {
+    // The ⚾ node reads the game to decide whether it is live (DIA-019 H2),
+    // so the strip needs a database the way the touch sheet already did.
     return ProviderScope(
+      overrides: [
+        appDatabaseProvider.overrideWith((Ref<AppDatabase> ref) {
+          final db = AppDatabase(NativeDatabase.memory());
+          ref.onDispose(db.close);
+          return db;
+        }),
+      ],
       child: MaterialApp(
         theme: buildTheme(
           deriveScheme(

@@ -215,7 +215,12 @@ String _battedBall(
   // the same way it is in *grounded out to SS* (Mark, 2026-09-30).
   final sacrifice = outcome?.sacrifice ?? false;
   final sacrificed = sacrifice && retired != null;
-  final verb = sacrificed
+  // An infield fly retires her by the call, caught or not, so the verb says
+  // so (DIA-019 H).
+  final infieldFly = retired?.payload.how == How.INFIELD_FLY;
+  final verb = infieldFly
+      ? 'out on an infield fly'
+      : sacrificed
       ? 'out on a sacrifice ${caught != null ? 'fly' : 'bunt'}'
       : caught != null
       ? (_caughtVerbs[bip.trajectory] ?? 'flew out')
@@ -248,13 +253,32 @@ String _battedBall(
   final deadOnContact = play.outs.any(
     (o) => o.payload.how == How.BATTED_BALL_CONTACT,
   );
+  // An infield fly names the fielder credited with the putout, as a catch
+  // does — whoever caught it, or the first to touch it, or the infielder
+  // closest to where it came down when nobody did (Mark, 2026-10-23: *b1
+  // out on an infield fly to SS*). The same answer the box score gives.
+  final putoutTouch = play.touches
+      .where((t) => t.eventId == retired?.payload.putoutTouchId)
+      .firstOrNull;
+  final infieldFlyBy = infieldFly
+      ? (putoutTouch?.payload.position ?? closestInfielder(bip.landing))
+      : null;
   final clauses = <String>[
-    if (deadOnContact) '$batter $verb' else '$batter $verb to $place',
+    if (deadOnContact)
+      '$batter $verb'
+    else if (infieldFlyBy != null)
+      '$batter $verb to '
+          '${positionAbbreviations[infieldFlyBy] ?? '$infieldFlyBy'}'
+    else
+      '$batter $verb to $place',
   ];
   for (final out in outs) {
     // Her own out is already in the verb when the catch or the sacrifice
     // said it; repeating it as "out at first" is the clause Mark cut.
-    if (identical(out, retired) && (caught != null || sacrificed)) continue;
+    if (identical(out, retired) &&
+        (caught != null || sacrificed || infieldFly)) {
+      continue;
+    }
     clauses.add(
       _outClause(
         out.payload,

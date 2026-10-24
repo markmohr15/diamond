@@ -201,6 +201,145 @@ void main() {
     });
   });
 
+  group('infield fly (DIA-019 H2)', () {
+    const r1r2 = BaseState(first: 'r1', second: 'r2');
+    final pop = batted(Trajectory.POPUP);
+
+    test('offered for a fly or pop-up, under two out, first and second '
+        'occupied, once it has come down', () {
+      expect(offersInfieldFly(pop, outs: 0, bases: r1r2), isTrue);
+      expect(
+        offersInfieldFly(batted(Trajectory.FLY), outs: 1, bases: r1r2),
+        isTrue,
+      );
+      expect(
+        offersInfieldFly(batted(Trajectory.LINE), outs: 0, bases: r1r2),
+        isFalse,
+        reason: 'never a liner',
+      );
+      expect(
+        offersInfieldFly(batted(Trajectory.BUNT), outs: 0, bases: r1r2),
+        isFalse,
+        reason: 'never a bunt',
+      );
+      expect(offersInfieldFly(pop, outs: 2, bases: r1r2), isFalse);
+      expect(
+        offersInfieldFly(pop, outs: 0, bases: const BaseState(first: 'r1')),
+        isFalse,
+      );
+      expect(
+        offersInfieldFly(
+          const PlayDraft(
+            pitchEventId: 'p',
+            batterId: 'b',
+          ).copyWith(trajectory: Trajectory.POPUP),
+          outs: 0,
+          bases: r1r2,
+        ),
+        isFalse,
+        reason: 'no landing yet',
+      );
+      expect(
+        offersInfieldFly(pop.declaringInfieldFly(), outs: 0, bases: r1r2),
+        isFalse,
+        reason: 'already declared',
+      );
+    });
+
+    test('declaring it retires the batter by the call and takes the walk-up '
+        'off — and with it every force', () {
+      final declared = pop
+          .addingLeg('b', from: 0, to: 1)
+          .addingLeg('r1', from: 1, to: 2)
+          .addingLeg('r2', from: 2, to: 3)
+          .declaringInfieldFly();
+
+      expect(declared.entries.whereType<LegEntry>(), isEmpty);
+      final call = declared.entries.whereType<RuleCallEntry>().single;
+      expect(call.callType, CallType.INFIELD_FLY);
+      final out = declared.entries.whereType<OutEntry>().single;
+      expect(out.runnerId, 'b');
+      expect(out.how, How.INFIELD_FLY);
+      expect(out.enabledByCallKey, call.key);
+      expect(out.putoutKey, isNull, reason: 'nobody has touched it');
+
+      final hows = [
+        for (final (_, _, how) in possibleHows(declared, 'r1', 2, r1r2)) how,
+      ];
+      expect(hows, isNot(contains(How.FORCE)));
+    });
+
+    test('caught after the call: one out, putout to the catch', () {
+      final caught = pop
+          .declaringInfieldFly()
+          .recordingFielderPlay(
+            6,
+            spot: FieldCoord(x: -25, y: 95),
+            touchType: TouchType.CAUGHT,
+          )
+          .withInfieldFlyPutout();
+      final out = caught.entries.whereType<OutEntry>().single;
+      expect(out.how, How.INFIELD_FLY);
+      expect(caught.entryByKey(out.putoutKey!), isA<TouchEntry>());
+    });
+
+    test('called after the catch: the fly out becomes the infield fly', () {
+      final declared = pop
+          .recordingFielderPlay(
+            6,
+            spot: FieldCoord(x: -25, y: 95),
+            touchType: TouchType.CAUGHT,
+          )
+          .declaringInfieldFly();
+      final out = declared.entries.whereType<OutEntry>().single;
+      expect(out.how, How.INFIELD_FLY);
+      expect(
+        out.putoutKey,
+        declared.entries.whereType<TouchEntry>().single.key,
+      );
+    });
+
+    test('dropped: the putout is hers — she is who would have caught it', () {
+      final dropped = pop
+          .declaringInfieldFly()
+          .recordingFielderPlay(
+            4,
+            spot: FieldCoord(x: 20, y: 70),
+            touchType: TouchType.DROPPED,
+          )
+          .withInfieldFlyPutout();
+      final out = dropped.entries.whereType<OutEntry>().single;
+      final putout = dropped.entryByKey(out.putoutKey!)! as TouchEntry;
+      expect(putout.position, 4);
+    });
+
+    test('removing the call takes its out off, or gives the catch back its '
+        'fly out', () {
+      final uncaught = pop.declaringInfieldFly();
+      final call = uncaught.entries.whereType<RuleCallEntry>().single;
+      expect(
+        uncaught.removingEntry(call.key).entries.whereType<OutEntry>(),
+        isEmpty,
+      );
+
+      final caught = pop
+          .recordingFielderPlay(
+            6,
+            spot: FieldCoord(x: -25, y: 95),
+            touchType: TouchType.CAUGHT,
+          )
+          .declaringInfieldFly();
+      final caughtCall = caught.entries.whereType<RuleCallEntry>().single;
+      final out = caught
+          .removingEntry(caughtCall.key)
+          .entries
+          .whereType<OutEntry>()
+          .single;
+      expect(out.how, How.FLY_OUT);
+      expect(out.enabledByCallKey, isNull);
+    });
+  });
+
   test('infield is 1–6, and the fourth outfielder is an outfielder', () {
     expect(
       [for (var p = 1; p <= 10; p++) isInfield(p)],

@@ -2125,6 +2125,64 @@ void main() {
     });
   });
 
+  group("infield fly, on the ball's landing node (§15.3, DIA-019 H2)", () {
+    Future<void> runnersOnFirstAndSecond(WidgetTester tester) async {
+      await pumpLoop(tester);
+      for (final (id, base) in [('r1', 1), ('r2', 2)]) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+    }
+
+    testWidgets('a pop-up nobody touches: the batter is out by the call, '
+        'the runners hold, and short gets the putout', (tester) async {
+      await runnersOnFirstAndSecond(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+      await tapWorld(tester, FieldCoord(x: -25, y: 95));
+
+      await tapKey(tester, chainBallNodeKey);
+      await tapKey(tester, chainChipKey('infield_fly'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final call = events.lastWhere((e) => e.type == 'RuleCall');
+      expect(call.payload['callType'], 'infield_fly');
+      final out = RunnerOut.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerOut').payload,
+      );
+      expect(out.how, How.INFIELD_FLY);
+      expect(out.enabledByCallId, call.id);
+      expect(out.putoutTouchId, isNull);
+
+      final state = container.read(gameControllerProvider).value!;
+      expect(state.outs, 1);
+      expect(state.bases.first, 'r1');
+      expect(state.bases.second, 'r2');
+      expect(foldOfficialScoring(events).putoutsByPosition, {6: 1});
+    });
+
+    testWidgets('a liner is never an infield fly: the node is not a '
+        'control', (tester) async {
+      await runnersOnFirstAndSecond(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.LINE));
+      await tapWorld(tester, FieldCoord(x: -25, y: 95));
+      await tester.tap(find.byKey(chainBallNodeKey));
+      await tester.pumpAndSettle();
+      expect(find.text('Ball in play'), findsNothing);
+    });
+  });
+
   group('interference is the out-flavored ⚖ (§15.1 v0.43)', () {
     testWidgets('OUT popup: Interference inserts the call and the how '
         'becomes interference', (tester) async {

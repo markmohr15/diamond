@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
@@ -653,9 +654,26 @@ OfficialScoring foldOfficialScoring(
   final putouts = <int, int>{};
   final assists = <int, int>{};
   final touchById = {for (final t in touches) t.eventId: t.payload};
+  final battedBallOfPitch = {
+    for (final bip in ballInPlayById.values) bip.pitchEventId: bip,
+  };
   for (final out in outs) {
     final putoutTouch = touchById[out.payload.putoutTouchId];
-    if (putoutTouch == null) continue; // no touch data (e.g. strikeout)
+    if (putoutTouch == null) {
+      // An infield fly nobody touched: the batter is out by the call, and
+      // the putout goes to the fielder who would have caught it — the
+      // infielder closest to where it came down (Mark, 2026-10-23). Nobody
+      // assists a ball nobody threw.
+      final landing = battedBallOfPitch[out.pitchAtTime]?.landing;
+      if (out.payload.how == How.INFIELD_FLY && landing != null) {
+        putouts.update(
+          closestInfielder(landing),
+          (v) => v + 1,
+          ifAbsent: () => 1,
+        );
+      }
+      continue; // otherwise no touch data (e.g. strikeout)
+    }
     putouts.update(putoutTouch.position, (v) => v + 1, ifAbsent: () => 1);
     // A ruling, not a play: the pitcher is credited with the putout and
     // nobody assists, whatever the ball did before the call (Mark,
@@ -893,6 +911,25 @@ OfficialErrorBasis? _consequenceBasis(
     }
   }
   return null;
+}
+
+/// The infielder whose spot is closest to [landing] — who is credited with
+/// an infield fly nobody touched, and so who its line names. Standard spots,
+/// because alignment is not recorded until M2 (§16.4): until then a shifted
+/// infield can credit the wrong fielder, which is the known cost of deriving
+/// this rather than asking. M1 is fastpitch 12U throughout.
+int closestInfielder(FieldCoord landing) {
+  final spots = standardFielderSpots(FieldProfile.fastpitch12U);
+  double distance(int position) {
+    final spot = spots[position]!;
+    final dx = spot.x - landing.x;
+    final dy = spot.y - landing.y;
+    return dx * dx + dy * dy;
+  }
+
+  return [
+    for (var position = 1; position <= 6; position++) position,
+  ].reduce((a, b) => distance(b) < distance(a) ? b : a);
 }
 
 /// Outs that credit the putout alone (DIA-019 H): leaving early and the

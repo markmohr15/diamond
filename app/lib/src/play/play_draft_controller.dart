@@ -499,6 +499,10 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     );
   }
 
+  /// §15.3's infield fly, from the ball's landing node.
+  Future<void> declareInfieldFly() =>
+      _mutate((draft) => draft.declaringInfieldFly());
+
   /// Override an out's inferred `how` (§15.1: "confirmable").
   ///
   /// The putout follows the `how` where the `how` decides it. Retyping an
@@ -626,7 +630,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     final draft = state.valueOrNull;
     if (draft == null) return;
     _steps.add(draft);
-    final next = change(draft);
+    final next = change(draft).withInfieldFlyPutout();
     await _journal.save(_gameId, next);
     state = AsyncData(next);
   }
