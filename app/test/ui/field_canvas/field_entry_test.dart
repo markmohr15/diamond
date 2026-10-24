@@ -2544,6 +2544,31 @@ void main() {
       expect(foldOfficialScoring(events).putoutsByPosition, {6: 1});
     });
 
+    testWidgets('caught stealing retyped to left early: the throw stays on '
+        'the record and assists nobody (DIA-019 H)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      await tapWorld(
+        tester,
+        standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
+      );
+      await dragToken(tester, 1, 2, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+      final out = container
+          .read(playDraftProvider)
+          .value!
+          .entries
+          .whereType<OutEntry>()
+          .single;
+      await tapKey(tester, chainNodeKey(out.key));
+      await tapKey(tester, chainChipKey('left_early'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.putoutsByPosition, {1: 1});
+      expect(scoring.assistsByPosition, isEmpty);
+    });
+
     testWidgets('a batted ball offers neither — both are dead ball, no '
         'pitch (DIA-019 H)', (tester) async {
       await pumpLoop(tester);
