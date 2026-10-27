@@ -1601,29 +1601,33 @@ void main() {
     });
   });
 
-  group('the sacrifice judgment (§13.6 v0.43)', () {
-    testWidgets('a bunt that moves a runner offers the judgment; a bunt that '
-        'moves nobody does not', (tester) async {
+  group('the sacrifice judgment, asked at the ✓ (§13.6, DIA-019 J)', () {
+    Future<void> runnerOn(WidgetTester tester, String id, int base) async {
       await pumpLoop(tester);
       await container
           .read(gameControllerProvider.notifier)
           .append(
             type: 'RunnerAdvance',
             payload: RunnerAdvance(
-              runnerId: 'r1',
+              runnerId: id,
               from: 0,
-              to: 1,
+              to: base,
               reason: RunnerAdvanceReason.BATTED_BALL,
             ).toJson(),
           );
       await tester.pumpAndSettle();
       await reachFieldSurface(tester);
+    }
 
+    Future<BallInPlay> committedBall() async => BallInPlay.fromJson(
+      (await stream()).lastWhere((e) => e.type == 'BallInPlay').payload,
+    );
+
+    testWidgets('a bunt that moved the walk-up runner asks at the ✓, though '
+        'nobody touched her', (tester) async {
+      await runnerOn(tester, 'r1', 1);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
-      // The walk-up pushed R1 to second, so the question is live.
-      expect(find.byKey(sacrificeChipKey), findsOneWidget);
-      await tapKey(tester, sacrificeChipKey);
 
       // She is thrown out at first; the runner she moved stands at second.
       await tapWorld(tester, standardSpot(5));
@@ -1632,12 +1636,26 @@ void main() {
       await tapPill(tester, 1, out: true);
       await tapKey(tester, fieldCommitKey);
 
-      final events = await stream();
-      final ball = BallInPlay.fromJson(
-        events.lastWhere((e) => e.type == 'BallInPlay').payload,
-      );
+      expect(find.text('Sacrifice bunt?'), findsOneWidget);
+      await tapKey(tester, sacrificeAnswerKey('yes'));
+
+      final ball = await committedBall();
       expect(ball.sacrifice, isTrue);
       expect(ball.trajectory, Trajectory.BUNT);
+    });
+
+    testWidgets('answering No commits an ordinary at-bat', (tester) async {
+      await runnerOn(tester, 'r1', 1);
+      await tapKey(tester, trajectoryKey(Trajectory.BUNT));
+      await tapWorld(tester, FieldCoord(x: -18, y: 24));
+      await tapWorld(tester, standardSpot(5));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(3));
+      await tapPill(tester, 1, out: true);
+      await tapKey(tester, fieldCommitKey);
+      await tapKey(tester, sacrificeAnswerKey('no'));
+
+      expect((await committedBall()).sacrifice, isNull);
     });
 
     testWidgets('no runner moved, no question — a bunt for a hit is just a '
@@ -1646,15 +1664,50 @@ void main() {
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
-      expect(find.byKey(sacrificeChipKey), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Sacrifice bunt?'), findsNothing);
+      expect(
+        await stream(),
+        contains(predicate<GameEvent>((e) => e.type == 'BallInPlay')),
+      );
     });
 
-    testWidgets('a fly with nobody scoring does not ask', (tester) async {
-      await pumpLoop(tester);
-      await reachFieldSurface(tester);
+    testWidgets('a dropped fly a runner scores on asks "Sacrifice fly?", '
+        'after the reach', (tester) async {
+      await runnerOn(tester, 'r3', 3);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
-      await tapWorld(tester, FieldCoord(x: 0, y: 180));
-      expect(find.byKey(sacrificeChipKey), findsNothing);
+      await tapWorld(tester, FieldCoord(x: -60, y: 190));
+      await tapWorld(tester, standardSpot(7));
+      await tapKey(tester, fielderPlayKey('dropped'));
+      await dragToken(tester, 3, 4, originFrom: 3);
+      await tapKey(tester, safeChipKey('hit'));
+      await tapKey(tester, fieldCommitKey);
+
+      // The reach is the ✓'s first question; the sacrifice follows it.
+      expect(find.text('Safe at 1B — how?'), findsOneWidget);
+      await tapKey(tester, safeChipKey('error-catching-7'));
+      expect(find.text('Sacrifice fly?'), findsOneWidget);
+      await tapKey(tester, sacrificeAnswerKey('yes'));
+
+      final ball = await committedBall();
+      expect(ball.sacrifice, isTrue);
+      // She reached on the error and is still credited the sacrifice: the
+      // credit is a flag beside the result, not a result of its own.
+      final outcome = foldOfficialScoring(await stream()).batterOutcomes.last;
+      expect(outcome.sacrifice, isTrue);
+      expect(outcome.atBat, isFalse);
+    });
+
+    testWidgets('a fly that falls in clean does not ask — a run on a hit is '
+        'never a sacrifice', (tester) async {
+      await runnerOn(tester, 'r3', 3);
+      await tapKey(tester, trajectoryKey(Trajectory.FLY));
+      await tapWorld(tester, FieldCoord(x: -60, y: 190));
+      // Nobody touched it, so "on the play" is the only answer and is not
+      // asked.
+      await dragToken(tester, 3, 4, originFrom: 3);
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Sacrifice fly?'), findsNothing);
     });
   });
 

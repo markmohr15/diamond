@@ -1,0 +1,23 @@
+{
+  "id": "play-23",
+  "title": "Liner off the third baseman's glove, caught by short, R3 tags and scores: a sacrifice fly",
+  "specRef": "§13.6 (v0.57)",
+  "setup": { "outs": 0, "count": { "balls": 1, "strikes": 1 }, "runners": { "3": "r3" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": -0.1, "y": 0.4 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": -40, "y": 60 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "deflected" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "caught" } },
+    { "id": "e5", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "fly_out", "putoutTouchId": "e4" } },
+    { "id": "e6", "type": "RunnerAdvance", "payload": { "runnerId": "r3", "from": 3, "to": 4, "reason": "batted_ball" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 1,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "sacrifice_fly", "hit": false, "rbi": 1, "atBat": false },
+    "putouts": { "6": 1 },
+    "note": "Caught in the air, just not where it first came down: `landingIsCaught` is false because the first touch was a deflection, and the sac fly used to key on it. The rule asks whether the ball was caught, so the derivation now does too — a catch by anyone, on this batted ball, in flight."
+  }
+}

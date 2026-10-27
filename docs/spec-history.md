@@ -3,6 +3,43 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.57
+
+**Sacrifices are asked at the ✓, and the dropped fly is documented.**
+
+§13.6 said the field surface offers the sacrifice judgment "exactly when the question is live: a bunt
+that moved a runner up." DIA-015 had already widened that in code to the sac fly's second clause — a
+dropped fly with a runner scoring who could have scored on the catch — without the spec following,
+and the question lived on a standing `FilterChip` whose label was the constant "Sacrifice bunt", so a
+dropped fly offered a sacrifice *bunt* on a ball nobody bunted.
+
+DIA-019 slice J first proposed moving it onto the runner, which is where GameChanger asks and where
+Mark first pictured it: *"we move the runner home on a ball in the air and then we have a checkbox
+if it was a sac fly."* It does not survive the walk-up. The runner a sacrifice turns on is usually
+the one §15.1 moved automatically and nobody touched — R1 to second on the ordinary sac bunt, R3
+forced home on a dropped fly with the bases loaded — and an untouched runner is safe by default with
+no dialog, so the question would go unasked on exactly the plays it exists for. Mark chose the ✓
+(2026-10-23): one place, reached however the play was entered, after §13.2's reach question and
+named for the play — *Sacrifice bunt?* or *Sacrifice fly?*
+
+**The fly is asked only after a drop.** The rule's second clause is a *dropped* fly. The code asked
+on any uncaught fly that scored a runner, which included one that fell in clean for a hit; a run on a
+hit is never a sacrifice. The gate is now that the touch that ended the ball's flight — the first
+that was not a deflection — is a drop.
+
+**A catch by anyone derives the sac fly.** The derivation keyed on `landingIsCaught`, which is true
+only when the *first* touch was the catch, so a liner off the third baseman's glove and caught by
+the shortstop, with a runner tagging and scoring, was neither derived nor asked. It now asks whether
+anybody caught the batted ball in flight — the same question the rest of the rules engine asks.
+Fixture `play_23`.
+
+**The error condition was mis-stated.** §13.6 said the sac fly derives with "no charged error
+anywhere on the play", and the code had already dropped that guard as wrong: a runner tags and
+scores, the throw home gets away, another runner takes a base — still a sacrifice fly, and still an
+error. What the rule excludes is a run that *needed* the error, and the derivation already tests
+exactly that: a leg linked to a misplay is recorded as `error`, and only `batted_ball` runs count.
+The text now says so.
+
 ## v0.56
 
 **Hit versus error: `ordinaryEffort` deleted, errors charged from consequences.**
