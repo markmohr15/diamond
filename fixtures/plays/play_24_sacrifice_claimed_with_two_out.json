@@ -1,0 +1,21 @@
+{
+  "id": "play-24",
+  "title": "Bunt with two out moves the runner and is flagged a sacrifice: no sacrifice, an at-bat",
+  "specRef": "§13.6 (v0.57)",
+  "setup": { "outs": 2, "count": { "balls": 0, "strikes": 1 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.0, "y": 0.3 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "bunt", "landing": { "x": -18, "y": 24 }, "landingIsCaught": false, "sacrifice": true } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "fielded" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 3, "touchType": "received_throw" } },
+    { "id": "e5", "type": "RunnerAdvance", "payload": { "runnerId": "r1", "from": 1, "to": 2, "reason": "batted_ball" } },
+    { "id": "e6", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "force", "putoutTouchId": "e4" } }
+  ],
+  "expect": {
+    "outs": 3,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "out", "hit": false, "rbi": 0, "atBat": true },
+    "note": "No sacrifice exists with two out — her out ends the inning, so she gave nothing up to move anyone. The entry surface never asks then, but the flag is honored by the derivation, so the derivation itself checks the outs before reading it: no stored judgment can claim one, however the event was written."
+  }
+}
