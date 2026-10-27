@@ -647,6 +647,11 @@ OfficialScoring foldOfficialScoring(
           battedBall: pa.battedBallId == null
               ? null
               : ballInPlayById[pa.battedBallId],
+          caught: touches.any(
+            (t) =>
+                t.payload.anchorEventId == pa.battedBallId &&
+                t.payload.touchType == TouchType.CAUGHT,
+          ),
         ),
       ),
   ];
@@ -973,12 +978,21 @@ const _nonAtBatReachReasons = {
 /// and no error anywhere on the play, since a run that needed a misplay was
 /// not the sacrifice's doing. An explicit flag overrides the derivation
 /// either way.
-String? _sacrificeFor(_PlateAppearance pa, {required BallInPlay? battedBall}) {
+String? _sacrificeFor(
+  _PlateAppearance pa, {
+  required BallInPlay? battedBall,
+  required bool caught,
+}) {
   if (battedBall == null) return null;
   final bunt = battedBall.trajectory == Trajectory.BUNT;
   // Scoped by construction: `pa.outs` holds only what happened while she was
   // up, so this can no longer report a batter retired three innings ago.
   final wasOut = pa.outs.any((o) => o.payload.runnerId == pa.batterId);
+
+  // No sacrifice exists with two out, by rule — checked before the flag, so
+  // no stored judgment can claim one however the event was written (§13.6
+  // v0.57).
+  if ((pa.outsAtContact ?? 0) >= 2) return null;
 
   final judged = battedBall.sacrifice;
   if (judged ?? false) return bunt ? 'sacrifice_bunt' : 'sacrifice_fly';
@@ -999,13 +1013,19 @@ String? _sacrificeFor(_PlateAppearance pa, {required BallInPlay? battedBall}) {
   // `battedBall.sacrifice`. It reaches here only if the entry surface asked
   // (`PlayDraft.invitesSacrifice`), which is why widening that is half of
   // this fix.
-  if (!airborne || !battedBall.landingIsCaught) return null;
+  //
+  // Caught by *anyone* in flight, not only where it first came down:
+  // `landingIsCaught` says the first touch was the catch, so a liner off the
+  // third baseman's glove and caught by the shortstop failed it — and was
+  // never asked either, since it was not dropped (DIA-019 J).
+  if (!airborne || !caught) return null;
   if (!wasOut) return null;
-  if ((pa.outsAtContact ?? 0) >= 2) return null;
 
   // `anyChargedError` used to guard here and was wrong even for clause (1): a
   // runner tags and scores, the throw home gets away, another runner takes a
-  // base — still a sacrifice fly, and still an error.
+  // base — still a sacrifice fly, and still an error. What the rule excludes
+  // is a run that *needed* the error, and the `batted_ball` reason below is
+  // that test: a leg linked to a misplay is recorded as `error` (§13.6).
   //
   // The condition is that a runner scores after the catch, not that she
   // started on third. A runner tagging from second on a deep fly is legal and

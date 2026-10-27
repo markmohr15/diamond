@@ -49,11 +49,12 @@ void main() {
 
   group('invitesSacrifice (§13.6) — the two calls only a scorer can make', () {
     PlayDraft flyScoring({required bool caught, int to = 4}) {
-      var draft = base.copyWith(
-        landing: FieldCoord(x: 0, y: 240),
-        trajectory: Trajectory.FLY,
-      );
-      if (caught) draft = draft.addingTouch(8, TouchType.CAUGHT);
+      final draft = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingTouch(8, caught ? TouchType.CAUGHT : TouchType.DROPPED);
       return draft.addingLeg('r3', from: 3, to: to);
     }
 
@@ -62,18 +63,67 @@ void main() {
       // dropped, with a runner scoring who could have scored had it been
       // caught — is judgment. Nothing in the record says whether she would
       // have made it, so without this question clause (2) has no way in.
-      expect(flyScoring(caught: false).invitesSacrifice, isTrue);
+      expect(flyScoring(caught: false).invitesSacrifice(outs: 0), isTrue);
     });
 
     test('a caught fly does not ask — clause (1) derives', () {
       // Caught with a runner scoring has no judgment in it, so asking would
       // be a question with a known answer.
-      expect(flyScoring(caught: true).invitesSacrifice, isFalse);
+      expect(flyScoring(caught: true).invitesSacrifice(outs: 0), isFalse);
     });
 
     test('a dropped fly with nobody scoring does not ask', () {
       // A runner merely advancing is not the clause: it turns on a run.
-      expect(flyScoring(caught: false, to: 3).invitesSacrifice, isFalse);
+      expect(
+        flyScoring(caught: false, to: 3).invitesSacrifice(outs: 0),
+        isFalse,
+      );
+    });
+
+    test('a fly that falls in clean does not ask — a run on a hit is never '
+        'a sacrifice (DIA-019 J)', () {
+      final fellIn = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingTouch(8, TouchType.FIELDED)
+          .addingLeg('r3', from: 3, to: 4);
+      expect(fellIn.invitesSacrifice(outs: 0), isFalse);
+      final untouched = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingLeg('r3', from: 3, to: 4);
+      expect(untouched.invitesSacrifice(outs: 0), isFalse);
+    });
+
+    test(
+      'dropped after a deflection still asks: the drop ended its flight',
+      () {
+        final draft = base
+            .copyWith(
+              landing: FieldCoord(x: 0, y: 120),
+              trajectory: Trajectory.LINE,
+            )
+            .addingTouch(5, TouchType.DEFLECTED)
+            .addingTouch(6, TouchType.DROPPED)
+            .addingLeg('r3', from: 3, to: 4);
+        expect(draft.invitesSacrifice(outs: 0), isTrue);
+      },
+    );
+
+    test('never with two out — neither sacrifice exists then', () {
+      expect(flyScoring(caught: false).invitesSacrifice(outs: 2), isFalse);
+      final bunt = base
+          .copyWith(
+            landing: FieldCoord(x: -18, y: 24),
+            trajectory: Trajectory.BUNT,
+          )
+          .addingLeg('r1', from: 1, to: 2);
+      expect(bunt.invitesSacrifice(outs: 1), isTrue);
+      expect(bunt.invitesSacrifice(outs: 2), isFalse);
     });
 
     test('a ground ball never asks, caught or not', () {
@@ -83,7 +133,7 @@ void main() {
             trajectory: Trajectory.GROUND,
           )
           .addingLeg('r3', from: 3, to: 4);
-      expect(grounder.invitesSacrifice, isFalse);
+      expect(grounder.invitesSacrifice(outs: 0), isFalse);
     });
 
     test('a bunt still asks on any runner moved up, not only a run', () {
@@ -95,7 +145,7 @@ void main() {
             trajectory: Trajectory.BUNT,
           )
           .addingLeg('r1', from: 1, to: 2);
-      expect(bunt.invitesSacrifice, isTrue);
+      expect(bunt.invitesSacrifice(outs: 0), isTrue);
     });
   });
 

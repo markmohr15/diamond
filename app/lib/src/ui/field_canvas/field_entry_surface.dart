@@ -25,8 +25,6 @@ const Key fieldCommitKey = Key('fieldCommit');
 @visibleForTesting
 const Key offWallChipKey = Key('offWallChip');
 @visibleForTesting
-const Key sacrificeChipKey = Key('sacrificeChip');
-@visibleForTesting
 const Key fieldDistanceKey = Key('fieldDistance');
 @visibleForTesting
 const Key fieldCanvasKey = Key('fieldCanvas');
@@ -41,6 +39,8 @@ Key fielderPlayKey(String choice) => Key('fielderPlay-$choice');
 const Key trajectoryEditKey = Key('trajectoryEdit');
 @visibleForTesting
 Key beyondFenceKey(String choice) => Key('beyondFence-$choice');
+@visibleForTesting
+Key sacrificeAnswerKey(String answer) => Key('sacrifice-$answer');
 @visibleForTesting
 Key safeChipKey(String choice) => Key('safe-$choice');
 @visibleForTesting
@@ -282,19 +282,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             },
           ),
         ),
-        // §13 v0.43: a bunt that moved a runner is the one play where the
-        // record is genuinely incomplete without the scorer — nothing
-        // physical separates giving herself up from bunting for a hit.
-        if (draft.invitesSacrifice)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: FilterChip(
-              key: sacrificeChipKey,
-              label: const Text('Sacrifice bunt'),
-              selected: draft.sacrifice,
-              onSelected: (value) => controller.setSacrifice(sacrifice: value),
-            ),
-          ),
         if (draft.landing != null && _nearFence(draft.landing!))
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -879,18 +866,66 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
   }
 
-  /// The ✓ (§15.5). One thing stops it: a misplay opened the play and nobody
-  /// has said whether the batter earned first, so committing would derive
-  /// hit-vs-error from an answer she never gave (§13.2 v0.56). Every other
+  /// The ✓ (§15.5). Two things stop it, both questions only the scorer can
+  /// answer and both asked here, in order:
+  ///
+  /// - a misplay opened the play and nobody has said whether the batter
+  ///   earned first, so committing would derive hit-vs-error from an answer
+  ///   she never gave (§13.2 v0.56);
+  /// - the play needs §13.6's sacrifice judgment — a bunt that moved a
+  ///   runner, or a dropped fly a runner scored on.
+  ///
+  /// The sacrifice is asked here rather than on a runner (DIA-019 J): the
+  /// runner it turns on is usually the walk-up nobody touched, so a question
+  /// on her would go unasked on the ordinary sacrifice. Every other
   /// unresolved presumption is already safe by default — a runner nobody
-  /// marked out is safe (§15.1) — which is why this blocks and nothing else
+  /// marked out is safe (§15.1) — which is why these block and nothing else
   /// does.
+  ///
+  /// Reads the controller's draft rather than the widget's: after an answer
+  /// the widget has not rebuilt yet, and the stale draft would ask again.
   void _commitOrAsk() {
-    if (_draft.reachNeedsAnswer) {
+    final draft = ref.read(playDraftProvider).valueOrNull ?? _draft;
+    if (draft.reachNeedsAnswer) {
       _showReachDialog(thenCommit: true);
       return;
     }
+    final outs = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
+    if (draft.invitesSacrifice(outs: outs)) {
+      _showSacrificeDialog(bunt: draft.trajectory == Trajectory.BUNT);
+      return;
+    }
     unawaited(ref.read(playDraftProvider.notifier).commit());
+  }
+
+  /// §13.6's judgment, named for the play it is about — the old standing
+  /// chip said "Sacrifice bunt" on a dropped fly. Either answer commits.
+  void _showSacrificeDialog({required bool bunt}) {
+    final controller = ref.read(playDraftProvider.notifier);
+    Future<void> answer({required bool sacrifice}) async {
+      Navigator.pop(context);
+      await controller.setSacrifice(sacrifice: sacrifice);
+      await controller.commit();
+    }
+
+    _centeredDialog(bunt ? 'Sacrifice bunt?' : 'Sacrifice fly?', [
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FilledButton(
+            key: sacrificeAnswerKey('yes'),
+            onPressed: () => unawaited(answer(sacrifice: true)),
+            child: const Text('Yes'),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton(
+            key: sacrificeAnswerKey('no'),
+            onPressed: () => unawaited(answer(sacrifice: false)),
+            child: const Text('No'),
+          ),
+        ],
+      ),
+    ]);
   }
 
   /// Hit-vs-error on the batter's reach (§13.2 v0.56) — the two-chip form of
@@ -1082,7 +1117,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         reason: reason,
       );
     }
-    if (thenCommit) await controller.commit();
+    // Not a bare commit: the reach was the first of the ✓'s questions, and
+    // the sacrifice may still be open.
+    if (thenCommit) _commitOrAsk();
   }
 
   /// The SAFE classification (§15.1 v0.43): what got the runner there.
