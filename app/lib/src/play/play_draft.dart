@@ -500,11 +500,16 @@ class PlayDraft {
   /// whether she was giving herself up or bunting for a hit looks identical in
   /// the physical record, so the surface has to ask.
   ///
-  /// **A fly that was *not* caught, with a runner scoring.** This is the sac
+  /// **A fly that was dropped, with a runner scoring.** This is the sac
   /// fly's second clause — dropped, and a runner scores who in the scorer's
   /// judgment could have scored had it been caught. It is judgment for the
   /// same reason: nothing in the record says whether the runner would have
   /// made it.
+  ///
+  /// *Dropped*, not merely uncaught (DIA-019 J): a fly that falls in clean
+  /// is a hit, and a run scored on a hit is never a sacrifice. The drop is
+  /// the touch that ended the ball's flight — the first one that was not a
+  /// deflection.
   ///
   /// Clause (1) — caught, and a runner scores — is deliberately absent. That
   /// one derives with no judgment in it, so asking there would be a question
@@ -520,7 +525,12 @@ class PlayDraft {
     }
 
     const airborne = {Trajectory.FLY, Trajectory.POPUP, Trajectory.LINE};
-    if (!airborne.contains(trajectory) || caughtInFlight) return false;
+    if (!airborne.contains(trajectory)) return false;
+    final endedFlight = entries
+        .whereType<TouchEntry>()
+        .where((touch) => touch.touchType != TouchType.DEFLECTED)
+        .firstOrNull;
+    if (endedFlight?.touchType != TouchType.DROPPED) return false;
     return movedARunner((leg) => leg.to == 4);
   }
 

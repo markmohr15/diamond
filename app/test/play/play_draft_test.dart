@@ -49,11 +49,12 @@ void main() {
 
   group('invitesSacrifice (§13.6) — the two calls only a scorer can make', () {
     PlayDraft flyScoring({required bool caught, int to = 4}) {
-      var draft = base.copyWith(
-        landing: FieldCoord(x: 0, y: 240),
-        trajectory: Trajectory.FLY,
-      );
-      if (caught) draft = draft.addingTouch(8, TouchType.CAUGHT);
+      final draft = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingTouch(8, caught ? TouchType.CAUGHT : TouchType.DROPPED);
       return draft.addingLeg('r3', from: 3, to: to);
     }
 
@@ -75,6 +76,40 @@ void main() {
       // A runner merely advancing is not the clause: it turns on a run.
       expect(flyScoring(caught: false, to: 3).invitesSacrifice, isFalse);
     });
+
+    test('a fly that falls in clean does not ask — a run on a hit is never '
+        'a sacrifice (DIA-019 J)', () {
+      final fellIn = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingTouch(8, TouchType.FIELDED)
+          .addingLeg('r3', from: 3, to: 4);
+      expect(fellIn.invitesSacrifice, isFalse);
+      final untouched = base
+          .copyWith(
+            landing: FieldCoord(x: 0, y: 240),
+            trajectory: Trajectory.FLY,
+          )
+          .addingLeg('r3', from: 3, to: 4);
+      expect(untouched.invitesSacrifice, isFalse);
+    });
+
+    test(
+      'dropped after a deflection still asks: the drop ended its flight',
+      () {
+        final draft = base
+            .copyWith(
+              landing: FieldCoord(x: 0, y: 120),
+              trajectory: Trajectory.LINE,
+            )
+            .addingTouch(5, TouchType.DEFLECTED)
+            .addingTouch(6, TouchType.DROPPED)
+            .addingLeg('r3', from: 3, to: 4);
+        expect(draft.invitesSacrifice, isTrue);
+      },
+    );
 
     test('a ground ball never asks, caught or not', () {
       final grounder = base
