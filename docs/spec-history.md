@@ -40,6 +40,13 @@ error. What the rule excludes is a run that *needed* the error, and the derivati
 exactly that: a leg linked to a misplay is recorded as `error`, and only `batted_ball` runs count.
 The text now says so.
 
+**Never with two out** (Mark, 2026-10-27). Neither sacrifice exists with two out — her out ends the
+inning, so she gave nothing up to move anyone. The derivation checked this only for the caught fly;
+the bunt question and the dropped-fly question both asked with two out, and a stored Yes was credited
+without looking. The ✓ no longer asks then, and `_sacrificeFor` checks the outs at contact *before*
+it reads the flag, so the override §13.6 grants in both directions cannot create one. Fixture
+`play_24`.
+
 ## v0.56
 
 **Hit versus error: `ordinaryEffort` deleted, errors charged from consequences.**

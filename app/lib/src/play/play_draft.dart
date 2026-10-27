@@ -514,7 +514,13 @@ class PlayDraft {
   /// Clause (1) — caught, and a runner scores — is deliberately absent. That
   /// one derives with no judgment in it, so asking there would be a question
   /// with a known answer.
-  bool get invitesSacrifice {
+  ///
+  /// **Never with two out** (Mark, 2026-10-27): neither sacrifice exists
+  /// then by rule — the batter's out ends the inning, so she cannot have
+  /// given herself up to move anyone. [outs] is the count when the ball was
+  /// hit, which the draft cannot see; the fold holds it.
+  bool invitesSacrifice({required int outs}) {
+    if (outs >= 2) return false;
     bool movedARunner(bool Function(LegEntry) reached) => entries.any(
       (entry) =>
           entry is LegEntry && entry.runnerId != batterId && reached(entry),

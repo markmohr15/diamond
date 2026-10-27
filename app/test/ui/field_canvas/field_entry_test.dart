@@ -1658,6 +1658,37 @@ void main() {
       expect((await committedBall()).sacrifice, isNull);
     });
 
+    testWidgets('with two out a bunt that moves a runner is never asked — '
+        'no sacrifice exists then', (tester) async {
+      await pumpLoop(tester);
+      final game = container.read(gameControllerProvider.notifier);
+      for (final id in ['x1', 'x2']) {
+        await game.append(
+          type: 'RunnerOut',
+          payload: RunnerOut(runnerId: id, atBase: 1, how: How.TAG).toJson(),
+        );
+      }
+      await game.append(
+        type: 'RunnerAdvance',
+        payload: RunnerAdvance(
+          runnerId: 'r1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+        ).toJson(),
+      );
+      await tester.pumpAndSettle();
+      expect(container.read(gameControllerProvider).value!.outs, 2);
+      await reachFieldSurface(tester);
+
+      await tapKey(tester, trajectoryKey(Trajectory.BUNT));
+      await tapWorld(tester, FieldCoord(x: -18, y: 24));
+      await tapKey(tester, fieldCommitKey);
+
+      expect(find.text('Sacrifice bunt?'), findsNothing);
+      expect((await committedBall()).sacrifice, isNull);
+    });
+
     testWidgets('no runner moved, no question — a bunt for a hit is just a '
         'bunt', (tester) async {
       await pumpLoop(tester);

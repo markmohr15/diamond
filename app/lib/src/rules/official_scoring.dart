@@ -989,6 +989,11 @@ String? _sacrificeFor(
   // up, so this can no longer report a batter retired three innings ago.
   final wasOut = pa.outs.any((o) => o.payload.runnerId == pa.batterId);
 
+  // No sacrifice exists with two out, by rule — checked before the flag, so
+  // no stored judgment can claim one however the event was written (§13.6
+  // v0.57).
+  if ((pa.outsAtContact ?? 0) >= 2) return null;
+
   final judged = battedBall.sacrifice;
   if (judged ?? false) return bunt ? 'sacrifice_bunt' : 'sacrifice_fly';
   // Judged *not* a sacrifice, or a bunt nobody judged: no derivation
@@ -1015,7 +1020,6 @@ String? _sacrificeFor(
   // never asked either, since it was not dropped (DIA-019 J).
   if (!airborne || !caught) return null;
   if (!wasOut) return null;
-  if ((pa.outsAtContact ?? 0) >= 2) return null;
 
   // `anyChargedError` used to guard here and was wrong even for clause (1): a
   // runner tags and scores, the throw home gets away, another runner takes a

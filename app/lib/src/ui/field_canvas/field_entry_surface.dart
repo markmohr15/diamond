@@ -890,7 +890,8 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       _showReachDialog(thenCommit: true);
       return;
     }
-    if (draft.invitesSacrifice) {
+    final outs = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
+    if (draft.invitesSacrifice(outs: outs)) {
       _showSacrificeDialog(bunt: draft.trajectory == Trajectory.BUNT);
       return;
     }
