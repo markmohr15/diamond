@@ -326,6 +326,45 @@ void main() {
       expect(container.read(gameControllerProvider).value!.bases.third, 'r2');
     });
 
+    testWidgets('one runner is "the runner", and her base is named', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await runnerOnSecond(tester);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
+      await tapText(tester, 'Ball');
+      expect(find.text('Wild pitch — what did the runner do?'), findsOneWidget);
+      expect(find.text('Took third'), findsOneWidget);
+    });
+
+    testWidgets('more than one is "the runners", all up one', (tester) async {
+      await pumpLoop(tester);
+      await runnerOnSecond(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, runnerMoveKey(RunnerMove.passedBall));
+      await tapText(tester, 'Ball');
+      expect(
+        find.text('Passed ball — what did the runners do?'),
+        findsOneWidget,
+      );
+      expect(find.text('All runners up one'), findsOneWidget);
+    });
+
     testWidgets("a passed ball writes §13.2's pair, linked", (tester) async {
       // The catcher's misplay and the advance it enabled — the same shape the
       // D3K resolution writes, reused rather than reinvented.
