@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
+import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
@@ -984,7 +985,7 @@ String? _sacrificeFor(
   required bool caught,
 }) {
   if (battedBall == null) return null;
-  final bunt = battedBall.trajectory == Trajectory.BUNT;
+  final bunt = isBunt(battedBall.trajectory);
   // Scoped by construction: `pa.outs` holds only what happened while she was
   // up, so this can no longer report a batter retired three innings ago.
   final wasOut = pa.outs.any((o) => o.payload.runnerId == pa.batterId);
@@ -1003,10 +1004,7 @@ String? _sacrificeFor(
   // Any ball caught in the air qualifies — a line drive included, which is
   // the rulebook's wording and the same set the entry surface treats as
   // airborne.
-  final airborne =
-      battedBall.trajectory == Trajectory.FLY ||
-      battedBall.trajectory == Trajectory.POPUP ||
-      battedBall.trajectory == Trajectory.LINE;
+  final airborne = isAirborne(battedBall.trajectory);
   // Clause (1) derives silently: the ball is caught and a runner scores.
   // Clause (2) — dropped, and a runner scores who could have scored had it
   // been caught — is the scorer's judgment and arrives above, through

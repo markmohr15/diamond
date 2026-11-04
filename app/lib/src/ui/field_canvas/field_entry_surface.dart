@@ -6,6 +6,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/play/possible_entries.dart';
+import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
@@ -892,7 +893,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     }
     final outs = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
     if (draft.invitesSacrifice(outs: outs)) {
-      _showSacrificeDialog(bunt: draft.trajectory == Trajectory.BUNT);
+      _showSacrificeDialog(bunt: isBunt(draft.trajectory));
       return;
     }
     unawaited(ref.read(playDraftProvider.notifier).commit());
@@ -1367,6 +1368,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     _centeredDialog('How did it come off the bat?', [
       TrajectoryRow(
         selected: _draft.trajectory,
+        bunted: _draft.bunted,
         onChosen: (trajectory) {
           controller.setTrajectory(trajectory);
           Navigator.pop(context);

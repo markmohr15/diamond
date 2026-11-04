@@ -113,7 +113,7 @@ export interface FieldCoord {
     y: number;
 }
 
-export type Trajectory = "ground" | "line" | "fly" | "popup" | "bunt";
+export type Trajectory = "ground" | "line" | "fly" | "popup" | "bunt" | "bunt_air";
 
 /**
  * Authoritative count checkpoint (spec §12.5). Projection treats as override; back-infers
@@ -778,6 +778,7 @@ const typeMap: any = {
     ],
     "Trajectory": [
         "bunt",
+        "bunt_air",
         "fly",
         "ground",
         "line",

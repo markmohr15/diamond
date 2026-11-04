@@ -171,6 +171,8 @@ const _caughtVerbs = {
   Trajectory.POPUP: 'popped out',
   Trajectory.GROUND: 'grounded out',
   Trajectory.BUNT: 'bunted out',
+  // An air bunt caught: popped out, and it was a bunt (DIA-019 M).
+  Trajectory.BUNT_AIR: 'popped out bunting',
 };
 
 const _trajectoryVerbs = {
@@ -179,6 +181,7 @@ const _trajectoryVerbs = {
   Trajectory.FLY: 'flied',
   Trajectory.POPUP: 'popped',
   Trajectory.BUNT: 'bunted',
+  Trajectory.BUNT_AIR: 'bunted',
 };
 
 String _battedBall(
@@ -501,6 +504,7 @@ const _trajectoryNouns = {
   Trajectory.FLY: 'fly ball',
   Trajectory.POPUP: 'pop up',
   Trajectory.BUNT: 'bunt',
+  Trajectory.BUNT_AIR: 'bunt',
 };
 
 /// The misplay itself, named rather than classified: where nobody advanced,

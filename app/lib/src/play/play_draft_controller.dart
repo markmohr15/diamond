@@ -34,8 +34,13 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   Future<void> start({
     required String pitchEventId,
     required String batterId,
+    bool bunted = false,
   }) async {
-    final draft = _openingDraft(pitchEventId: pitchEventId, batterId: batterId);
+    final draft = _openingDraft(
+      pitchEventId: pitchEventId,
+      batterId: batterId,
+      bunted: bunted,
+    );
     _steps.clear();
     await _journal.save(_gameId, draft);
     state = AsyncData(draft);
@@ -115,6 +120,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     final fresh = _openingDraft(
       pitchEventId: draft.pitchEventId,
       batterId: draft.batterId,
+      bunted: draft.bunted,
     );
     await _journal.save(_gameId, fresh);
     state = AsyncData(fresh);
@@ -150,8 +156,13 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   PlayDraft _openingDraft({
     required String pitchEventId,
     required String batterId,
+    bool bunted = false,
   }) {
-    var draft = PlayDraft(pitchEventId: pitchEventId, batterId: batterId);
+    var draft = PlayDraft(
+      pitchEventId: pitchEventId,
+      batterId: batterId,
+      bunted: bunted,
+    );
     final slots = _origins(batterId);
     for (final move in cascadeRunnerMove(slots, movedId: batterId, to: 1)) {
       draft = draft.addingLeg(

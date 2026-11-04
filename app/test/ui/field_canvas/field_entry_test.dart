@@ -7,6 +7,7 @@ import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/play/play_journal_store.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
+import 'package:diamond/src/rules/play_line.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
@@ -1626,6 +1627,7 @@ void main() {
     testWidgets('a bunt that moved the walk-up runner asks at the ✓, though '
         'nobody touched her', (tester) async {
       await runnerOn(tester, 'r1', 1);
+      await tapKey(tester, trajectoryBuntKey);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
 
@@ -1646,6 +1648,7 @@ void main() {
 
     testWidgets('answering No commits an ordinary at-bat', (tester) async {
       await runnerOn(tester, 'r1', 1);
+      await tapKey(tester, trajectoryBuntKey);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
       await tapWorld(tester, standardSpot(5));
@@ -1681,6 +1684,7 @@ void main() {
       expect(container.read(gameControllerProvider).value!.outs, 2);
       await reachFieldSurface(tester);
 
+      await tapKey(tester, trajectoryBuntKey);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
       await tapKey(tester, fieldCommitKey);
@@ -1693,6 +1697,7 @@ void main() {
         'bunt', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryBuntKey);
       await tapKey(tester, trajectoryKey(Trajectory.BUNT));
       await tapWorld(tester, FieldCoord(x: -18, y: 24));
       await tapKey(tester, fieldCommitKey);
@@ -1739,6 +1744,125 @@ void main() {
       await dragToken(tester, 3, 4, originFrom: 3);
       await tapKey(tester, fieldCommitKey);
       expect(find.text('Sacrifice fly?'), findsNothing);
+    });
+  });
+
+  group('a bunt says ground or air, and lands the same either way '
+      '(DIA-019 M)', () {
+    Future<void> runnerOnFirst(WidgetTester tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+    }
+
+    /// Mark's simulator play, 2026-10-27: R1 on, a bunt fielded by the
+    /// third baseman, the batter out at first and R1 moved to second.
+    /// [fromSheet] says Bunt on the outcome sheet; otherwise it is said in
+    /// the field's trajectory row.
+    Future<(BatterAction?, Trajectory, bool?)> sacBunt(
+      WidgetTester tester, {
+      required bool fromSheet,
+    }) async {
+      await runnerOnFirst(tester);
+      if (fromSheet) {
+        await tester.tap(find.text('Skip call'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skip location'));
+        await tester.pumpAndSettle();
+        await tapKey(tester, batterActionKey(BatterAction.BUNT));
+        await tester.tap(find.text('In play'));
+        await tester.pumpAndSettle();
+        // The five-option question was answered on the sheet: only the
+        // half it could not answer is asked, and there is nothing to go
+        // back to.
+        expect(find.byKey(trajectoryKey(Trajectory.GROUND)), findsNothing);
+        expect(find.byKey(trajectoryBuntKey), findsNothing);
+        expect(find.byKey(trajectoryBackKey), findsNothing);
+      } else {
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryBuntKey);
+      }
+      await tapKey(tester, trajectoryKey(Trajectory.BUNT));
+      await tapWorld(tester, FieldCoord(x: -18, y: 24));
+      await tapWorld(tester, standardSpot(5));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(3));
+      await tapPill(tester, 1, out: true);
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Sacrifice bunt?'), findsOneWidget);
+      await tapKey(tester, sacrificeAnswerKey('yes'));
+
+      final events = await stream();
+      final pitch = PitchThrown.fromJson(
+        events.lastWhere((e) => e.type == 'PitchThrown').payload,
+      );
+      final ball = BallInPlay.fromJson(
+        events.lastWhere((e) => e.type == 'BallInPlay').payload,
+      );
+      return (pitch.batterAction, ball.trajectory, ball.sacrifice);
+    }
+
+    testWidgets('Bunt on the outcome sheet asks only ground or air, and the '
+        'sacrifice is asked', (tester) async {
+      expect(await sacBunt(tester, fromSheet: true), (
+        null,
+        Trajectory.BUNT,
+        true,
+      ));
+    });
+
+    testWidgets('Bunt from the trajectory row records exactly the same', (
+      tester,
+    ) async {
+      expect(await sacBunt(tester, fromSheet: false), (
+        null,
+        Trajectory.BUNT,
+        true,
+      ));
+    });
+
+    testWidgets('an air bunt can be caught: a fly out, popped out bunting', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryBuntKey);
+      await tapKey(tester, trajectoryKey(Trajectory.BUNT_AIR));
+      await tapWorld(tester, FieldCoord(x: 0, y: 22));
+      await tapWorld(tester, standardSpot(1));
+      expect(find.byKey(fielderPlayKey('caught')), findsOneWidget);
+      await tapKey(tester, fielderPlayKey('caught'));
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final out = RunnerOut.fromJson(
+        events.lastWhere((e) => e.type == 'RunnerOut').payload,
+      );
+      expect(out.how, How.FLY_OUT);
+      expect(
+        playLines(foldOfficialScoring(events)).last.text,
+        startsWith('opp-1 popped out bunting to P'),
+      );
+    });
+
+    testWidgets('chosen from the row, the pair can go back to the five '
+        'options', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryBuntKey);
+      expect(find.byKey(trajectoryKey(Trajectory.GROUND)), findsNothing);
+      await tapKey(tester, trajectoryBackKey);
+      expect(find.byKey(trajectoryKey(Trajectory.GROUND)), findsOneWidget);
     });
   });
 

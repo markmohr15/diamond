@@ -175,6 +175,22 @@ void main() {
       expect(out.putoutKey, 0);
     });
 
+    test('round-trips bunted, so a relaunch mid-play still asks only '
+        'ground or air (DIA-019 M)', () {
+      const bunted = PlayDraft(
+        pitchEventId: 'pitch-1',
+        batterId: 'opp-1',
+        bunted: true,
+      );
+      expect(PlayDraft.fromJson(bunted.toJson()).bunted, isTrue);
+      expect(PlayDraft.fromJson(base.toJson()).bunted, isFalse);
+      // A journal written before the field existed reads as not bunted.
+      expect(
+        PlayDraft.fromJson(base.toJson()..remove('bunted')).bunted,
+        isFalse,
+      );
+    });
+
     test('round-trips the empty draft the surface opens with', () {
       final back = PlayDraft.fromJson(base.toJson());
       expect(back.landing, isNull);

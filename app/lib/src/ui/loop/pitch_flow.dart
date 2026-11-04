@@ -369,6 +369,8 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     if (batterId == null) return; // no lineup folded yet — same situation
 
     final intent = state.intent;
+    final buntInPlay =
+        outcome == Outcome.IN_PLAY && batterAction == BatterAction.BUNT;
     // The one crossing from the batter-relative call frame to the absolute
     // coordinate the event stores (§10.1): mirrored here, at write time.
     final zone = intent == null
@@ -387,7 +389,13 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       outcome: outcome,
       // §4.1: what she was doing, orthogonal to what the pitch did. Absent is
       // the conventional posture and is the overwhelming majority.
-      batterAction: batterAction,
+      //
+      // A bunt put in play is the exception (DIA-019 M): the batted ball's
+      // trajectory says it — `bunt` or `bunt_air` — so storing it here too
+      // would be a second copy that could disagree with the first, and
+      // Bunt on this sheet would land differently from Bunt in the field's
+      // trajectory row. The play opens knowing, instead.
+      batterAction: buntInPlay ? null : batterAction,
     ).toJson();
     // Lead runner first, so the batch never puts a runner on an occupied bag.
     final occupied = <(int, String)>[
@@ -475,7 +483,11 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     if (outcome == Outcome.IN_PLAY) {
       await ref
           .read(playDraftProvider.notifier)
-          .start(pitchEventId: event.id, batterId: batterId);
+          .start(
+            pitchEventId: event.id,
+            batterId: batterId,
+            bunted: buntInPlay,
+          );
     }
 
     // Loop closes. A pitch that went unlocated gets the standing offer to fix

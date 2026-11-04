@@ -1,6 +1,7 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/play/play_draft.dart';
+import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart' show misplayTouchTypes;
 
@@ -24,8 +25,6 @@ enum BallState {
   /// A batted ball on the ground, whatever it was off the bat.
   onGround,
 }
-
-const _airborne = {Trajectory.FLY, Trajectory.POPUP, Trajectory.LINE};
 
 /// The ball's state for the next fielder to play it.
 ///
@@ -57,9 +56,7 @@ BallState _stateAfter(PlayDraft draft, List<TouchEntry> touches) {
   if (!draft.battedBall) return BallState.loosePitch;
   final untouched =
       touches.isEmpty || touches.last.touchType == TouchType.DEFLECTED;
-  return _airborne.contains(draft.trajectory) &&
-          untouched &&
-          draft.rollEnd == null
+  return isAirborne(draft.trajectory) && untouched && draft.rollEnd == null
       ? BallState.inFlight
       : BallState.onGround;
 }
