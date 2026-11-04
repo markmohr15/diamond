@@ -41,6 +41,8 @@ const Key d3kSafeWpKey = Key('d3kSafeWp');
 const Key d3kSafePbKey = Key('d3kSafePb');
 @visibleForTesting
 const Key d3kFieldKey = Key('d3kField');
+@visibleForTesting
+const Key pitchNotRecordedKey = Key('pitchNotRecorded');
 
 /// The per-pitch loop (§11.1), DIA-007a's core: count HUD on top — the
 /// invariant that is never wrong stays on screen through every step — and the
@@ -73,6 +75,9 @@ class PitchLoopPage extends ConsumerWidget {
       // dialog is never opened against a context that has already been popped.
       if (next.getawayOffer != null && previous?.getawayOffer == null) {
         unawaited(_offerGetaway(context, ref));
+      }
+      if (next.notRecorded case final why? when previous?.notRecorded == null) {
+        unawaited(_sayNotRecorded(context, why));
       }
     });
 
@@ -252,6 +257,36 @@ class PitchLoopPage extends ConsumerWidget {
   /// that only trickled away, so it cannot apply itself (§11.3).
   static const _baseNames = {2: 'second', 3: 'third', 4: 'home'};
 
+  /// DIA-019 N: a pitch that could not be written says so. The entry is
+  /// already back on the location step, so this only has to explain.
+  Future<void> _sayNotRecorded(
+    BuildContext context,
+    PitchNotRecorded why,
+  ) async {
+    if (!context.mounted) return;
+    await showFieldDialog<void>(
+      context,
+      title: "This pitch wasn't recorded",
+      children: (dialogContext) => [
+        Text(
+          switch (why) {
+            PitchNotRecorded.gameLoading =>
+              'The game is still loading — try again.',
+            PitchNotRecorded.noBatterDue =>
+              'No batter is due — the lineup is missing.',
+          },
+          key: pitchNotRecordedKey,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 12),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+
   Future<void> _offerGetaway(BuildContext context, WidgetRef ref) async {
     final offer = ref.read(pitchFlowProvider).getawayOffer;
     if (offer == null || !context.mounted) return;
@@ -333,7 +368,11 @@ class PitchLoopPage extends ConsumerWidget {
     if (kind == null) return;
     // Records the pitch and *not* the automatic out — she is running, so
     // there is nothing to void afterwards.
-    await controller.commitOutcome(kind, uncaughtThirdStrike: true);
+    // Not recorded: the flow already says why, and there is no batter to
+    // ask about.
+    if (!await controller.commitOutcome(kind, uncaughtThirdStrike: true)) {
+      return;
+    }
     if (!context.mounted) return;
 
     await showFieldDialog<void>(

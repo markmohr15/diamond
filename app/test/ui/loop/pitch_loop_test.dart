@@ -516,6 +516,72 @@ void main() {
     });
   });
 
+  group('a pitch that cannot be recorded says so (DIA-019 N)', () {
+    /// Mark's simulator, 2026-10-27: a stream that has an inning but no
+    /// lineup, so nobody is due. Written before the game loads, so the
+    /// first-launch seed never fires.
+    Future<void> noLineup(WidgetTester tester) async {
+      final session = container.read(gameSessionProvider);
+      await container
+          .read(eventStoreProvider)
+          .append(
+            GameEvent(
+              id: 'half',
+              gameId: session.gameId,
+              seq: 0,
+              deviceId: 'test',
+              createdBy: 'test',
+              wallClock: DateTime.utc(2026, 10, 27),
+              type: 'InningHalfStart',
+              payload: InningHalfStart(
+                inning: 1,
+                half: Half.TOP,
+                battingTeamId: session.opponentTeamId,
+              ).toJson(),
+            ),
+          );
+      await pumpLoop(tester);
+    }
+
+    testWidgets('no batter due: the scorer is told, nothing is written, and '
+        'the pitch is still placed', (tester) async {
+      await noLineup(tester);
+      await tapText(tester, 'Skip call');
+      await placeActualAt(tester, ZoneCoord(x: 0.1, y: 0.5));
+      await tapText(tester, 'Ball');
+
+      expect(find.text("This pitch wasn't recorded"), findsOneWidget);
+      expect(
+        find.text('No batter is due — the lineup is missing.'),
+        findsOneWidget,
+      );
+      expect((await stream()).where((e) => e.type == 'PitchThrown'), isEmpty);
+      final flow = container.read(pitchFlowProvider);
+      expect(flow.step, PitchStep.actual);
+      expect(flow.actual?.x, closeTo(0.1, 0.02));
+
+      // The way out: OK, then the sheet comes back — this is what was
+      // stuck.
+      await tapText(tester, 'OK');
+      await tapText(tester, 'Skip location');
+      expect(find.text('Called strike'), findsOneWidget);
+    });
+
+    testWidgets('a dropped third strike that cannot be recorded asks '
+        'nothing about the batter', (tester) async {
+      await noLineup(tester);
+      final recorded = await container
+          .read(pitchFlowProvider.notifier)
+          .commitOutcome(Outcome.SWINGING_STRIKE, uncaughtThirdStrike: true);
+      await tester.pumpAndSettle();
+
+      expect(recorded, isFalse);
+      expect(container.read(pitchFlowProvider).droppedThirdStrike, isNull);
+      expect(find.text('What happened to the batter?'), findsNothing);
+      expect(find.text("This pitch wasn't recorded"), findsOneWidget);
+    });
+  });
+
   group('strikeout (§11.3 automatic state)', () {
     Future<void> skipToOutcome(WidgetTester tester) async {
       await tapText(tester, 'Skip call');
