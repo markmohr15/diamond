@@ -250,20 +250,36 @@ class PitchLoopPage extends ConsumerWidget {
   /// "everybody up one" the overwhelming majority of the time and should not
   /// cost a trip to the field — but a runner on third often holds on a ball
   /// that only trickled away, so it cannot apply itself (§11.3).
-  static const _stolenBaseNames = {2: 'second', 3: 'third', 4: 'home'};
+  static const _baseNames = {2: 'second', 3: 'third', 4: 'home'};
 
   Future<void> _offerGetaway(BuildContext context, WidgetRef ref) async {
     final offer = ref.read(pitchFlowProvider).getawayOffer;
     if (offer == null || !context.mounted) return;
     final controller = ref.read(pitchFlowProvider.notifier);
 
+    // The wording follows how many runners there are, never which play it
+    // was: one runner is "the runner" and her base is named, whatever moved
+    // her. A steal only ever reaches here with one (see
+    // [PitchFlowController.commitOutcome]).
+    final lone = offer.occupied.length == 1;
+    final play = switch (offer.move) {
+      RunnerMove.wildPitch => 'Wild pitch',
+      RunnerMove.passedBall => 'Passed ball',
+      RunnerMove.stolenBase => 'Stolen base',
+    };
+    final String advance;
+    if (lone) {
+      final base = _baseNames[offer.occupied.single.$1 + 1];
+      advance = offer.move == RunnerMove.stolenBase
+          ? 'Stole $base'
+          : 'Took $base';
+    } else {
+      advance = 'All runners up one';
+    }
+
     await showFieldDialog<void>(
       context,
-      title: switch (offer.move) {
-        RunnerMove.passedBall => 'Passed ball — what did the runners do?',
-        RunnerMove.wildPitch => 'Wild pitch — what did the runners do?',
-        RunnerMove.stolenBase => 'Stolen base — what did the runner do?',
-      },
+      title: '$play — what did the ${lone ? 'runner' : 'runners'} do?',
       children: (dialogContext) => [
         FilledButton(
           key: getawayAdvanceAllKey,
@@ -271,14 +287,7 @@ class PitchLoopPage extends ConsumerWidget {
             Navigator.pop(dialogContext);
             unawaited(controller.getawayAdvanceAll());
           },
-          // One runner is all a steal ever offers here (see
-          // [PitchFlowController.commitOutcome]), so the one-tap answer
-          // names her base.
-          child: Text(
-            offer.move == RunnerMove.stolenBase
-                ? 'Stole ${_stolenBaseNames[offer.occupied.single.$1 + 1]}'
-                : 'All runners up one',
-          ),
+          child: Text(advance),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
