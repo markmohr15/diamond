@@ -17,6 +17,7 @@ library;
 
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
+import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/official_scoring.dart'
     show OfficialErrorKind, misplayTouchTypes, officialErrorKindOf;
 import 'package:flutter/foundation.dart';
@@ -328,6 +329,7 @@ class PlayDraft {
     this.openingLegCount = 0,
     this.nextKey = 0,
     this.battedBall = true,
+    this.bunted = false,
     this.heldBy,
     this.looseAfterKey,
   });
@@ -358,6 +360,7 @@ class PlayDraft {
     openingLegCount: json['openingLegCount'] as int? ?? 0,
     nextKey: json['nextKey'] as int? ?? 0,
     battedBall: json['battedBall'] as bool? ?? true,
+    bunted: json['bunted'] as bool? ?? false,
     heldBy: json['heldBy'] as int?,
     looseAfterKey: json['looseAfterKey'] as int?,
   );
@@ -383,6 +386,15 @@ class PlayDraft {
   /// scorer should not have two grammars to learn, and official scoring
   /// should not have two shapes to read.
   final bool battedBall;
+
+  /// The outcome sheet already said she bunted (DIA-019 M), so the
+  /// trajectory question skips the five-option row and asks only whether
+  /// the bunt was on the ground or in the air. The pitch is written without
+  /// `batterAction` in that case: the batted ball's trajectory carries the
+  /// bunt, which is what makes Bunt on the sheet and Bunt in the row land
+  /// identically in the stream. Journaled, so a relaunch mid-play still asks
+  /// the right question.
+  final bool bunted;
 
   /// Who holds the ball before any touch says so. Between pitches that is
   /// the catcher, true after every pitch in both sports; null means the
@@ -526,12 +538,11 @@ class PlayDraft {
           entry is LegEntry && entry.runnerId != batterId && reached(entry),
     );
 
-    if (trajectory == Trajectory.BUNT) {
+    if (isBunt(trajectory)) {
       return movedARunner((leg) => leg.to > leg.from);
     }
 
-    const airborne = {Trajectory.FLY, Trajectory.POPUP, Trajectory.LINE};
-    if (!airborne.contains(trajectory)) return false;
+    if (!isAirborne(trajectory)) return false;
     final endedFlight = entries
         .whereType<TouchEntry>()
         .where((touch) => touch.touchType != TouchType.DEFLECTED)
@@ -650,6 +661,7 @@ class PlayDraft {
       openingLegCount: openingLegCount ?? this.openingLegCount,
       nextKey: nextKey ?? this.nextKey,
       battedBall: battedBall,
+      bunted: bunted,
       heldBy: heldBy == _unset ? this.heldBy : heldBy as int?,
       looseAfterKey: looseAfterKey == _unset
           ? this.looseAfterKey
@@ -1406,6 +1418,7 @@ class PlayDraft {
     'openingLegCount': openingLegCount,
     'nextKey': nextKey,
     'battedBall': battedBall,
+    'bunted': bunted,
     'heldBy': heldBy,
     'looseAfterKey': looseAfterKey,
   };

@@ -247,6 +247,7 @@ class FieldCoord {
 
 enum Trajectory {
     BUNT,
+    BUNT_AIR,
     FLY,
     GROUND,
     LINE,
@@ -255,6 +256,7 @@ enum Trajectory {
 
 final trajectoryValues = EnumValues({
     "bunt": Trajectory.BUNT,
+    "bunt_air": Trajectory.BUNT_AIR,
     "fly": Trajectory.FLY,
     "ground": Trajectory.GROUND,
     "line": Trajectory.LINE,

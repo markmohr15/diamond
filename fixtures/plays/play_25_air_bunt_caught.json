@@ -1,0 +1,23 @@
+{
+  "id": "play-25",
+  "title": "Bunt popped up and caught by the pitcher, runner holds: a fly out, not a sacrifice",
+  "specRef": "§4.2, §13.6 (v0.58)",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 0 }, "runners": { "1": "r1" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.6 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "bunt_air", "landing": { "x": 0, "y": 22 }, "landingIsCaught": true } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 1, "touchType": "caught" } },
+    { "id": "e4", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 1, "how": "fly_out", "putoutTouchId": "e3" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "misplays": [],
+    "batterResult": { "batterId": "b1", "scoring": "out", "hit": false, "rbi": 0, "atBat": true },
+    "runnerBases": { "r1": 1 },
+    "putouts": { "1": 1 },
+    "line": "b1 popped out bunting to P.",
+    "note": "A bunt in the air is airborne — caught, it retires the batter like any pop-up, and the runner owes a retouch rather than a force. It is still a bunt: had the runner moved up, the sacrifice question would be the bunt's. Nobody moved, so there is nothing to ask and nothing derives. The pitch carries no batterAction: the trajectory says she bunted, whichever surface said it first."
+  }
+}

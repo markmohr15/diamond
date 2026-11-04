@@ -3,6 +3,32 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.58
+
+**A bunt is on the ground or in the air, and is said once.**
+
+Mark's simulator play, 2026-10-27: Bunt on the outcome sheet, In play, then *Ground* on the field's
+trajectory question. The pitch said `batterAction: bunt`, the batted ball said `ground`, and the
+sacrifice question — which reads the trajectory — never came. Two surfaces could each say "she
+bunted", neither knew about the other, and the scorer had answered a reasonable question with a
+reasonable answer.
+
+**The bunt gets its own pair.** Mark: *"you still have to know if a bunt is on the ground or in the
+air."* `bunt` keeps its meaning — a bunt on the ground, never catchable — and the new `bunt_air` is a
+bunt in the air: airborne, so the field offers *Caught* and *Dropped*, a catch is a fly out, and every
+force comes off; and a bunt, so §13.6's sacrifice question is the bunt's. *Bunt* in the trajectory row
+no longer chooses anything by itself: it opens *on the ground / in the air*.
+
+**Either way in, one shape out.** Mark: *"choosing either should appear the same way in the
+database."* The trajectory row cannot reach back into a pitch already written, so the batted ball is
+the one that carries it: Bunt + In play on the outcome sheet now writes the pitch **without**
+`batterAction`, and the play opens with the five-option question already answered — only the pair is
+asked. Storing it on the pitch as well would be a second copy of one fact, which is how the two came to
+disagree. Bunt with any other outcome — a foul bunt, a take — is unchanged: there is no batted ball to
+carry it, so the pitch does.
+
+A caught air bunt reads *popped out bunting to P*. Fixture `play_25`.
+
 ## v0.57
 
 **Sacrifices are asked at the ✓, and the dropped fly is documented.**
