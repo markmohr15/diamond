@@ -175,6 +175,7 @@ class PitchFlowState {
     this.lastPitchOffer,
     this.getawayOffer,
     this.droppedThirdStrike,
+    this.notRecorded,
   });
 
   final PitchStep step;
@@ -201,6 +202,26 @@ class PitchFlowState {
   /// moved (§13.2). The advance is a prompt, never automatic — see
   /// [PitchGetawayOffer].
   final PitchGetawayOffer? getawayOffer;
+
+  /// Set when the scorer chose an outcome and the pitch could not be
+  /// written (DIA-019 N). The page says why; the entry is back on the
+  /// location step, intact, so re-placing the pitch or skipping location
+  /// reopens the sheet. Cleared by whatever the scorer does next, since
+  /// every step builds a fresh state.
+  final PitchNotRecorded? notRecorded;
+}
+
+/// Why a pitch the scorer committed was not written. Both used to return
+/// silently with the outcome sheet already closed, which left the flow on
+/// the outcome step with no sheet and nothing that would bring one back.
+enum PitchNotRecorded {
+  /// The game has not finished loading, so there is nothing to attribute
+  /// the pitch to.
+  gameLoading,
+
+  /// Nobody is up: no batter of record and none due, which means no lineup
+  /// has been folded.
+  noBatterDue,
 }
 
 /// A dropped third strike the scorer has declared, waiting on its ending.
@@ -351,7 +372,12 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// [uncaughtThirdStrike] is the scorer declaring, with the pitch, that
   /// she is running — §11.3's equivalent of putting the ball in play. The
   /// automatic strikeout out is not written when it is set.
-  Future<void> commitOutcome(
+  ///
+  /// Returns whether the pitch was written. When it was not, the flow goes
+  /// back to the location step with the entry intact and says why
+  /// ([PitchFlowState.notRecorded]) — never silently, which is what used to
+  /// strand the scorer on a sheet that had already closed.
+  Future<bool> commitOutcome(
     Outcome outcome, {
     bool uncaughtThirdStrike = false,
     BatterAction? batterAction,
@@ -359,7 +385,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   }) async {
     final game = ref.read(gameControllerProvider.notifier);
     final gs = ref.read(gameControllerProvider).valueOrNull;
-    if (gs == null) return; // still bootstrapping; nothing to attribute to
+    if (gs == null) return _notRecorded(PitchNotRecorded.gameLoading);
 
     final session = ref.read(gameSessionProvider);
     final side = ref.read(batterSideProvider);
@@ -367,7 +393,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     final batterId =
         gs.currentBatterId ??
         (battingTeam == null ? null : gs.batterDue(battingTeam));
-    if (batterId == null) return; // no lineup folded yet — same situation
+    if (batterId == null) return _notRecorded(PitchNotRecorded.noBatterDue);
 
     final intent = state.intent;
     final buntInPlay =
@@ -539,6 +565,21 @@ class PitchFlowController extends Notifier<PitchFlowState> {
             )
           : null,
     );
+    return true;
+  }
+
+  /// Back to the location step with everything gathered, and the reason
+  /// raised — the same place dismissing the sheet returns to.
+  bool _notRecorded(PitchNotRecorded why) {
+    state = PitchFlowState(
+      step: PitchStep.actual,
+      intent: state.intent,
+      actual: state.actual,
+      bounce: state.bounce,
+      lastPitchOffer: state.lastPitchOffer,
+      notRecorded: why,
+    );
+    return false;
   }
 
   /// The whole play, the overwhelming majority of the time: everybody up one.
