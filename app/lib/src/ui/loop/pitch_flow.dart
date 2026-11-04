@@ -6,6 +6,7 @@ import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/loop/outcome_step.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -216,12 +217,12 @@ class PitchFlowState {
 class PitchGetawayOffer {
   const PitchGetawayOffer({
     required this.pitchEventId,
-    required this.cause,
+    required this.move,
     required this.occupied,
   });
 
   final String pitchEventId;
-  final Cause cause;
+  final RunnerMove move;
 
   /// Occupied bases, lead runner first — the order the advances must be
   /// written in so no runner is ever momentarily on an occupied bag.
@@ -354,7 +355,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     Outcome outcome, {
     bool uncaughtThirdStrike = false,
     BatterAction? batterAction,
-    Cause? getaway,
+    RunnerMove? onTheBases,
   }) async {
     final game = ref.read(gameControllerProvider.notifier);
     final gs = ref.read(gameControllerProvider).valueOrNull;
@@ -475,6 +476,22 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       }
     }
 
+    // A steal with more than one runner aboard goes straight to the field
+    // (DIA-019 K): "everybody up one" is right for a ball that got away and
+    // wrong for a steal — first and third, the runner on third almost always
+    // holds — and a prompt whose only answer is the field is not a question.
+    // The catcher has the ball, so she is seeded holding it: caught stealing
+    // is a throw from her.
+    final steal =
+        onTheBases == RunnerMove.stolenBase &&
+        outcome != Outcome.IN_PLAY &&
+        d3k == null;
+    if (steal && occupied.length > 1) {
+      await ref
+          .read(playDraftProvider.notifier)
+          .startBetweenPitches(pitchEventId: event.id);
+    }
+
     // In play: open the field surface (§15.1, DIA-008) for the play that is
     // now unfolding. The draft owns the screen from here — the loop page
     // switches on its presence — and the flow state below still resets, so
@@ -510,10 +527,14 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       droppedThirdStrike: d3k,
       // Only when somebody could have moved: rule 9.13 charges a getaway on
       // its consequence, so with the bases empty there is nothing to offer.
-      getawayOffer: (getaway != null && d3k == null && occupied.isNotEmpty)
+      getawayOffer:
+          (onTheBases != null &&
+              d3k == null &&
+              occupied.isNotEmpty &&
+              !(steal && occupied.length > 1))
           ? PitchGetawayOffer(
               pitchEventId: event.id,
-              cause: getaway,
+              move: onTheBases,
               occupied: occupied,
             )
           : null,
@@ -532,8 +553,14 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     if (offer == null) return;
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
 
-    final passedBall = offer.cause == Cause.PASSED_BALL;
-    final reason = passedBall ? 'passed_ball' : 'wild_pitch';
+    final passedBall = offer.move == RunnerMove.passedBall;
+    // A steal is the advance alone: no `cause`, since the ball did not get
+    // away, and no touch (§15.6's stolen base, written from the sheet).
+    final reason = switch (offer.move) {
+      RunnerMove.passedBall => 'passed_ball',
+      RunnerMove.wildPitch => 'wild_pitch',
+      RunnerMove.stolenBase => 'stolen_base',
+    };
     await ref.read(gameControllerProvider.notifier).appendAllPending([
       if (passedBall)
         PendingEvent(
@@ -560,16 +587,21 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   }
 
   /// Anything else — she held, or somebody was thrown out. Opens §15.6's
-  /// surface with the ball **loose**: a wild pitch's physics is the *absence*
-  /// of a touch (§13.2), so there is nothing on the pitch to read and seeding
-  /// the catcher would assert something that did not happen.
+  /// surface. After a getaway the ball is **loose**: a wild pitch's physics
+  /// is the *absence* of a touch (§13.2), so there is nothing on the pitch
+  /// to read and seeding the catcher would assert something that did not
+  /// happen. After a steal the catcher has it — that is where a caught
+  /// stealing's throw starts.
   Future<void> getawayToField() async {
     final offer = state.getawayOffer;
     if (offer == null) return;
     state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
     await ref
         .read(playDraftProvider.notifier)
-        .startBetweenPitches(pitchEventId: offer.pitchEventId, heldBy: null);
+        .startBetweenPitches(
+          pitchEventId: offer.pitchEventId,
+          heldBy: offer.move == RunnerMove.stolenBase ? 2 : null,
+        );
   }
 
   /// §11.3's D3K resolution, written as one batch and one undo unit.
