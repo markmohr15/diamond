@@ -3,6 +3,18 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.59
+
+**`awarded` leaves `RunnerAdvance.reason` (§4.3).** DIA-019 slice L.
+
+Mark: *"anytime a base is awarded, there's a reason other than just because."* The corpus agrees:
+play_07 and play_12 both describe awards in their titles, and both carry a *specific* reason —
+`catcher_interference`, `obstruction`. A generic `awarded` had no writer and no case it was the
+right answer for, and `enabledByCallId` already links an award to the ruling that made it.
+
+The schema dropped it on 2026-09-03 (`3ff9937`, alongside baseball's `balk`); this version brings
+§4.3's union into line, which had kept listing a value the schema rejects.
+
 ## v0.58
 
 **A bunt is on the ground or in the air, and is said once.**
