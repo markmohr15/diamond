@@ -304,7 +304,7 @@ void main() {
       await pumpLoop(tester);
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
-      expect(find.byKey(getawayKey(Cause.WILD_PITCH)), findsNothing);
+      expect(find.byKey(runnerMoveKey(RunnerMove.wildPitch)), findsNothing);
     });
 
     testWidgets('all runners up one, in a single tap', (tester) async {
@@ -312,7 +312,7 @@ void main() {
       await runnerOnSecond(tester);
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
-      await tapKey(tester, getawayKey(Cause.WILD_PITCH));
+      await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
       await tapText(tester, 'Ball');
       await tapKey(tester, getawayAdvanceAllKey);
 
@@ -333,7 +333,7 @@ void main() {
       await runnerOnSecond(tester);
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
-      await tapKey(tester, getawayKey(Cause.PASSED_BALL));
+      await tapKey(tester, runnerMoveKey(RunnerMove.passedBall));
       await tapText(tester, 'Ball');
       await tapKey(tester, getawayAdvanceAllKey);
 
@@ -364,7 +364,7 @@ void main() {
       await runnerOnSecond(tester);
       await tapText(tester, 'Skip call');
       await tapText(tester, 'Skip location');
-      await tapKey(tester, getawayKey(Cause.WILD_PITCH));
+      await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
       await tapText(tester, 'Ball');
       await tapKey(tester, getawayToFieldKey);
 
@@ -372,6 +372,107 @@ void main() {
         container.read(playDraftProvider).value!.holderPosition,
         isNull,
         reason: 'nobody has it — that is what got away means',
+      );
+    });
+  });
+
+  group('stolen base beside the getaways, on the bases (DIA-019 K)', () {
+    Future<void> runnersOn(
+      WidgetTester tester,
+      List<(String, int)> runners,
+    ) async {
+      for (final (id, base) in runners) {
+        await container
+            .read(gameControllerProvider.notifier)
+            .append(
+              type: 'RunnerAdvance',
+              payload: RunnerAdvance(
+                runnerId: id,
+                from: 0,
+                to: base,
+                reason: RunnerAdvanceReason.BATTED_BALL,
+              ).toJson(),
+            );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    bool lit(WidgetTester tester, RunnerMove move) =>
+        tester.widget<FilterChip>(find.byKey(runnerMoveKey(move))).selected;
+
+    testWidgets('one answer: a steal and a getaway exclude each other', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await runnersOn(tester, [('r1', 1)]);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      expect(find.text('ON THE BASES'), findsOneWidget);
+      expect(find.text('GOT AWAY'), findsNothing);
+
+      await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
+      await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
+      expect(lit(tester, RunnerMove.stolenBase), isTrue);
+      expect(lit(tester, RunnerMove.wildPitch), isFalse);
+    });
+
+    testWidgets('one runner: stole second in one tap — the advance alone, '
+        'no cause, no touch', (tester) async {
+      await pumpLoop(tester);
+      await runnersOn(tester, [('r1', 1)]);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
+      await tapText(tester, 'Ball');
+      expect(find.text('Stole second'), findsOneWidget);
+      await tapKey(tester, getawayAdvanceAllKey);
+
+      final events = await stream();
+      final advance = events
+          .where((e) => e.type == 'RunnerAdvance')
+          .map((e) => RunnerAdvance.fromJson(e.payload))
+          .last;
+      expect(advance.runnerId, 'r1');
+      expect((advance.from, advance.to), (1, 2));
+      expect(advance.reason, RunnerAdvanceReason.STOLEN_BASE);
+      expect(advance.cause, isNull);
+      expect(events.where((e) => e.type == 'FielderTouch'), isEmpty);
+      expect((await lastPitch()).outcome, Outcome.BALL);
+      expect(container.read(gameControllerProvider).value!.bases.second, 'r1');
+    });
+
+    testWidgets('one runner, to the field: the catcher has the ball, which '
+        'is where caught stealing starts', (tester) async {
+      await pumpLoop(tester);
+      await runnersOn(tester, [('r1', 1)]);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
+      await tapText(tester, 'Ball');
+      await tapKey(tester, getawayToFieldKey);
+
+      final draft = container.read(playDraftProvider).value!;
+      expect(draft.battedBall, isFalse);
+      expect(draft.holderPosition, 2);
+    });
+
+    testWidgets('first and third: no "everybody up one" — straight to the '
+        'field, catcher holding', (tester) async {
+      await pumpLoop(tester);
+      await runnersOn(tester, [('r3', 3), ('r1', 1)]);
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
+      await tapText(tester, 'Ball');
+
+      expect(find.byKey(getawayAdvanceAllKey), findsNothing);
+      final draft = container.read(playDraftProvider).value!;
+      expect(draft.battedBall, isFalse);
+      expect(draft.holderPosition, 2);
+      expect(
+        (await stream()).where((e) => e.type == 'RunnerAdvance'),
+        hasLength(2),
+        reason: 'only the setup: nothing is presumed',
       );
     });
   });

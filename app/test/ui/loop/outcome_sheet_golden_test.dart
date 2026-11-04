@@ -15,12 +15,12 @@ const _sheet = Size(620, 1180);
 ///
 /// The D3K variant is the same sheet plus one conditional primary: it is an
 /// outcome that opens a surface, like In play, not a note on a strikeout —
-/// which is why it sits with the primaries rather than inside GOT AWAY, whose
-/// chips only toggle.
+/// which is why it sits with the primaries rather than inside ON THE BASES,
+/// whose chips only toggle.
 ///
-/// Both `runnersAboard` states are rendered because the GOT AWAY section is
-/// conditional, and a section that only appears sometimes is exactly the sort
-/// of thing a single-state golden misses.
+/// Both `runnersAboard` states are rendered because the ON THE BASES section
+/// is conditional, and a section that only appears sometimes is exactly the
+/// sort of thing a single-state golden misses.
 Widget _sheetIn(
   Brightness brightness, {
   bool droppedThirdStrike = false,
@@ -51,7 +51,7 @@ void main() {
       columns: 2,
       children: [
         GoldenTestScenario(
-          name: 'light, bases empty — no GOT AWAY to ask about',
+          name: 'light, bases empty — nothing on the bases to ask about',
           constraints: BoxConstraints.tight(_sheet),
           child: _sheetIn(Brightness.light),
         ),

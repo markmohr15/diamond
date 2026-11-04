@@ -16,7 +16,7 @@ Key outcomeKey(Outcome outcome) =>
 Key batterActionKey(BatterAction action) =>
     Key('batterAction-${batterActionValues.reverse[action]}');
 @visibleForTesting
-Key getawayKey(Cause cause) => Key('getaway-${causeValues.reverse[cause]}');
+Key runnerMoveKey(RunnerMove move) => Key('onTheBases-${move.name}');
 
 /// The five outcomes that account for nearly every pitch, in frequency order
 /// (Claude Design panel 5A).
@@ -73,12 +73,23 @@ const _batterActions = <BatterAction, String>{
   BatterAction.SLASH: 'Slash',
 };
 
-/// The ball got away, and which (§13.2). Offered only with a runner aboard:
-/// rule 9.13 charges a wild pitch or passed ball on its *consequence*, so with
-/// the bases empty there is nothing to charge and nothing to ask.
-const _getaways = <Cause, String>{
-  Cause.WILD_PITCH: 'Wild pitch',
-  Cause.PASSED_BALL: 'Passed ball',
+/// What the runners did on this pitch — the "on the bases" choice. One
+/// answer, never two: a runner going on a ball that gets away is a judgment
+/// between "she would have made it anyway" (a steal) and "the ball moved
+/// her" (a wild pitch or passed ball), and forcing one answer is the point
+/// (DIA-019 K).
+///
+/// A UI choice, not a wire value: the getaways become a `cause` (§13.2's
+/// v0.50 split) and the steal becomes `reason: stolen_base` with none.
+enum RunnerMove { wildPitch, passedBall, stolenBase }
+
+/// Offered only with a runner aboard: rule 9.13 charges a wild pitch or
+/// passed ball on its *consequence*, and a steal needs somebody to steal, so
+/// with the bases empty there is nothing to ask.
+const _runnerMoves = <RunnerMove, String>{
+  RunnerMove.wildPitch: 'Wild pitch',
+  RunnerMove.passedBall: 'Passed ball',
+  RunnerMove.stolenBase: 'Stolen base',
 };
 
 /// §11.1's outcome step: five primaries at fixed positions, then everything
@@ -103,10 +114,15 @@ class OutcomeStep extends StatefulWidget {
   /// callback rather than three, because they are facts about one event — a
   /// separate "modifier committed" path would let them disagree about which
   /// pitch they described.
-  final void Function(Outcome outcome, BatterAction? action, Cause? getaway)
+  final void Function(
+    Outcome outcome,
+    BatterAction? action,
+    RunnerMove? onTheBases,
+  )
   onChosen;
 
-  /// Whether anybody is on base. Gates the getaway chips: see [_getaways].
+  /// Whether anybody is on base. Gates the on-the-bases chips: see
+  /// [_runnerMoves].
   final bool runnersAboard;
 
   /// Set only at two strikes with the batter entitled to run (§11.3). A
@@ -125,7 +141,7 @@ class _OutcomeStepState extends State<OutcomeStep> {
   /// pitches: posture is a per-pitch observation, and carrying it forward
   /// would record a bunt she did not show.
   BatterAction? _action;
-  Cause? _getaway;
+  RunnerMove? _move;
 
   /// A bordered group with a small label.
   ///
@@ -229,15 +245,16 @@ class _OutcomeStepState extends State<OutcomeStep> {
           if (widget.runnersAboard)
             _section(
               context,
-              'GOT AWAY',
+              // Not "got away": that is about the ball, and a steal is not.
+              'ON THE BASES',
               _chips([
-                for (final entry in _getaways.entries)
+                for (final entry in _runnerMoves.entries)
                   FilterChip(
-                    key: getawayKey(entry.key),
+                    key: runnerMoveKey(entry.key),
                     label: Text(entry.value),
-                    selected: _getaway == entry.key,
+                    selected: _move == entry.key,
                     onSelected: (on) =>
-                        setState(() => _getaway = on ? entry.key : null),
+                        setState(() => _move = on ? entry.key : null),
                   ),
               ]),
             ),
@@ -251,7 +268,7 @@ class _OutcomeStepState extends State<OutcomeStep> {
                   ? outcomeInPlayKey
                   : outcomeKey(entry.key),
               label: entry.value,
-              onPressed: () => widget.onChosen(entry.key, _action, _getaway),
+              onPressed: () => widget.onChosen(entry.key, _action, _move),
             ),
             const SizedBox(height: BrandMetrics.spaceMd),
           ],
@@ -277,8 +294,7 @@ class _OutcomeStepState extends State<OutcomeStep> {
               for (final entry in _rareOutcomes.entries)
                 OutlinedButton(
                   key: outcomeKey(entry.key),
-                  onPressed: () =>
-                      widget.onChosen(entry.key, _action, _getaway),
+                  onPressed: () => widget.onChosen(entry.key, _action, _move),
                   child: Text(entry.value),
                 ),
             ]),

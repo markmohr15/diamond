@@ -250,6 +250,8 @@ class PitchLoopPage extends ConsumerWidget {
   /// "everybody up one" the overwhelming majority of the time and should not
   /// cost a trip to the field — but a runner on third often holds on a ball
   /// that only trickled away, so it cannot apply itself (§11.3).
+  static const _stolenBaseNames = {2: 'second', 3: 'third', 4: 'home'};
+
   Future<void> _offerGetaway(BuildContext context, WidgetRef ref) async {
     final offer = ref.read(pitchFlowProvider).getawayOffer;
     if (offer == null || !context.mounted) return;
@@ -257,9 +259,11 @@ class PitchLoopPage extends ConsumerWidget {
 
     await showFieldDialog<void>(
       context,
-      title: offer.cause == Cause.PASSED_BALL
-          ? 'Passed ball — what did the runners do?'
-          : 'Wild pitch — what did the runners do?',
+      title: switch (offer.move) {
+        RunnerMove.passedBall => 'Passed ball — what did the runners do?',
+        RunnerMove.wildPitch => 'Wild pitch — what did the runners do?',
+        RunnerMove.stolenBase => 'Stolen base — what did the runner do?',
+      },
       children: (dialogContext) => [
         FilledButton(
           key: getawayAdvanceAllKey,
@@ -267,7 +271,14 @@ class PitchLoopPage extends ConsumerWidget {
             Navigator.pop(dialogContext);
             unawaited(controller.getawayAdvanceAll());
           },
-          child: const Text('All runners up one'),
+          // One runner is all a steal ever offers here (see
+          // [PitchFlowController.commitOutcome]), so the one-tap answer
+          // names her base.
+          child: Text(
+            offer.move == RunnerMove.stolenBase
+                ? 'Stole ${_stolenBaseNames[offer.occupied.single.$1 + 1]}'
+                : 'All runners up one',
+          ),
         ),
         const SizedBox(height: 12),
         OutlinedButton(
@@ -367,7 +378,7 @@ class PitchLoopPage extends ConsumerWidget {
           constraints: const BoxConstraints(maxWidth: 620),
           child: OutcomeStep(
             runnersAboard: _runnersAboard(ref),
-            onChosen: (outcome, action, getaway) {
+            onChosen: (outcome, action, onTheBases) {
               Navigator.pop(dialogContext, true);
               unawaited(
                 ref
@@ -375,7 +386,7 @@ class PitchLoopPage extends ConsumerWidget {
                     .commitOutcome(
                       outcome,
                       batterAction: action,
-                      getaway: getaway,
+                      onTheBases: onTheBases,
                     ),
               );
             },
