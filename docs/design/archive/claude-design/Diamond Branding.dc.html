@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #E7E5DE; }
+  a { color: #2E5E3E; }
+  a:hover { color: #B4643C; }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:28px; padding:56px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:900px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 03 &#183; App icon and splash, light and dark</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">The mark holds at 40px because it&#8217;s two shapes, not a scene</div>
+    <div style="font-size:15px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">The icon is the chalk baseline diamond with the clay home plate at its near vertex &#8212; the same two elements as the wordmark&#8217;s lockup, so the icon and the logo read as one thing. Light sits the chalk on Grass; dark sits it on Ink and lifts the chalk lines to Grass&#8202;lit so the mark doesn&#8217;t glow harder than the app behind it. Plate stays Clay in both, and it&#8217;s the only saturated element at small size &#8212; that&#8217;s what makes the mark recognisable in a folder.<br><br>Splash is the same lockup at rest with the tagline set in mono, and a single hairline load bar. No animation, no gradient: the app opens in a dugout in daylight, so the light splash is Raised rather than pure white to survive glare, and the dark splash is Field so it doesn&#8217;t flash on a night game.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;">
+
+    <!-- 3a icon light -->
+    <div id="3a" style="width:400px; background:#FFFEF9; border:1px solid #D6D3C8; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">3A</div>
+          <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">App icon &#183; light</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">Chalk on grass</div>
+      </div>
+      <div style="padding:28px 20px; display:flex; flex-direction:column; gap:24px; align-items:center;">
+        <div style="position:relative; width:208px; height:208px; border-radius:47px; background:#2E5E3E; overflow:hidden;">
+          <div style="position:absolute; left:50%; top:50%; width:83px; height:83px; margin:-41.5px 0 0 -41.5px; border:8px solid #F4F2EB; box-sizing:border-box; transform:rotate(45deg);"></div>
+          <div style="position:absolute; left:93px; top:152px; width:21px; height:21px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:18px;">
+          <div style="position:relative; width:120px; height:120px; border-radius:27px; background:#2E5E3E;">
+            <div style="position:absolute; left:50%; top:50%; width:48px; height:48px; margin:-24px 0 0 -24px; border:4.5px solid #F4F2EB; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:54px; top:88px; width:12px; height:12px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="position:relative; width:76px; height:76px; border-radius:17px; background:#2E5E3E;">
+            <div style="position:absolute; left:50%; top:50%; width:30px; height:30px; margin:-15px 0 0 -15px; border:3px solid #F4F2EB; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:34px; top:56px; width:8px; height:8px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="position:relative; width:40px; height:40px; border-radius:9px; background:#2E5E3E;">
+            <div style="position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border:1.8px solid #F4F2EB; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:18px; top:29px; width:4px; height:4px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80;">1024 &#183; 180 &#183; 114 &#183; 60</div>
+      </div>
+    </div>
+
+    <!-- 3b icon dark -->
+    <div id="3b" style="width:400px; background:#16211C; border:2px solid #16211C; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #2A3A32;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#F4F2EB; color:#16211C; padding:3px 7px;">3B</div>
+          <div style="font-size:15px; font-weight:700; color:#F4F2EB; letter-spacing:-0.01em;">App icon &#183; dark</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#6E7C74;">Grass lit on ink</div>
+      </div>
+      <div style="padding:28px 20px; display:flex; flex-direction:column; gap:24px; align-items:center;">
+        <div style="position:relative; width:208px; height:208px; border-radius:47px; background:#16211C; box-shadow:inset 0 0 0 1px #2A3A32; overflow:hidden;">
+          <div style="position:absolute; left:50%; top:50%; width:83px; height:83px; margin:-41.5px 0 0 -41.5px; border:8px solid #5FA97A; box-sizing:border-box; transform:rotate(45deg);"></div>
+          <div style="position:absolute; left:93px; top:152px; width:21px; height:21px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:18px;">
+          <div style="position:relative; width:120px; height:120px; border-radius:27px; background:#16211C; box-shadow:inset 0 0 0 1px #2A3A32;">
+            <div style="position:absolute; left:50%; top:50%; width:48px; height:48px; margin:-24px 0 0 -24px; border:4.5px solid #5FA97A; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:54px; top:88px; width:12px; height:12px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="position:relative; width:76px; height:76px; border-radius:17px; background:#16211C; box-shadow:inset 0 0 0 1px #2A3A32;">
+            <div style="position:absolute; left:50%; top:50%; width:30px; height:30px; margin:-15px 0 0 -15px; border:3px solid #5FA97A; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:34px; top:56px; width:8px; height:8px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="position:relative; width:40px; height:40px; border-radius:9px; background:#16211C; box-shadow:inset 0 0 0 1px #2A3A32;">
+            <div style="position:absolute; left:50%; top:50%; width:16px; height:16px; margin:-8px 0 0 -8px; border:1.8px solid #5FA97A; box-sizing:border-box; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:18px; top:29px; width:4px; height:4px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#6E7C74;">1024 &#183; 180 &#183; 114 &#183; 60</div>
+      </div>
+    </div>
+
+    <!-- 3c splash light -->
+    <div id="3c" style="width:400px; background:#FFFEF9; border:1px solid #D6D3C8; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">3C</div>
+          <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">Splash &#183; light</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">Raised, not white</div>
+      </div>
+      <div style="padding:24px 20px 28px; display:flex; justify-content:center;">
+        <div style="position:relative; width:328px; height:700px; background:#F4F2EB; border:1px solid #D6D3C8; display:flex; flex-direction:column; align-items:center;">
+          <div style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:14px 20px 0; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:10px; color:#8A8A80;">
+            <div>9:41</div>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <div style="width:16px; height:8px; border:1px solid #8A8A80;"></div>
+              <div style="width:22px; height:8px; border:1px solid #8A8A80;"></div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;">
+            <div style="position:relative; width:104px; height:104px;">
+              <div style="position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border:5px solid #2E5E3E; box-sizing:border-box; transform:rotate(45deg);"></div>
+              <div style="position:absolute; left:46.5px; top:78px; width:11px; height:11px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+              <div style="font-size:42px; font-weight:700; letter-spacing:-0.045em; color:#16211C; line-height:1;">Diamond</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#2E5E3E;">Coach the whole field</div>
+            </div>
+          </div>
+          <div style="width:100%; padding:0 20px 40px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div style="width:96px; height:2px; background:#D6D3C8; position:relative;">
+              <div style="position:absolute; left:0; top:0; height:2px; width:38px; background:#B4643C;"></div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:#8A8A80;">Loading roster</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3d splash dark -->
+    <div id="3d" style="width:400px; background:#16211C; border:2px solid #16211C; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #2A3A32;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#F4F2EB; color:#16211C; padding:3px 7px;">3D</div>
+          <div style="font-size:15px; font-weight:700; color:#F4F2EB; letter-spacing:-0.01em;">Splash &#183; dark</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#6E7C74;">Field, no flash</div>
+      </div>
+      <div style="padding:24px 20px 28px; display:flex; justify-content:center;">
+        <div style="position:relative; width:328px; height:700px; background:#0E1613; border:1px solid #2A3A32; display:flex; flex-direction:column; align-items:center;">
+          <div style="width:100%; display:flex; align-items:center; justify-content:space-between; padding:14px 20px 0; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:10px; color:#6E7C74;">
+            <div>9:41</div>
+            <div style="display:flex; gap:5px; align-items:center;">
+              <div style="width:16px; height:8px; border:1px solid #6E7C74;"></div>
+              <div style="width:22px; height:8px; border:1px solid #6E7C74;"></div>
+            </div>
+          </div>
+          <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:22px;">
+            <div style="position:relative; width:104px; height:104px;">
+              <div style="position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border:5px solid #5FA97A; box-sizing:border-box; transform:rotate(45deg);"></div>
+              <div style="position:absolute; left:46.5px; top:78px; width:11px; height:11px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+              <div style="font-size:42px; font-weight:700; letter-spacing:-0.045em; color:#F4F2EB; line-height:1;">Diamond</div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.22em; text-transform:uppercase; color:#5FA97A;">Coach the whole field</div>
+            </div>
+          </div>
+          <div style="width:100%; padding:0 20px 40px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; align-items:center;">
+            <div style="width:96px; height:2px; background:#2A3A32; position:relative;">
+              <div style="position:absolute; left:0; top:0; height:2px; width:38px; background:#D07E4E;"></div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:#6E7C74;">Loading roster</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="display:flex; flex-direction:column; gap:28px; padding:56px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:900px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 02 · After dark, and the three reserved colors</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">1A at night, and why amber survives on the chips but not in the HUD</div>
+    <div style="font-size:15px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">The dark theme isn't an inversion &#8212; Ink stops being the darkest thing in the room and becomes the <em>card</em>, sitting on a deeper field below it. Grass and Clay both get lifted for use as line and text, because at their light-theme values they disappear against Ink. Nothing about the mark, the type, or the voice changes.<br><br>On the reserved colors: amber fails for uncertainty and works for misplay, and the reason is size. Chroma is what separates a colour from Clay, but large areas of high chroma are unreadable after two innings &#8212; so the big persistent element gets a low-chroma <em>field</em> with a saturated label, and the 40px chip gets a fully saturated fill. That split also answers the shared-colour question: they shouldn't share, because they ask the coach for different things.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:24px; align-items:flex-start;">
+
+    <!-- dark 1A -->
+    <div id="2a" style="width:520px; background:#0E1613; border:2px solid #16211C; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #2A3A32;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#F4F2EB; color:#16211C; padding:3px 7px;">2A</div>
+          <div style="font-size:15px; font-weight:700; color:#F4F2EB; letter-spacing:-0.01em;">Infield &#183; dark</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#6E7C74;">Same identity</div>
+      </div>
+
+      <div style="padding:44px 20px 40px; display:flex; flex-direction:column; align-items:center; gap:26px; background:#16211C;">
+        <div style="display:flex; align-items:center; gap:18px;">
+          <div style="width:60px; height:60px; position:relative;">
+            <div style="position:absolute; inset:6px; border:3px solid #5FA97A; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:2px; width:12px; height:12px; margin-left:-6px; background:#F4F2EB; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="font-size:44px; font-weight:700; letter-spacing:-0.045em; color:#F4F2EB; line-height:1;">Diamond</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:#5FA97A; text-align:center; white-space:nowrap;">Coach the whole field</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid #2A3A32;">
+        <div style="height:74px; background:#0E1613; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#A9C0AF;">#0E1613<br>Field</div>
+        <div style="height:74px; background:#16211C; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#A9C0AF;">#16211C<br>Ink / card</div>
+        <div style="height:74px; background:#5FA97A; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#0E1613;">#5FA97A<br>Grass lit</div>
+        <div style="height:74px; background:#D07E4E; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#16211C;">#D07E4E<br>Clay lit</div>
+      </div>
+
+      <div style="padding:24px 20px; display:flex; gap:18px; align-items:flex-start; border-top:1px solid #2A3A32;">
+        <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+          <div style="width:88px; height:88px; border-radius:20px; background:#16211C; border:1px solid #2A3A32; position:relative; box-sizing:border-box;">
+            <div style="position:absolute; inset:20px; border:3px solid #5FA97A; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:16px; width:13px; height:13px; margin-left:-6.5px; background:#D07E4E; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#6E7C74;">APP ICON</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+          <div style="height:88px; background:#1E2C25; border:1px solid #2A3A32; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:14px; height:14px; border:2.5px solid #5FA97A; transform:rotate(45deg);"></div>
+              <div style="font-size:15px; font-weight:700; letter-spacing:-0.04em; color:#F4F2EB;">Diamond</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <div style="font-size:10px; line-height:1.4; color:#A9C0AF; white-space:nowrap;">Marisa Ortega<br><span style="color:#6E7C74;">Head Coach, 14U</span></div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:8px; color:#D07E4E; letter-spacing:0.1em;">DIAMOND.APP</div>
+            </div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#6E7C74;">CARD</div>
+        </div>
+      </div>
+
+      <div style="padding:0 20px 24px;">
+        <div style="height:82px; background:#F4F2EB; display:flex; align-items:center; justify-content:center; gap:14px;">
+          <div style="width:26px; height:26px; border:2.5px solid #2E5E3E; transform:rotate(45deg);"></div>
+          <div style="font-size:26px; font-weight:700; letter-spacing:-0.04em; color:#16211C;">Diamond</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#6E7C74; padding-top:8px;">DUGOUT SIGN &#8212; STAYS CHALK, IT'S A PRINTED OBJECT</div>
+      </div>
+
+      <div style="padding:16px 20px 22px; border-top:1px solid #2A3A32; font-size:12.5px; line-height:1.55; color:#A9C0AF; text-wrap:pretty;">Ink is promoted from "the darkest colour" to "the card," with Field below it and one raised step above. Two lifted values do the rest: Grass and Clay are unusable as line work at their light-theme darkness.</div>
+    </div>
+
+    <!-- surface ladder + reasoning -->
+    <div style="width:520px; background:#FFFEF9; border:1px solid #D6D3C8; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+        <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">Both ladders, paired</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">Role &#8594; value</div>
+      </div>
+
+      <div style="padding:20px; display:flex; flex-direction:column; gap:10px;">
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.12em; color:#8A8A80;">
+          <div>ROLE</div><div>LIGHT</div><div>DARK</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Ground</div>
+          <div style="height:44px; background:#E7E5DE; border:1px solid #D6D3C8; display:flex; align-items:center; padding:0 10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#4A4A44;">#E7E5DE</div>
+          <div style="height:44px; background:#0E1613; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#A9C0AF;">#0E1613</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Card</div>
+          <div style="height:44px; background:#FFFEF9; border:1px solid #D6D3C8; display:flex; align-items:center; padding:0 10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#4A4A44;">#FFFEF9</div>
+          <div style="height:44px; background:#16211C; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#A9C0AF;">#16211C</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Raised</div>
+          <div style="height:44px; background:#F4F2EB; border:1px solid #D6D3C8; display:flex; align-items:center; padding:0 10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#4A4A44;">#F4F2EB</div>
+          <div style="height:44px; background:#1E2C25; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#A9C0AF;">#1E2C25</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Hairline</div>
+          <div style="height:44px; background:#D6D3C8; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#4A4A44;">#D6D3C8</div>
+          <div style="height:44px; background:#2A3A32; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#A9C0AF;">#2A3A32</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Text</div>
+          <div style="height:44px; background:#16211C; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#F4F2EB;">#16211C</div>
+          <div style="height:44px; background:#F4F2EB; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#16211C;">#F4F2EB</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#16211C;">Text, muted</div>
+          <div style="height:44px; background:#8A8A80; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#FFFEF9;">#8A8A80</div>
+          <div style="height:44px; background:#A9C0AF; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#16211C;">#A9C0AF</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#2E5E3E;">Grass, as line</div>
+          <div style="height:44px; background:#2E5E3E; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#F4F2EB;">#2E5E3E</div>
+          <div style="height:44px; background:#5FA97A; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#0E1613;">#5FA97A</div>
+        </div>
+        <div style="display:grid; grid-template-columns:120px 1fr 1fr; gap:10px; align-items:center;">
+          <div style="font-size:13px; font-weight:700; color:#B4643C;">Clay, as line</div>
+          <div style="height:44px; background:#B4643C; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#FFFEF9;">#B4643C</div>
+          <div style="height:44px; background:#D07E4E; display:flex; align-items:center; padding:0 10px; font-family:'JetBrains Mono',monospace; font-size:9.5px; color:#16211C;">#D07E4E</div>
+        </div>
+      </div>
+
+      <div style="padding:16px 20px 22px; border-top:1px solid #D6D3C8; font-size:12.5px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">Green and Clay keep their light-theme values wherever they are a <em>fill</em> with Chalk sitting on top &#8212; a #2E5E3E button works in both themes. The lifted values are only for strokes, icons and text.</div>
+    </div>
+  </div>
+
+  <!-- ===== reserved colours ===== -->
+  <div style="width:1064px; background:#FFFEF9; border:1px solid #D6D3C8;">
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+      <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">Three reserved colours, at the size they actually appear</div>
+      <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">Meaning &#183; not decoration</div>
+    </div>
+
+    <!-- uncertainty -->
+    <div style="padding:24px 20px; display:flex; gap:24px; align-items:flex-start; border-bottom:1px solid #D6D3C8;">
+      <div style="width:206px; flex:0 0 206px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <div style="width:20px; height:20px; background:#5A47A0;"></div>
+          <div style="font-size:19px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">Dusk</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:#8A8A80;">UNCERTAINTY<br>#5A47A0 &#183; #9B85E8</div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Violet is the one hue the palette doesn't use &#8212; nothing on a ball field is violet, so it can't be misread as grass, dirt or blood. It reads <em>unresolved</em> rather than <em>bad</em>, which is correct: an ambiguous count is not an error, and the coach shouldn't be alarmed by it for four minutes.</div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1; height:84px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; background:#EDE9F7; border:2px solid #5A47A0; border-radius:14px; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:18px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1;">2<span style="color:#5A47A0;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#5A47A0;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#5A47A0;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #A79BD0; box-sizing:border-box;"></div>
+              </div>
+            </div>
+            <div style="height:34px; padding:0 12px; display:flex; align-items:center; background:#5A47A0; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.1em; color:#FFFEF9; white-space:nowrap;">COUNT UNSURE</div>
+          </div>
+          <div style="flex:1; height:84px; display:flex; align-items:center; justify-content:space-between; padding:0 22px; background:#241E3D; border:2px solid #9B85E8; border-radius:14px; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:18px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#F4F2EB; line-height:1;">2<span style="color:#9B85E8;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#9B85E8;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#9B85E8;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #5A4E7C; box-sizing:border-box;"></div>
+              </div>
+            </div>
+            <div style="height:34px; padding:0 12px; display:flex; align-items:center; background:#9B85E8; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.1em; color:#16211C; white-space:nowrap;">COUNT UNSURE</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">The field is tinted, not flooded: 8% chroma across 84px, with the full-strength violet saved for the 34px label and the count separator. That's what makes it survivable as a persistent state &#8212; and in sunlight the violet band still reads as a distinctly different <em>object</em> from a Clay accent, because the lightness gap does the work before the hue does.</div>
+      </div>
+    </div>
+
+    <!-- misplay -->
+    <div style="padding:24px 20px; display:flex; gap:24px; align-items:flex-start; border-bottom:1px solid #D6D3C8;">
+      <div style="width:206px; flex:0 0 206px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <div style="width:20px; height:20px; background:#E8A81C;"></div>
+          <div style="font-size:19px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">Rosin</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:#8A8A80;">MISPLAY<br>#E8A81C &#183; #F2B935</div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Amber does work here, and only here. A 40px chip needs maximum chroma to register at a glance, and against Clay the separation is <em>lightness plus saturation</em>, not hue alone &#8212; Clay is dark and muted, Rosin is bright and pure. That's the most robust pair of cues in direct sun.</div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1; height:84px; display:flex; align-items:center; gap:14px; padding:0 20px; background:#F4F2EB; border:1px solid #D6D3C8; border-radius:14px; box-sizing:border-box;">
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:2px solid #16211C; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#FFFEF9;">SS</div>
+            <div style="font-size:20px; color:#C4C0B4;">&#8594;</div>
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#E8A81C; border:2px solid #16211C; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">1B</div>
+            <div style="font-size:20px; color:#C4C0B4;">&#8594;</div>
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:2px solid #16211C; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#FFFEF9;">C</div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; color:#8A8A80; white-space:nowrap;">1B MUFFED IT</div>
+          </div>
+          <div style="flex:1; height:84px; display:flex; align-items:center; gap:14px; padding:0 20px; background:#16211C; border:1px solid #2A3A32; border-radius:14px; box-sizing:border-box;">
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#2E6A44; border:2px solid #5FA97A; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#F4F2EB;">SS</div>
+            <div style="font-size:20px; color:#3E4E45;">&#8594;</div>
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#F2B935; border:2px solid #F2B935; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">1B</div>
+            <div style="font-size:20px; color:#3E4E45;">&#8594;</div>
+            <div style="width:40px; height:40px; flex:0 0 40px; display:flex; align-items:center; justify-content:center; background:#2E6A44; border:2px solid #5FA97A; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#F4F2EB;">C</div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; color:#6E7C74; white-space:nowrap;">1B MUFFED IT</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Rosin is a <strong style="color:#16211C;">fill only, never a text or line colour</strong> &#8212; amber type on Chalk is illegible outdoors. The chip carries Ink glyphs in both themes, so the same chip is readable at noon and under floodlights without a second value.</div>
+      </div>
+    </div>
+
+    <!-- error -->
+    <div style="padding:24px 20px; display:flex; gap:24px; align-items:flex-start; border-bottom:1px solid #D6D3C8;">
+      <div style="width:206px; flex:0 0 206px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <div style="width:20px; height:20px; background:#BB1E3C;"></div>
+          <div style="font-size:19px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">Ejection</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:#8A8A80;">ERROR<br>#BB1E3C &#183; #F4667B</div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Pushed off pure red toward magenta so it clears Clay by hue as well as chroma. Reserved for the app failing &#8212; never for a fielding error, which is Rosin's job. Two words that mean opposite things in this product, so they never share a colour.</div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1; height:84px; display:flex; align-items:center; gap:14px; padding:0 20px; background:#FBEEF0; border:2px solid #BB1E3C; border-radius:14px; box-sizing:border-box;">
+            <div style="width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center; background:#BB1E3C; border-radius:50%; font-size:20px; font-weight:700; color:#FFFEF9;">!</div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="font-size:17px; font-weight:700; color:#16211C;">Couldn't save that pitch</div>
+              <div style="font-size:13px; color:#4A4A44;">Kept locally &#8212; retry when you're back on wifi.</div>
+            </div>
+          </div>
+          <div style="flex:1; height:84px; display:flex; align-items:center; gap:14px; padding:0 20px; background:#2B1418; border:2px solid #F4667B; border-radius:14px; box-sizing:border-box;">
+            <div style="width:34px; height:34px; flex:0 0 34px; display:flex; align-items:center; justify-content:center; background:#F4667B; border-radius:50%; font-size:20px; font-weight:700; color:#16211C;">!</div>
+            <div style="display:flex; flex-direction:column; gap:2px;">
+              <div style="font-size:17px; font-weight:700; color:#F4F2EB;">Couldn't save that pitch</div>
+              <div style="font-size:13px; color:#D8B8BE;">Kept locally &#8212; retry when you're back on wifi.</div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Offline is the normal condition here, so a lost pitch is a save-queue problem, not a network scare &#8212; the copy says where the data went before it says what broke.</div>
+      </div>
+    </div>
+
+    <!-- callable -->
+    <div style="padding:24px 20px; display:flex; gap:24px; align-items:flex-start; border-bottom:1px solid #D6D3C8;">
+      <div style="width:206px; flex:0 0 206px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <div style="width:20px; height:20px; background:#F4F2EB; border:1px solid #D6D3C8; position:relative;"><div style="position:absolute; inset:0; background:#2E5E3E; opacity:0.14;"></div></div>
+          <div style="font-size:19px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">Callable</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.1em; color:#8A8A80;">NOT A SEMANTIC COLOUR<br>GRASS @ 14% &#183; GRASS-LIT @ 18%</div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">This one shouldn't get a hue of its own. The other three are <em>events</em> &#8212; something happened, look here. Callable is the opposite: a standing description of <strong style="color:#16211C;">where the tool works</strong>, present on most zones most of the time. A dedicated colour would put a permanent alert-weight wash across half the grid and spend the palette's last unused hue on the least urgent thing in the app.</div>
+      </div>
+      <div style="flex:1; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; gap:12px;">
+          <div style="flex:1; height:150px; padding:14px; background:#F4F2EB; border:1px solid #D6D3C8; border-radius:14px; box-sizing:border-box; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:5px; flex:1;">
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:#2E5E3E; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#FFFEF9;">334</div>
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:#FFFEF9; border:1px dashed #D6D3C8;"></div>
+              <div style="background:rgba(46,94,62,0.14); border:1px solid rgba(46,94,62,0.34);"></div>
+              <div style="background:#FFFEF9; border:1px dashed #D6D3C8;"></div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#8A8A80;">WASH = CALLABLE &#183; SOLID = CALLED &#183; DASHED = OFF</div>
+          </div>
+          <div style="flex:1; height:150px; padding:14px; background:#16211C; border:1px solid #2A3A32; border-radius:14px; box-sizing:border-box; display:flex; flex-direction:column; gap:10px;">
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); gap:5px; flex:1;">
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:#5FA97A; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#0E1613;">334</div>
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:#0E1613; border:1px dashed #2A3A32;"></div>
+              <div style="background:rgba(95,169,122,0.18); border:1px solid rgba(95,169,122,0.42);"></div>
+              <div style="background:#0E1613; border:1px dashed #2A3A32;"></div>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:0.1em; color:#6E7C74;">SAME LADDER, LIFTED GRASS</div>
+          </div>
+        </div>
+        <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">So: <strong style="color:#16211C;">callable is Grass, and the collision is the point</strong> &#8212; wash, solid, dashed are three steps of one hue reading as availability, selection and exclusion. What it must never be is a fourth <em>value</em> called <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px;">callableGreen</span> that drifts a few degrees off Grass; that's the collision worth fearing, two greens neither of which looks intentional. Retire the token and point it at Grass with an opacity step.</div>
+      </div>
+    </div>
+
+    <!-- the squint test -->
+    <div style="padding:24px 20px;">
+      <div style="font-size:15px; font-weight:700; color:#16211C; margin-bottom:4px;">The squint test</div>
+      <div style="font-size:13px; line-height:1.5; color:#4A4A44; margin-bottom:16px; max-width:820px; text-wrap:pretty;">All five at chip size and adjacent, which is the worst case &#8212; a Clay accent sitting next to a Rosin chip on the same row. Amber and Clay only collide when both are mid-lightness and mid-chroma; separating them on both axes is what keeps this readable at arm's length in sun.</div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div style="display:flex; gap:10px; padding:16px; background:#F4F2EB; border:1px solid #D6D3C8;">
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#2E5E3E;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#8A8A80;">GRASS</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#B4643C;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#8A8A80;">CLAY</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#E8A81C;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#8A8A80;">ROSIN</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#5A47A0;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#8A8A80;">DUSK</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#BB1E3C;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#8A8A80;">EJECT</div></div>
+        </div>
+        <div style="display:flex; gap:10px; padding:16px; background:#16211C; border:1px solid #2A3A32;">
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#5FA97A;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#6E7C74;">GRASS</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#D07E4E;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#6E7C74;">CLAY</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#F2B935;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#6E7C74;">ROSIN</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#9B85E8;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#6E7C74;">DUSK</div></div>
+          <div style="display:flex; flex-direction:column; gap:6px; align-items:center;"><div style="width:40px; height:40px; border-radius:50%; background:#F4667B;"></div><div style="font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#6E7C74;">EJECT</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="display:flex; flex-direction:column; gap:28px; padding:56px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:760px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 01 · Diamond — baseball &amp; softball coaching</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">The direction, and the one worth keeping around</div>
+    <div style="font-size:15px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><a href="#1a">1a</a> is the build direction and every app screen follows it &#8212; Space Grotesk throughout, paired with JetBrains Mono for anything numeric. <a href="#1b">1b</a> stays as reference for its analytics-leaning treatment.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:32px; align-items:flex-start;">
+
+    <!-- ============ 1a INFIELD ============ -->
+    <div id="1a" style="width:520px; background:#F4F2EB; border:2px solid #16211C; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">1A</div>
+          <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">Infield</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; text-transform:uppercase; color:#2E5E3E;">Chosen</div>
+      </div>
+
+      <div style="padding:44px 20px 40px; display:flex; flex-direction:column; align-items:center; gap:26px; background:#FFFEF9;">
+        <div style="display:flex; align-items:center; gap:18px;">
+          <div style="width:60px; height:60px; position:relative;">
+            <div style="position:absolute; inset:6px; border:3px solid #2E5E3E; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:2px; width:12px; height:12px; margin-left:-6px; background:#16211C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="font-family:'Space Grotesk', sans-serif; font-size:44px; font-weight:700; letter-spacing:-0.045em; color:#16211C; line-height:1;">Diamond</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.22em; text-transform:uppercase; color:#2E5E3E; text-align:center; white-space:nowrap;">Coach the whole field</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid #D6D3C8;">
+        <div style="height:74px; background:#2E5E3E; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#F4F2EB;">#2E5E3E<br>Grass</div>
+        <div style="height:74px; background:#B4643C; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#FFFEF9;">#B4643C<br>Clay</div>
+        <div style="height:74px; background:#16211C; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#F4F2EB;">#16211C<br>Ink</div>
+        <div style="height:74px; background:#F4F2EB; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#4A4A44; border-left:1px solid #D6D3C8;">#F4F2EB<br>Chalk</div>
+      </div>
+
+      <div style="padding:24px 20px; display:flex; gap:18px; align-items:flex-start; border-top:1px solid #D6D3C8;">
+        <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+          <div style="width:88px; height:88px; border-radius:20px; background:#2E5E3E; position:relative; box-shadow:0 2px 8px rgba(22,33,28,0.18);">
+            <div style="position:absolute; inset:20px; border:3px solid #F4F2EB; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:16px; width:13px; height:13px; margin-left:-6.5px; background:#B4643C; clip-path:polygon(0 0,100% 0,100% 45%,50% 100%,0 45%);"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80;">APP ICON</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+          <div style="height:88px; background:#F4F2EB; border:1px solid #D6D3C8; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <div style="width:14px; height:14px; border:2.5px solid #2E5E3E; transform:rotate(45deg);"></div>
+              <div style="font-family:'Space Grotesk',sans-serif; font-size:15px; font-weight:700; letter-spacing:-0.04em; color:#16211C;">Diamond</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <div style="font-size:10px; line-height:1.4; color:#4A4A44; white-space:nowrap;">Marisa Ortega<br><span style="color:#8A8A80;">Head Coach, 14U</span></div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:8px; color:#B4643C; letter-spacing:0.1em;">DIAMOND.APP</div>
+            </div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80;">CARD</div>
+        </div>
+      </div>
+
+      <div style="padding:0 20px 24px;">
+        <div style="height:82px; background:#16211C; display:flex; align-items:center; justify-content:center; gap:14px;">
+          <div style="width:26px; height:26px; border:2.5px solid #F4F2EB; transform:rotate(45deg);"></div>
+          <div style="font-family:'Space Grotesk',sans-serif; font-size:26px; font-weight:700; letter-spacing:-0.04em; color:#F4F2EB;">Diamond</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80; padding-top:8px;">DUGOUT SIGN</div>
+      </div>
+
+      <div style="padding:16px 20px 22px; border-top:1px solid #D6D3C8; font-size:12.5px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">The diamond is drawn like a chalk line &#8212; one weight, one angle, home plate anchoring the bottom. Space Grotesk everywhere, JetBrains Mono for counts, codes and positions: two faces with the same squared skeleton, so the app reads as one system.</div>
+    </div>
+
+    <!-- ============ 1b NIGHT GAME ============ -->
+    <div id="1b" style="width:520px; background:#F4F2EB; border:1px solid #D6D3C8; display:flex; flex-direction:column;">
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 20px; border-bottom:1px solid #D6D3C8;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">1B</div>
+          <div style="font-size:15px; font-weight:700; color:#16211C; letter-spacing:-0.01em;">Night Game</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">Technical · data-first</div>
+      </div>
+
+      <div style="padding:44px 20px 40px; display:flex; flex-direction:column; align-items:center; gap:26px; background:#0F1714;">
+        <div style="display:flex; align-items:center; gap:20px;">
+          <div style="width:58px; height:58px; position:relative;">
+            <div style="position:absolute; inset:7px; border:1px dashed rgba(244,242,235,0.35); transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; top:5px; width:9px; height:9px; margin-left:-4.5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:5px; width:9px; height:9px; margin-left:-4.5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; top:50%; left:5px; width:9px; height:9px; margin-top:-4.5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; top:50%; right:5px; width:9px; height:9px; margin-top:-4.5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono', monospace; font-size:34px; font-weight:700; letter-spacing:0.02em; color:#F4F2EB; line-height:1;">DIAMOND</div>
+        </div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:#8FCB6B; text-align:center; white-space:nowrap;">Every rep, logged</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid #D6D3C8;">
+        <div style="height:74px; background:#0F1714; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#F4F2EB;">#0F1714<br>Night</div>
+        <div style="height:74px; background:#8FCB6B; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#0F1714;">#8FCB6B<br>Floodlit</div>
+        <div style="height:74px; background:#C98A5E; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#0F1714;">#C98A5E<br>Warning track</div>
+        <div style="height:74px; background:#F4F2EB; display:flex; align-items:flex-end; padding:8px; font-family:'JetBrains Mono',monospace; font-size:9px; color:#4A4A44; border-left:1px solid #D6D3C8;">#F4F2EB<br>Chalk</div>
+      </div>
+
+      <div style="padding:24px 20px; display:flex; gap:18px; align-items:flex-start; border-top:1px solid #D6D3C8;">
+        <div style="display:flex; flex-direction:column; gap:8px; align-items:center;">
+          <div style="width:88px; height:88px; border-radius:20px; background:#0F1714; position:relative; box-shadow:0 2px 8px rgba(22,33,28,0.18);">
+            <div style="position:absolute; inset:24px; border:1px dashed rgba(244,242,235,0.4); transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; top:20px; width:10px; height:10px; margin-left:-5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; left:50%; bottom:20px; width:10px; height:10px; margin-left:-5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; top:50%; left:20px; width:10px; height:10px; margin-top:-5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+            <div style="position:absolute; top:50%; right:20px; width:10px; height:10px; margin-top:-5px; background:#8FCB6B; transform:rotate(45deg);"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80;">APP ICON</div>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:8px; flex:1;">
+          <div style="height:88px; background:#0F1714; padding:12px 14px; display:flex; flex-direction:column; justify-content:space-between;">
+            <div style="font-family:'JetBrains Mono',sans-serif; font-size:14px; font-weight:700; letter-spacing:0.04em; color:#F4F2EB;">DIAMOND</div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:9.5px; line-height:1.5; color:#F4F2EB; white-space:nowrap;">MARISA ORTEGA<br><span style="color:#8FCB6B;">HEAD COACH / 14U</span></div>
+              <div style="width:16px; height:16px; border:1px dashed rgba(244,242,235,0.5); transform:rotate(45deg);"></div>
+            </div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80;">CARD</div>
+        </div>
+      </div>
+
+      <div style="padding:0 20px 24px;">
+        <div style="height:82px; background:#8FCB6B; display:flex; align-items:center; justify-content:center; gap:16px;">
+          <div style="width:22px; height:22px; border:1px dashed rgba(15,23,20,0.6); transform:rotate(45deg);"></div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:24px; font-weight:700; letter-spacing:0.04em; color:#0F1714;">DIAMOND</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#8A8A80; padding-top:8px;">DUGOUT SIGN</div>
+      </div>
+
+      <div style="padding:16px 20px 22px; border-top:1px solid #D6D3C8; font-size:12.5px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">Four bases as data points, base paths dashed like a plotted route. Monospace throughout — this direction leans into the tracking/analytics side of coaching.</div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

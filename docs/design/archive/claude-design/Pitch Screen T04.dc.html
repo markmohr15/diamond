@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  body { margin: 0; background: #E7E5DE; }
+  a { color: #2E5E3E; }
+  a:hover { color: #B4643C; }
+  /* Mirror the artwork only, never the slot's own chrome. Compose with the
+     component's centering translate — overriding left/top would disable its
+     pan/reframe. Art at 30:74 lands the foot on the anchor with no drift. */
+  image-slot#batter-figure[data-flip="1"]::part(image) { transform: translate(-50%, -50%) scaleX(-1); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:26px; padding:48px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:840px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 04 · Play editor</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">The field, made of the same material</div>
+    <div style="font-size:15px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">The current editor draws the diamond as hairlines on grey with 28px ghost-grey position tokens — the two things a scorer must hit and read are the two faintest things on screen. <a href="#4a">4A</a> gives the field real dirt and grass so it reads at a glance in sun, puts the fielders on 54px tokens, promotes the throw sequence from a stack of tiny chips into one legible chain, replaces "104 ft → 121 ft" with a named zone, and moves Commit play to a full-width bottom bar where the thumb already is.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="4a" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">4A</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Play editor — ball in play</div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="Play editor" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:04 PM</span><span style="color:#8A8A80;">Wed Aug 19</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">2 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px; line-height:1;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="display:flex; align-items:center; justify-content:center; width:52px; height:52px; border:1.5px solid #C4C0B4; border-radius:12px; font-size:24px; color:#16211C; box-sizing:border-box;">↺</div>
+              <div style="display:flex; align-items:center; justify-content:center; width:52px; height:52px; border:1.5px solid #C4C0B4; border-radius:12px; font-size:22px; color:#16211C; box-sizing:border-box;">✕</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 74px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#16211C; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="height:42px; padding:0 15px; display:flex; align-items:center; background:#F4F2EB; border-radius:10px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">LINE DRIVE</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;">SHALLOW LEFT</span>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.08em; color:#A9C0AF; white-space:nowrap;">TAP FIELDERS IN ORDER · DRAG RUNNERS</span>
+          </div>
+
+          <div style="flex:0 0 100px; display:flex; align-items:center; gap:14px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">SEQUENCE</div>
+            <div style="display:flex; align-items:center; gap:11px;">
+              <div style="height:56px; padding:0 18px; display:flex; align-items:center; gap:11px; background:#2E5E3E; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:rgba(255,254,249,0.7);">1</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; letter-spacing:0.06em; color:#FFFEF9;">LF</span>
+              </div>
+              <span style="font-size:22px; color:#A8A49A;">→</span>
+              <div style="height:56px; padding:0 18px; display:flex; align-items:center; gap:11px; background:#2E5E3E; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:rgba(255,254,249,0.7);">2</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; letter-spacing:0.06em; color:#FFFEF9;">SS</span>
+              </div>
+              <span style="font-size:22px; color:#A8A49A;">→</span>
+              <div style="height:56px; padding:0 18px; display:flex; align-items:center; gap:11px; background:#2E5E3E; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:rgba(255,254,249,0.7);">3</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; letter-spacing:0.06em; color:#FFFEF9;">C</span>
+              </div>
+              <div style="height:56px; padding:0 18px; display:flex; align-items:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:12px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70; white-space:nowrap;">+ THROW</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 810px; position:relative; background:#F4F2EB; overflow:hidden;">
+
+            <!-- reference geometry, true scale: 3.2 px per foot, home plate apex at 512,744 -->
+            <svg viewBox="0 0 1024 810" style="position:absolute; inset:0; width:1024px; height:810px;">
+              <path d="M512 744 L59.5 291.5 A533 533 0 0 1 964.5 291.5 Z" fill="#D6DCD1"></path>
+              <path d="M59.5 291.5 A533 533 0 0 1 964.5 291.5" fill="none" stroke="rgba(22,33,28,0.34)" stroke-width="3"></path>
+              <path d="M512 757.6 L700.4 569.3 A192 192 0 0 0 323.6 569.3 Z" fill="#E6D0AF"></path>
+              <circle cx="512" cy="606.4" r="25.6" fill="none" stroke="rgba(255,254,249,0.85)" stroke-width="2.5"></circle>
+              <line x1="512" y1="744" x2="59.5" y2="291.5" stroke="rgba(22,33,28,0.5)" stroke-width="3"></line>
+              <line x1="512" y1="744" x2="964.5" y2="291.5" stroke="rgba(22,33,28,0.5)" stroke-width="3"></line>
+              <polygon points="512,744 647.8,608.2 512,472.5 376.2,608.2" fill="none" stroke="rgba(22,33,28,0.42)" stroke-width="2.5"></polygon>
+              <rect x="635.8" y="596.2" width="24" height="24" transform="rotate(45 647.8 608.2)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <rect x="500" y="460.5" width="24" height="24" transform="rotate(45 512 472.5)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <rect x="364.2" y="596.2" width="24" height="24" transform="rotate(45 376.2 608.2)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <line x1="512" y1="744" x2="285" y2="395" stroke="#F4F2EB" stroke-width="9.5" stroke-linecap="round"></line>
+              <line x1="512" y1="744" x2="285" y2="395" stroke="#16211C" stroke-width="4.5" stroke-linecap="round"></line>
+              <g fill="none" stroke="#F4F2EB" stroke-width="7" stroke-linecap="round">
+                <line x1="250" y1="355" x2="419" y2="488"></line>
+                <line x1="419" y1="488" x2="512" y2="770"></line>
+              </g>
+              <g fill="none" stroke="#2E5E3E" stroke-width="3" stroke-dasharray="11 9" stroke-linecap="round">
+                <line x1="250" y1="355" x2="419" y2="488"></line>
+                <line x1="419" y1="488" x2="512" y2="770"></line>
+              </g>
+              <circle cx="285" cy="395" r="14.5" fill="#16211C" stroke="#FFFEF9" stroke-width="3"></circle>
+            </svg>
+
+            <!-- fielders at true-scale positions, tokens sized for the thumb -->
+            <div style="position:absolute; left:485px; top:125px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">CF</div>
+            <div style="position:absolute; left:782px; top:242px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">RF</div>
+            <div style="position:absolute; left:578px; top:461px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">2B</div>
+            <div style="position:absolute; left:625px; top:550px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">1B</div>
+            <div style="position:absolute; left:345px; top:550px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">3B</div>
+            <div style="position:absolute; left:485px; top:579px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">P</div>
+
+            <!-- fielders in the play, numbered in sequence order -->
+            <div style="position:absolute; left:223px; top:328px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:2.5px solid #16211C; color:#FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700;">LF</div>
+            <div style="position:absolute; left:265px; top:320px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; background:#16211C; border-radius:50%; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#F4F2EB;">1</div>
+            <div style="position:absolute; left:392px; top:461px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:2.5px solid #16211C; color:#FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700;">SS</div>
+            <div style="position:absolute; left:434px; top:453px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; background:#16211C; border-radius:50%; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#F4F2EB;">2</div>
+            <div style="position:absolute; left:485px; top:743px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:2.5px solid #16211C; color:#FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700;">C</div>
+            <div style="position:absolute; left:527px; top:735px; width:24px; height:24px; display:flex; align-items:center; justify-content:center; background:#16211C; border-radius:50%; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#F4F2EB;">3</div>
+
+            <!-- home plate rides above the tokens: the catcher overlaps it, but must not hide it -->
+            <svg viewBox="0 0 1024 810" style="position:absolute; inset:0; width:1024px; height:810px; pointer-events:none;">
+              <polygon points="497,730 527,730 527,746 512,758 497,746" fill="#FFFEF9" stroke="#16211C" stroke-width="3"></polygon>
+            </svg>
+
+            <!-- runners, outboard of the bases they end on -->
+            <div style="position:absolute; left:667px; top:587px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; background:#16211C; border:2.5px solid #FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#F4F2EB;">B</div>
+            <div style="position:absolute; left:311px; top:587px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; background:#16211C; border:2.5px solid #FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#F4F2EB;">R2</div>
+          </div>
+
+          <div style="flex:0 0 138px; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:0 28px; background:#EFEDE4; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">RUNNERS</div>
+            <div style="display:flex; gap:10px;">
+              <div style="flex:1; height:64px; display:flex; align-items:center; gap:14px; padding:0 18px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">BATTER</span>
+                <span style="font-size:19px; color:#7A7A70;">→</span>
+                <div style="display:flex; gap:5px;">
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#FFFEF9;">1B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">2B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">3B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">HOME</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">OUT</div>
+                </div>
+              </div>
+              <div style="flex:1; height:64px; display:flex; align-items:center; gap:14px; padding:0 18px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">R ON 2B</span>
+                <span style="font-size:19px; color:#7A7A70;">→</span>
+                <div style="display:flex; gap:5px;">
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#FFFEF9;">3B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">HOME</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#A8A49A;">OUT</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 116px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:0 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; flex-direction:column; gap:3px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">SCORES AS</div>
+              <div style="font-size:19px; font-weight:700; color:#16211C; white-space:nowrap;">Single to left · runner to third</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="height:68px; padding:0 20px; display:flex; align-items:center; gap:13px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:24px; color:#16211C; line-height:1;">↺</span>
+                <div style="display:flex; flex-direction:column; gap:2px; align-items:flex-start;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:#7A7A70;">UNDO ON FIELD</span>
+                  <span style="font-size:16px; font-weight:700; color:#16211C;">Throw 3 · SS → C</span>
+                </div>
+              </div>
+              <div style="height:68px; padding:0 32px; display:flex; align-items:center; gap:12px; background:#2E5E3E; border-radius:14px; box-sizing:border-box; font-size:21px; font-weight:700; color:#FFFEF9; white-space:nowrap;"><span style="font-size:20px;">✓</span>Commit play</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:22px; width:420px;">
+      <div style="display:flex; flex-direction:column; gap:16px; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px;">
+        <div style="font-size:17px; font-weight:700; color:#16211C;">Notes on the play editor</div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; line-height:1.55; color:#4A4A44;">
+          <div><strong style="color:#16211C;">The field is a surface, not a wireframe.</strong> Grass on the fair wedge, dirt on the infield, plate and bases in white — the same palette as the zone and dirt views. A hairline diamond on grey is invisible in daylight and gives the eye nothing to aim at.</div>
+          <div><strong style="color:#16211C;">Fielders are hittable.</strong> 54px tokens, dark type, real borders. Players in the play go solid green with a numbered badge, so the sequence is legible on the field itself — not only in a chip row.</div>
+          <div><strong style="color:#16211C;">One sequence, one place.</strong> The old screen split fielder chips and runner-advance chips into two tiny stacks near the top. Here the throw chain is a single row with an explicit <em>+ THROW</em>, and runners get their own labelled rows where every possible ending base is a 44px target — no more two <em>B→1</em> chips with no way to tell them apart.</div>
+          <div><strong style="color:#16211C;">Undo belongs to the field, not the game.</strong> The ↺ in the top chrome undoes the last <em>game</em> event; the one in the commit bar names the last thing you did on the diamond — <em>Throw 3 · SS → C</em>, or a runner drag, or a fielder tap — so a mis-tap on a crowded infield costs one press instead of a rebuild. It sits beside Commit play because that's where the thumb already is while the play is being built.</div>
+          <div><strong style="color:#16211C;">Runners read as runners.</strong> Runner tokens sit outboard of their bases so they never cover a fielder's tap target, and they carry the panel's wording (B, R2) — a bare "2" on the infield is unreadable next to a "2B" fielder and a second throw.</div>
+          <div><strong style="color:#16211C;">Named zones over false precision.</strong> "104 ft → 121 ft" implies a measurement nobody took. SHALLOW LEFT is what the scorer actually knows, and it aggregates into spray charts just as well.</div>
+          <div><strong style="color:#16211C;">The field is drawn to scale.</strong> One constant — 3.2 px per foot — sets every distance: 60 ft basepaths, a 43 ft mound, 200 ft down the lines and 220 ft to center, with the fence as a single 166.5 ft arc struck from a point 53.5 ft in front of the plate (the geometry that produces 200/220 exactly). The skinned infield follows the rulebook rather than a guess: a 60 ft radius struck from the center of the pitching circle &#8212; which is why the dirt wraps behind home plate &#8212; cut off 3 ft outside each foul line. Softball's fat infield means true scale still leaves the basepath diamond 271 px across, so nothing has to be faked to stay tappable. Bases and the plate are the one exception — at true scale they'd be 4 px, so they stay symbols.</div>
+          <div><strong style="color:#16211C;">Commit is where the thumb is.</strong> Full-width bottom bar with the plain-English result beside it, so the scorer reads what they're about to save. Undo and cancel stay top-right, away from it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #D6D3C8;"></div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1500},&quot;batterHand&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;R&quot;,&quot;L&quot;],&quot;default&quot;:&quot;R&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Batter&quot;},&quot;batterSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.7,&quot;max&quot;:2.2,&quot;step&quot;:0.05,&quot;default&quot;:1.15,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Batter&quot;}}">
+class Component extends DCLogic {
+  state = { hand: null };
+
+  renderVals() {
+    const P = 12, GROUND = 60;
+    const hand = this.state.hand || this.props.batterHand || "R";
+    // batter is nearer the camera than the zone plane, so his size is a framing
+    // multiplier — the zone's 12 px/in geometry never moves
+    const size = this.props.batterSize ?? 1.15;
+    const k = P * size;
+    // Artwork is pre-cropped so the front foot is its bottom-outer corner; that
+    // corner pins to the ground line, 17 in from plate center, either side.
+    // The box is then clamped to the visible scene so the slot's own
+    // Replace/Edit controls stay reachable — the crop comes from the image.
+    const SCENE_H = 970;
+    const fullW = 30 * k;
+    const foot = hand === "R" ? (512 - 17 * P) : (512 + 17 * P);
+    const rawLeft = hand === "R" ? foot - fullW : foot;
+    const left = Math.max(0, rawLeft);
+    const svgW = Math.min(1024, rawLeft + fullW) - left;
+    const svgH = Math.min(74 * k, SCENE_H - GROUND);
+    const bottom = GROUND;
+
+    const mask = "";  // hard crop at the frame edge, broadcast-style
+
+    const tabDark = (on) => "padding:10px 17px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.06em; " +
+      (on ? "background:#F4F2EB; color:#16211C;" : "color:#A9C0AF;");
+
+    const tab = (on) => "padding:10px 17px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.06em; " +
+      (on ? "background:#16211C; color:#F4F2EB;" : "color:#16211C;");
+
+    return {
+      scaleNote: "zone 17 × 22 in · 12 px/in",
+      rightTabStyle: tab(hand === "R"),
+      leftTabStyle: tab(hand === "L"),
+      rightTabStyleDark: tabDark(hand === "R"),
+      leftTabStyleDark: tabDark(hand === "L"),
+      setRight: () => this.setState({ hand: "R" }),
+      setLeft: () => this.setState({ hand: "L" }),
+      // legend and height scale always sit opposite the batter
+      legendStyle: "position:absolute; top:22px; " + (hand === "R" ? "right:28px;" : "left:28px;") +
+        " display:flex; flex-direction:column; gap:16px; align-items:flex-start;",
+      scaleStyle: "position:absolute; left:" + (hand === "R" ? 692 : 236) + "px; bottom:60px; width:96px; height:730px;",
+      batterFlip: hand === "L" ? "1" : "0",
+      batterBoxStyle: "position:absolute; left:" + left.toFixed(1) + "px; bottom:" + bottom.toFixed(1) +
+        "px; width:" + svgW.toFixed(1) + "px; height:" + svgH.toFixed(1) + "px;" + mask
+    };
+  }
+}
+</script>
+</body>
+</html>

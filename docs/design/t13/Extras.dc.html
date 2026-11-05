@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Optional actions on the chain</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;margin:0;cursor:pointer}
+a{color:#2E5E3E}a:hover{color:#16211C}
+</style>
+</helmet>
+<div style="width: 1024px; height: 900px; box-sizing: border-box; background: #F4F2EB; display: flex; flex-direction: column; gap: 26px; padding: 32px 28px; font-family: 'Space Grotesk', Helvetica, sans-serif; color: #16211C; overflow: hidden">
+
+  <div style="display: flex; flex-direction: column; gap: 6px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #4A4A44">THE RULE</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Solid is required. Dashed is optional, and never asks.</h1>
+    <p style="margin: 0; font-size: 16px; line-height: 1.5; color: #4A4A44; max-width: 900px">Every node in the chain carries one dashed + chip, and it opens only what makes sense at that point (§15.3). Each chip names what it opens, so the scorer can see what she could add without being asked to add it. Grounder to short, 6-3, runner from first to second.</p>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 18px; padding: 24px; background: #FFFEF9; border: 1px solid #D6D3C8; border-radius: 18px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #4A4A44">PLAY</span>
+    <div style="display: flex; align-items: flex-start; gap: 14px">
+
+      <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px">
+        <button type="button" style="height: 56px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: #16211C; color: #F4F2EB; border: none; border-radius: 12px">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFFEF9"></circle><path d="M6 5.5C9 9 9 15 6 18.5M18 5.5C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.06em">GROUNDER</span>
+        </button>
+        <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ fair/foul · fan</button>
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-left: 14px; border-left: 2px solid #D6D3C8">
+          <div style="height: 44px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: #F4F2EB; border: 1.5px solid #16211C; border-radius: 10px; font-size: 15px; font-weight: 700">R1 → 2B <span style="font-weight: 500; color: #4A4A44">on the hit</span></div>
+          <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ call · re-link</button>
+        </div>
+      </div>
+
+      <svg width="28" height="56" viewBox="0 0 28 56" aria-hidden="true"><path d="M4 28h18M16 22l6 6-6 6" fill="none" stroke="#8A8A80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+
+      <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px">
+        <button type="button" style="height: 56px; padding: 0 18px; display: flex; align-items: center; gap: 11px; background: #2E5E3E; color: #FFFEF9; border: none; border-radius: 12px">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #E3ECE5">1</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700">SS</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #E3ECE5">FIELDED</span>
+        </button>
+        <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ misplay</button>
+      </div>
+
+      <svg width="28" height="56" viewBox="0 0 28 56" aria-hidden="true"><path d="M4 28h18M16 22l6 6-6 6" fill="none" stroke="#8A8A80" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+
+      <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px">
+        <button type="button" style="height: 56px; padding: 0 18px; display: flex; align-items: center; gap: 11px; background: #2E5E3E; color: #FFFEF9; border: none; border-radius: 12px">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #E3ECE5">2</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700">1B</span>
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #E3ECE5">RECEIVED</span>
+        </button>
+        <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ arrival · misplay</button>
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding-left: 14px; border-left: 2px solid #D6D3C8">
+          <div style="height: 44px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: #F4F2EB; border: 1.5px solid #16211C; border-radius: 10px; font-size: 15px; font-weight: 700">Batter out at 1B <span style="font-family: 'JetBrains Mono', monospace; font-weight: 500; color: #4A4A44">6-3</span></div>
+          <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ call</button>
+        </div>
+      </div>
+
+      <button type="button" style="height: 56px; padding: 0 16px; background: #F4F2EB; border: 1.5px dashed #8A8A80; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; color: #4A4A44">+ THROW</button>
+    </div>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px">
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #4A4A44">WHAT EACH CHIP OPENS</span>
+      <div style="display: flex; flex-direction: column; gap: 10px; font-size: 15px; line-height: 1.45">
+        <div><strong>+ misplay</strong> on a touch: Dropped, Booted, Bobbled, Deflected, Wild throw, Missed catch, Missed tag. A misplay turns the node amber.</div>
+        <div><strong>+ arrival · misplay</strong> on a reception: Short hop, High, Wide, plus <em>the throw was wild</em>, which retypes the thrower. An arrival underlines the node and isn't a fault.</div>
+        <div><strong>+ call · re-link</strong> on a runner's line, the batter's included: obstruction, interference, ground rule, dead-ball award; or move her advance to another touch.</div>
+        <div><strong>+ fair/foul · fan</strong> on the ⚾: a fair/foul reversal and spectator interference. <em>Infield fly</em> joins them only when it's legal.</div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: #4A4A44">ON THE FIELD</span>
+      <div style="position: relative; height: 230px; background: #D6DCD1; border-radius: 14px; overflow: hidden">
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: #E6D0AF"></div>
+        <div style="position: absolute; left: 120px; top: 100px; width: 56px; height: 56px; border-radius: 50%; border: 2.5px dashed #16211C; box-sizing: border-box; background: rgba(255,254,249,0.6)"></div>
+        <svg width="26" height="26" viewBox="0 0 24 24" style="position: absolute; left: 135px; top: 115px" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFFEF9" stroke="#16211C" stroke-width="2.5"></circle><path d="M6 5.5C9 9 9 15 6 18.5M18 5.5C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+        <button type="button" style="position: absolute; left: 190px; top: 106px; height: 44px; padding: 0 12px; background: #FFFEF9; border: 1.5px dashed #2E5E3E; border-radius: 10px; font-size: 14px; font-weight: 700; color: #2E5E3E">+ where it ended</button>
+      </div>
+      <div style="font-size: 15px; line-height: 1.45; color: #4A4A44">The landing leaves a dashed ring. Dragging out of it traces the roll and records <span style="font-family: 'JetBrains Mono', monospace">retrieved</span>. A routine ball skips it, and nothing is lost.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1024,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
