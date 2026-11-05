@@ -3,6 +3,42 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.60
+
+**The field gets its own labeled controls (§15.5), and possession is redrawn (§15.1).** DIA-018,
+ruled by Mark on 2026-11-05 from Claude Design's Turns 11 and 12
+(`docs/design/archive/claude-design/`).
+
+**§15.5.** v0.54 had moved the field's ↺ and ✕ into the top bar and kept them bare. The pair still
+could not be told apart on a tablet, where tooltips never appear, and the top-bar ↺ doubled as
+the play's step-back. A bottom bar now holds four labeled controls. *Leave field* is labeled with
+where it goes (*Back to pitch 4's result*). *Start play over* clears the chain. *Back one* names the
+entry it will remove. *Commit play ✓* sits beside the result in words. The two controls that
+discard work sit as far from the ✓ as the bar allows.
+
+Mark's two rulings decide the semantics. *"Start play over should not keep the trajectory"*: it
+brings the trajectory question back, which matches what cancel already did. *"Leave field should
+not take the pitch with it"*: it voids the `in_play` pitch but reopens that pitch's outcome step
+with the call and location still entered. Before this, stepping off the field with undo landed on
+the location canvas, and the result had to be chosen again from there. Because Back one stops at
+the trajectory question, leaving the field is never what a run of step-backs turns into.
+
+The game's undo stays in the top bar, but it is disabled while a play is open and says why,
+instead of doing what Leave field does. Two buttons with one meaning is the "which undo am I
+pressing?" problem again. Disabling matches §11.3, where an undo that cannot act disables rather
+than declining silently.
+
+**§15.1.** *"The holder wears the accent ring"* had been rendered as a 2px ring that Mark found too
+weak to read, and in the simulator he read a ball marker at a fielder's feet as her having it.
+Turn 11's treatment replaces it. The holder is filled, ringed, enlarged and tagged *HAS BALL*, with
+the ball seated in her rim. A loose ball is a dashed ring with a dashed *LOOSE* tag beside a
+neutral token. Grounds kept from the DIA-018 discussion: no reserved hue (a second accent), and no
+pulse (battery, over a weekend tournament).
+
+Considered and left as written: §10.3's ✓ *beside* the code. Turn 10 had made the whole code card the
+button, and a swipe-to-re-roll on a large tap target confirms by accident. Mark expects user
+testing may revisit it.
+
 ## v0.59
 
 **`awarded` leaves `RunnerAdvance.reason` (§4.3).** DIA-019 slice L.

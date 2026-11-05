@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #E7E5DE; }
+  a { color: #2E5E3E; }
+  a:hover { color: #B4643C; }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:30px; padding:48px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:900px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 12 &#183; Turn 11, corrected against the spec</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">Light, M1 only, spec first</div>
+    <div style="font-size:15px; line-height:1.55; color:#4A4A44; text-wrap:pretty;"><a href="#12a">12A</a> is the field with the brief's corrections applied. <a href="#12b">12B</a> holds the field's dialogs and the answer on where Bunt's ground/air question lives. <a href="#12c">12C</a> is the pitch top bar trimmed to M1. <a href="#12d">12D</a> redraws callable spots to §11.4 and §23.2, and <a href="#12e">12E</a> fixes the outcome-sheet copy. <a href="#12f">12F</a> is the SAFE/OUT pair, and <a href="#12g">12G</a> lists the questions for Mark.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+    <div id="12a" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12A</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Field &#8212; pop-up to short, SS has it</div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-sizing:border-box; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="12A Field" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:04 PM</span><span style="color:#8A8A80;">Wed Aug 19</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <!-- top bar: game state + one labelled game-level undo, nothing else -->
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>1</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">1 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:4px;">
+              <div style="height:44px; padding:0 14px; display:flex; align-items:center; gap:9px; background:#EFEDE4; border:1.5px solid #DCD8CB; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:18px; color:#A8A49A; line-height:1;">&#8634;</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#A8A49A;">UNDO PITCH 4</span>
+              </div>
+              <div style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.08em; color:#6A6A62; white-space:nowrap;">OFF WHILE A PLAY IS OPEN</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 64px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#16211C; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="height:40px; padding:0 15px; display:flex; align-items:center; background:#F4F2EB; border-radius:10px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">POP-UP</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;">SHALLOW SHORT</span>
+            </div>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.08em; color:#A9C0AF; white-space:nowrap;">TAP FIELDERS IN ORDER &#183; DRAG RUNNERS</span>
+          </div>
+
+          <!-- play chain: required spine solid, optional extras dashed -->
+          <div style="flex:0 0 100px; display:flex; align-items:center; gap:12px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">PLAY</div>
+            <div style="height:56px; padding:0 14px 0 12px; display:flex; align-items:center; gap:10px; background:#16211C; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+              <svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFFEF9" stroke="#FFFEF9" stroke-width="1.5"></circle><path d="M6 5.5 C9 9 9 15 6 18.5 M18 5.5 C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.06em; color:#F4F2EB;">POP-UP</span>
+              <span style="font-size:13px; color:#A9C0AF;">&#9662;</span>
+            </div>
+            <div style="height:56px; padding:0 14px; display:flex; align-items:center; gap:8px; border:1.5px dashed #2E5E3E; border-radius:12px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#2E5E3E; white-space:nowrap;">INFIELD FLY?</div>
+            <span style="font-size:22px; color:#A8A49A;">&#8594;</span>
+            <div style="height:56px; padding:0 18px; display:flex; align-items:center; gap:11px; background:#2E5E3E; border-radius:12px; box-sizing:border-box;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#D6E4D9;">1</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:19px; font-weight:700; letter-spacing:0.06em; color:#FFFEF9;">SS</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.08em; color:#D6E4D9;">CATCH</span>
+            </div>
+            <div style="height:56px; padding:0 16px; display:flex; align-items:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:12px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70; white-space:nowrap;">+ THROW</div>
+            
+          </div>
+
+          <div style="flex:0 0 822px; position:relative; background:#F4F2EB; overflow:hidden;">
+            <svg viewBox="0 0 1024 810" style="position:absolute; inset:0; width:1024px; height:822px;">
+              <path d="M512 744 L59.5 291.5 A533 533 0 0 1 964.5 291.5 Z" fill="#D6DCD1"></path>
+              <path d="M59.5 291.5 A533 533 0 0 1 964.5 291.5" fill="none" stroke="rgba(22,33,28,0.34)" stroke-width="3"></path>
+              <path d="M512 757.6 L700.4 569.3 A192 192 0 0 0 323.6 569.3 Z" fill="#E6D0AF"></path>
+              <circle cx="512" cy="606.4" r="25.6" fill="none" stroke="rgba(255,254,249,0.85)" stroke-width="2.5"></circle>
+              <line x1="512" y1="744" x2="59.5" y2="291.5" stroke="rgba(22,33,28,0.5)" stroke-width="3"></line>
+              <line x1="512" y1="744" x2="964.5" y2="291.5" stroke="rgba(22,33,28,0.5)" stroke-width="3"></line>
+              <polygon points="512,744 647.8,608.2 512,472.5 376.2,608.2" fill="none" stroke="rgba(22,33,28,0.42)" stroke-width="2.5"></polygon>
+              <rect x="635.8" y="596.2" width="24" height="24" transform="rotate(45 647.8 608.2)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <rect x="500" y="460.5" width="24" height="24" transform="rotate(45 512 472.5)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <rect x="364.2" y="596.2" width="24" height="24" transform="rotate(45 376.2 608.2)" fill="#FFFEF9" stroke="#16211C" stroke-width="2"></rect>
+              <path d="M512 744 Q 470 420 425 500" fill="none" stroke="#F4F2EB" stroke-width="9.5" stroke-linecap="round"></path>
+              <path d="M512 744 Q 470 420 425 500" fill="none" stroke="#16211C" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="2 10"></path>
+              <polygon points="497,730 527,730 527,746 512,758 497,746" fill="#FFFEF9" stroke="#16211C" stroke-width="3"></polygon>
+            </svg>
+
+            <div style="position:absolute; left:485px; top:125px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">CF</div>
+            <div style="position:absolute; left:208px; top:250px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">LF</div>
+            <div style="position:absolute; left:762px; top:250px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">RF</div>
+            <div style="position:absolute; left:578px; top:461px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">2B</div>
+            <div style="position:absolute; left:640px; top:530px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">1B</div>
+            <div style="position:absolute; left:330px; top:530px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">3B</div>
+            <div style="position:absolute; left:485px; top:579px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">P</div>
+            <div style="position:absolute; left:485px; top:763px; width:54px; height:54px; display:flex; align-items:center; justify-content:center; background:rgba(255,254,249,0.9); border:1.5px solid #A8A49A; color:#4A4A44; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">C</div>
+
+            <!-- holder: solid Grass, Ink ring, ball seated in the rim -->
+            <div style="position:absolute; left:394px; top:471px; width:64px; height:64px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:4px solid #16211C; color:#FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700;">SS</div>
+            <svg width="28" height="28" viewBox="0 0 24 24" style="position:absolute; left:440px; top:463px;"><circle cx="12" cy="12" r="10" fill="#FFFEF9" stroke="#16211C" stroke-width="2.5"></circle><path d="M6 5.5 C9 9 9 15 6 18.5 M18 5.5 C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+            <div style="position:absolute; left:384px; top:541px; height:24px; padding:0 8px; display:flex; align-items:center; background:#16211C; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;">HAS BALL</div>
+
+            <div style="position:absolute; left:668px; top:625px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; background:#16211C; border:2.5px solid #FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#F4F2EB;">R1</div>
+            <div style="position:absolute; left:536px; top:420px; width:46px; height:46px; display:flex; align-items:center; justify-content:center; background:#16211C; border:2.5px solid #FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#F4F2EB;">R2</div>
+          </div>
+
+          <div style="flex:0 0 120px; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:0 28px; background:#EFEDE4; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">RUNNERS</div>
+            <div style="display:flex; gap:10px;">
+              <div style="flex:1; height:60px; display:flex; align-items:center; gap:12px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C; white-space:nowrap;">BATTER</span>
+                <div style="display:flex; gap:5px;">
+                  <div style="width:48px; height:40px; display:flex; align-items:center; justify-content:center; background:#B4643C; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#FFFEF9;">OUT</div>
+                </div>
+              </div>
+              <div style="flex:1.3; height:60px; display:flex; align-items:center; gap:12px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C; white-space:nowrap;">R1</span>
+                <div style="display:flex; gap:5px;">
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#FFFEF9;">1B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#A8A49A;">2B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#A8A49A;">3B</div>
+                  <div style="width:48px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#A8A49A;">OUT</div>
+                </div>
+                <div style="margin-left:auto; height:40px; padding:0 10px; display:flex; align-items:center; border:1.5px dashed #C4C0B4; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.06em; color:#6A6A62; white-space:nowrap;">+ CALL</div>
+              </div>
+              <div style="flex:1.3; height:60px; display:flex; align-items:center; gap:12px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C; white-space:nowrap;">R2</span>
+                <div style="display:flex; gap:5px;">
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:8px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#FFFEF9;">2B</div>
+                  <div style="width:44px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#A8A49A;">3B</div>
+                  <div style="width:48px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#A8A49A;">HOME</div>
+                  <div style="width:48px; height:40px; display:flex; align-items:center; justify-content:center; border:1.5px solid #DCD8CB; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#A8A49A;">OUT</div>
+                </div>
+                <div style="margin-left:auto; height:40px; padding:0 10px; display:flex; align-items:center; border:1.5px dashed #C4C0B4; border-radius:8px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.06em; color:#6A6A62; white-space:nowrap;">+ CALL</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- bottom bar: leave + start over on the left, back one + commit under the thumb -->
+          <div style="flex:0 0 132px; display:flex; flex-direction:column; justify-content:center; gap:10px; padding:0 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:12px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">SCORES AS</div>
+              <div style="font-size:18px; font-weight:700; color:#16211C; white-space:nowrap;">Pop out to short (6) &#183; runners hold</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="height:60px; padding:0 18px; display:flex; align-items:center; gap:10px; border:1.5px solid #C4C0B4; border-radius:13px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:18px; color:#16211C;">&#8592;</span>
+                <div style="display:flex; flex-direction:column; gap:1px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:#6A6A62;">LEAVE FIELD</span>
+                  <span style="font-size:15px; font-weight:700; color:#16211C;">Back to pitch 4's result</span>
+                </div>
+              </div>
+              <div style="height:60px; padding:0 18px; display:flex; align-items:center; gap:10px; border:1.5px solid #C4C0B4; border-radius:13px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:17px; color:#16211C;">&#10227;</span>
+                <span style="font-size:15px; font-weight:700; color:#16211C;">Start play over</span>
+              </div>
+              <div style="flex:1;"></div>
+              <div style="height:60px; padding:0 18px; display:flex; align-items:center; gap:12px; border:1.5px solid #16211C; border-radius:13px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:20px; color:#16211C; line-height:1;">&#8630;</span>
+                <div style="display:flex; flex-direction:column; gap:1px;">
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.12em; color:#7A7A70;">BACK ONE</span>
+                  <span style="font-size:15px; font-weight:700; color:#16211C;">SS catch</span>
+                </div>
+              </div>
+              <div style="height:60px; padding:0 30px; display:flex; align-items:center; gap:12px; background:#2E5E3E; border-radius:13px; box-sizing:border-box; font-size:20px; font-weight:700; color:#FFFEF9; white-space:nowrap;"><span>&#10003;</span>Commit play</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:16px; width:420px; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px; box-sizing:border-box;">
+      <div style="font-size:17px; font-weight:700; color:#16211C;">What changed from <a href="Pitch Screen T11.dc.html#11a">11A</a></div>
+      <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">
+        <div><strong style="color:#16211C;">Top-bar undo: disabled, with its reason.</strong> On the field it reads <em>UNDO PITCH 4</em>, greyed, with <em>OFF WHILE A PLAY IS OPEN</em> under it. I chose disabled over "does what Leave field does": two buttons with one meaning is the <em>which undo am I pressing?</em> problem §15.5 describes. It also matches §11.3, where undo <em>disables</em> rather than declining silently. Every step back within the play is <em>Back one</em>.</div>
+        <div><strong style="color:#16211C;">Leave field says where it goes.</strong> The label is <em>Back to pitch 4's result</em>: the call and location stay, and the outcome sheet reopens. With anything on the chain it asks once first (<a href="#12b">12B</a>).</div>
+        <div><strong style="color:#16211C;">Start play over</strong> clears the chain and the runner moves, and brings the trajectory question back (<a href="#12b">12B</a>).</div>
+        <div><strong style="color:#16211C;">Rule calls moved to the runners.</strong> Each runner row has a dashed <em>+ CALL</em> (obstruction, interference, ground rule, dead-ball award), following §15.3. The standing chip at the end of the chain is gone.</div>
+        <div><strong style="color:#16211C;">Possession</strong> is unchanged from <a href="Pitch Screen T11.dc.html#11b">11B</a>. That treatment replaces §15.1's "accent ring" wording, which is flagged in the notes.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+    <div id="12b" style="display:flex; flex-direction:column; gap:16px; width:1180px; flex:0 0 auto; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12B</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Field dialogs &#8212; centered, sized to content (§15.1)</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:22px; align-items:start;">
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="padding:26px; background:rgba(22,33,28,0.5); border-radius:16px;">
+            <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border-radius:16px;">
+              <div style="font-size:19px; font-weight:700; color:#16211C;">Back to pitch 4's result?</div>
+              <div style="font-size:14px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">This play is discarded. Pitch 4 keeps its call and location, and you choose its result again.</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; text-align:center; border:1.5px solid #16211C; border-radius:12px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Keep this play</div>
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; text-align:center; background:#16211C; border-radius:12px; font-size:16px; font-weight:700; color:#F4F2EB;">Discard play</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">Leave field, chain not empty.</strong> It asks once. The body says what is kept as well as what is lost. With an empty chain there's no dialog: the outcome sheet comes straight back.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="padding:26px; background:rgba(22,33,28,0.5); border-radius:16px;">
+            <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border-radius:16px;">
+              <div style="font-size:19px; font-weight:700; color:#16211C;">How was it hit?</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Ground ball</div>
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Line drive</div>
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Fly ball</div>
+                <div style="height:60px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Pop-up</div>
+                <div style="grid-column:span 2; height:60px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:16px; font-weight:700; color:#16211C;">Bunt</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">The field's first question.</strong> It's what opens with the surface, and what Start play over brings back. Until it's answered, any touch on the field brings it back to the front.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="padding:26px; background:rgba(22,33,28,0.5); border-radius:16px;">
+            <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border-radius:16px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="height:30px; padding:0 10px; display:flex; align-items:center; background:#16211C; border-radius:7px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; color:#F4F2EB;">BUNT</div>
+                <div style="font-size:19px; font-weight:700; color:#16211C;">Could it be caught?</div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <div style="height:76px; display:flex; align-items:center; justify-content:center; text-align:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:17px; font-weight:700; color:#16211C;">On the ground</div>
+                <div style="height:76px; display:flex; align-items:center; justify-content:center; text-align:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:17px; font-weight:700; color:#16211C;">In the air</div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">Where Bunt's ground/air lives: the field, not the outcome sheet.</strong> On the sheet, Bunt also covers foul bunts and takes, where the pair means nothing. The question only exists once the ball is in play. So the pair is the field's first question, either way you get there: tap Bunt in the five (the five are replaced by the pair), or open the field with Bunt already set on the sheet (the pair is all it asks). Turn 11's inline pair on the outcome sheet is withdrawn.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="12c" style="display:flex; flex-direction:column; gap:12px; flex:0 0 auto;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12C</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Pitch screen chrome, M1 only</div>
+      </div>
+      <div style="width:1024px; background:#F4F2EB; border-radius:24px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 14px 40px rgba(22,33,28,0.18);">
+        <div style="height:84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+          <div style="display:flex; align-items:baseline; gap:20px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:42px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1;">1<span style="color:#B4643C;">-</span>2</div>
+            <div style="display:flex; gap:7px; align-items:center;">
+              <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+              <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+              <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+              <div style="font-size:15px; font-weight:700; color:#16211C; padding-left:6px;">2 outs</div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:14px;">
+            <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+              <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+              <span style="font-size:24px; font-weight:700; color:#16211C;">4</span>
+              <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+              <span style="font-size:24px; font-weight:700; color:#16211C;">3</span>
+              <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+            </div>
+            <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB;"><span style="font-size:10px;">&#9650;</span>5</div>
+          </div>
+          <div style="height:52px; padding:0 16px; display:flex; align-items:center; gap:9px; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+            <span style="font-size:20px; color:#16211C;">&#8634;</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">UNDO PITCH 3</span>
+          </div>
+        </div>
+        <div style="height:68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; color:#6A6A62;">BATS</span>
+            <div style="height:46px; display:flex; border:1.5px solid #16211C; border-radius:11px; overflow:hidden; box-sizing:border-box;">
+              <div style="padding:0 14px; display:flex; align-items:center; background:#16211C; font-size:14px; font-weight:700; color:#F4F2EB;">Right</div>
+              <div style="padding:0 14px; display:flex; align-items:center; background:#FFFEF9; font-size:14px; font-weight:700; color:#16211C;">Left</div>
+            </div>
+            <div style="width:34px; height:34px; position:relative; margin-left:10px;">
+              <div style="position:absolute; inset:4px; border:2px solid #C4C0B4; transform:rotate(45deg); box-sizing:border-box;"></div>
+              <div style="position:absolute; right:1px; top:50%; width:11px; height:11px; margin-top:-5.5px; background:#16211C; transform:rotate(45deg);"></div>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="height:46px; padding:0 15px; display:flex; align-items:center; gap:9px; border:1.5px solid #16211C; background:#FFFEF9; border-radius:11px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">FIELD</span>
+              <span style="font-size:13px; color:#4A4A44;">steals, pickoffs, WP/PB</span>
+            </div>
+            <div style="width:1px; height:34px; background:#C4C0B4; margin:0 6px;"></div>
+            <div style="height:46px; display:flex; border:1.5px solid #16211C; border-radius:11px; overflow:hidden; box-sizing:border-box;">
+              <div style="padding:0 13px; display:flex; align-items:center; background:#16211C; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:0.06em; color:#F4F2EB;">LIGHT</div>
+              <div style="padding:0 13px; display:flex; align-items:center; background:#FFFEF9; font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:0.06em; color:#16211C;">DARK</div>
+            </div>
+          </div>
+        </div>
+        <div style="height:76px; display:flex; align-items:center; gap:14px; padding:0 28px; background:#FFFEF9; box-sizing:border-box;">
+          <div style="display:flex; align-items:center; gap:10px; height:44px; padding:0 14px; background:#16211C; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A9C0AF;">1 CALL</span>
+            <span style="font-size:15px; font-weight:700; color:#F4F2EB;">Drop &#183; low middle &#183; <span style="font-family:'JetBrains Mono',monospace;">702</span></span>
+            <span style="font-size:14px; color:#A9C0AF;">&#10003;</span>
+          </div>
+          <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+          <div style="display:flex; align-items:center; gap:10px; height:44px; padding:0 14px; background:#FFFEF9; border:2px solid #2E5E3E; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#2E5E3E;">2 RECORD</span>
+            <span style="font-size:15px; font-weight:700; color:#16211C;">Where it went</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px; width:400px; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px; box-sizing:border-box; font-size:13px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">
+      <div style="font-size:17px; font-weight:700; color:#16211C;">What the strip keeps</div>
+      <div><strong style="color:#16211C;">Batter side, and nothing else about her.</strong> No name, number, line, PITCHER or SCOUT. Side is what entering a pitch needs, because call labels like <em>In</em> resolve against it (§10.1). The diamond beside it shows the base state.</div>
+      <div><strong style="color:#16211C;">FIELD</strong> is §15.6's between-pitch entry, which the call screen must carry. It's labelled with what it's for, so it doesn't read as "go see the field".</div>
+      <div><strong style="color:#16211C;">Type follows §23.5.</strong> The count is mono. "2 outs" is prose, so it's set in Space Grotesk rather than a mono tag.</div>
+      <div><strong style="color:#16211C;">The rail is unchanged from <a href="Pitch Screen T11.dc.html#11e">11E</a>:</strong> two stops, and the code card completes Call.</div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="12d" style="display:flex; flex-direction:column; gap:14px; width:1180px; flex:0 0 auto; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12D</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Callable spots, redrawn to §11.4 and §23.2 (replaces <a href="Pitch Screen T11.dc.html#11f">11F</a>)</div>
+      </div>
+      <div style="font-size:13px; line-height:1.55; color:#4A4A44; text-wrap:pretty; max-width:960px;">11F asked how the grid re-flows for a team that doesn't have six cells. The spec answers that it never re-flows. Every team groups the same canonical 5&#215;5. The 3&#215;3 is always drawn. Of the 16 cells around it, only those the selected type can be called to are drawn, as <strong style="color:#16211C;">one swatch the size of a zone cell, centered on the zone's target</strong>. A grouped zone is one swatch, because it is one call with one code. Grass steps: <strong style="color:#16211C;">wash</strong> = callable, <strong style="color:#16211C;">solid</strong> = called, <strong style="color:#16211C;">dashed</strong> = off for this type.</div>
+      <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:18px;">
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:300px; position:relative; background:#F4F2EB; border-radius:12px;">
+            <div style="position:absolute; left:70px; top:76px; width:120px; height:144px; border:2px solid #16211C; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:110px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:150px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:124px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:172px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div>
+            <div style="position:absolute; left:73px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:175px; width:34px; height:42px; background:#2E5E3E; border-radius:4px;"></div>
+            <div style="position:absolute; left:153px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">NINE CALLABLE &#183; ONE CALLED</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">The default: every in-zone cell is callable. Low middle is the one called.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:300px; position:relative; background:#F4F2EB; border-radius:12px;">
+            <div style="position:absolute; left:70px; top:76px; width:120px; height:144px; border:2px solid #16211C; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:110px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:150px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:124px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:172px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div>
+            <div style="position:absolute; left:73px; top:79px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:79px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:79px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:127px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:127px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:223px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:193px; top:223px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">DROP &#183; NARROWED BY THE COACH</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">Four in-zone spots, plus two chase spots in the dirt. In-zone cells that are off stay dashed, so the 3&#215;3 frame still reads.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:300px; position:relative; background:#F4F2EB; border-radius:12px;">
+            <div style="position:absolute; left:70px; top:76px; width:120px; height:144px; border:2px solid #16211C; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:110px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:150px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:124px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:172px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div>
+            <div style="position:absolute; left:73px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:127px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:31px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:223px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:30px; top:14px; width:200px; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; letter-spacing:0.1em; color:#6A6A62; text-align:center;">CHASE HIGH = 5 CELLS</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">10U &#183; EDGES GROUPED</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;"><em>Chase high</em> groups the whole top edge, and <em>Bury down</em> groups the whole bottom edge. Each is one swatch at its target. The zone still owns every cell in the group, so a tap far up-and-away still lands in Chase high.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:300px; position:relative; background:#F4F2EB; border-radius:12px;">
+            <div style="position:absolute; left:70px; top:76px; width:120px; height:144px; border:2px solid #16211C; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:110px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:150px; top:76px; width:1px; height:144px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:124px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div><div style="position:absolute; left:70px; top:172px; width:120px; height:1px; background:rgba(22,33,28,0.35);"></div>
+            <div style="position:absolute; left:73px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:79px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:79px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:127px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:127px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:127px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:73px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:113px; top:175px; width:34px; height:42px; border:1.5px dashed rgba(46,94,62,0.55); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:153px; top:175px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:33px; top:31px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:193px; top:31px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:33px; top:223px; width:34px; height:42px; background:rgba(46,94,62,0.14); border:1.5px solid rgba(46,94,62,0.34); border-radius:4px; box-sizing:border-box;"></div>
+            <div style="position:absolute; left:193px; top:223px; width:34px; height:42px; background:#2E5E3E; border-radius:4px;"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">14U &#183; CORNERS KEPT</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">A rise worked to the four in-zone corners and the four off-plate corners, with low-and-away off the plate called. Each spot sits half a cell beyond the zone's edge.</div>
+        </div>
+      </div>
+      <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Turn 10 drew callable spots as solid Grass. Under §23.2, solid means <em>called</em>, so 10A needs these wash swatches. I'll redraw it with the pitch screen.</div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="12e" style="display:flex; flex-direction:column; gap:16px; width:1460px; flex:0 0 auto;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12E</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Outcome sheet, sacrifice and can't-record, corrected (replaces <a href="Pitch Screen T11.dc.html#11g">11G</a>)</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:22px; align-items:start;">
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border:1px solid #DCD8CB; border-radius:18px; box-shadow:0 10px 30px rgba(22,33,28,0.14);">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#6A6A62;">ON THE BASES</div>
+            <div style="display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px;">
+              <div style="height:64px; display:flex; align-items:center; justify-content:center; text-align:center; background:#2E5E3E; border-radius:11px; font-size:15px; font-weight:700; color:#FFFEF9;">Wild pitch</div>
+              <div style="height:64px; display:flex; align-items:center; justify-content:center; text-align:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:15px; font-weight:600; color:#16211C;">Passed ball</div>
+              <div style="height:64px; display:flex; align-items:center; justify-content:center; text-align:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:11px; box-sizing:border-box; font-size:15px; font-weight:600; color:#16211C;">Stolen base</div>
+            </div>
+            <div style="font-size:13px; line-height:1.45; color:#4A4A44;">After this pitch you'll be asked how far the runner went.</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:12px; padding:20px; background:#FFFEF9; border:1px solid #DCD8CB; border-radius:16px;">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.12em; color:#6A6A62;">AFTER THE PITCH &#183; WILD PITCH</div>
+            <div style="height:60px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:12px; font-size:17px; font-weight:700; color:#FFFEF9;">Took second</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div style="height:52px; display:flex; align-items:center; justify-content:center; border:1.5px solid #16211C; border-radius:12px; box-sizing:border-box; font-size:15px; font-weight:700; color:#16211C;">Stayed</div>
+              <div style="height:52px; display:flex; align-items:center; justify-content:center; border:1.5px solid #16211C; border-radius:12px; box-sizing:border-box; font-size:15px; font-weight:700; color:#16211C;">Go to field</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">The line under the choice says what will be asked, not what happened.</strong> The advance is a prompt after the pitch (§11.3). The prompt depends on the runners:<br>&#183; WP/PB, one runner: <em>Took second</em>, one tap.<br>&#183; WP/PB, more than one: <em>All runners up one</em>.<br>&#183; Stolen base, one runner: <em>Stole second</em>.<br>&#183; Stolen base, more than one: the field opens directly.<br>Stolen base is hidden when the bases are empty. <em>Stayed</em> is my addition, and it's flagged for Mark in 12G.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border:1px solid #DCD8CB; border-radius:18px; box-shadow:0 10px 30px rgba(22,33,28,0.14);">
+            <div style="font-size:19px; font-weight:700; color:#16211C;">Sacrifice fly?</div>
+            <div style="font-size:14px; line-height:1.5; color:#4A4A44;">R3 scored on the drop by CF, 1 out.</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div style="height:64px; display:flex; align-items:center; justify-content:center; border:1.5px solid #16211C; border-radius:12px; box-sizing:border-box; font-size:17px; font-weight:700; color:#16211C;">No</div>
+              <div style="height:64px; display:flex; align-items:center; justify-content:center; text-align:center; background:#2E5E3E; border-radius:12px; font-size:17px; font-weight:700; color:#FFFEF9;">Yes, sac fly</div>
+            </div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">Asked only where the record can't settle it (§13.6).</strong> That means a <em>dropped</em> fly a runner scored on, or a bunt, ground or air, that moved a runner (<em>Sacrifice bunt? R1 to second, 0 out</em>). A caught fly derives and is never asked, and with two out the ✓ never asks either question.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border:2px solid #16211C; border-radius:18px; box-shadow:0 10px 30px rgba(22,33,28,0.2);">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.14em; color:#6A6A62;">CAN'T RECORD THIS PITCH</div>
+            <div style="font-size:19px; font-weight:700; color:#16211C;">The game is still loading</div>
+            <div style="font-size:14px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">Your call and location are kept. Try again in a moment.</div>
+            <div style="height:60px; display:flex; align-items:center; justify-content:center; text-align:center; background:#16211C; border-radius:12px; font-size:17px; font-weight:700; color:#F4F2EB; white-space:nowrap;">Try again</div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">Transient: the one way out retries.</strong> The label is Ink, not Clay. These dialogs aren't Ejection, the app-failed color: the app hasn't failed, it's waiting.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <div style="display:flex; flex-direction:column; gap:14px; padding:22px; background:#FFFEF9; border:2px solid #16211C; border-radius:18px; box-shadow:0 10px 30px rgba(22,33,28,0.2);">
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.14em; color:#6A6A62;">CAN'T RECORD THIS PITCH</div>
+            <div style="font-size:19px; font-weight:700; color:#16211C;">No batter is due</div>
+            <div style="font-size:14px; line-height:1.5; color:#4A4A44; text-wrap:pretty;">The lineup is missing, so there's no one to charge this pitch to. Add the lineup, then record it.</div>
+            <div style="height:60px; display:flex; align-items:center; justify-content:center; text-align:center; background:#16211C; border-radius:12px; font-size:17px; font-weight:700; color:#F4F2EB; white-space:nowrap;">Back to the pitch</div>
+          </div>
+          <div style="font-size:12.5px; line-height:1.5; color:#4A4A44; text-wrap:pretty;"><strong style="color:#16211C;">Blocked: the one way out goes back.</strong> It shows what happened, why, and what to do. Where you add the lineup is outside M1's screens, so the body names the task and doesn't link to it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="12f" style="display:flex; flex-direction:column; gap:14px; width:1180px; flex:0 0 auto; background:#FFFEF9; border:1px solid #D6D3C8; padding:26px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12F</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">SAFE / OUT at second, stacked per §15.1 (replaces <a href="Pitch Screen T11.dc.html#11c">11C</a>)</div>
+      </div>
+      <div style="font-size:13px; line-height:1.55; color:#4A4A44; text-wrap:pretty; max-width:960px;">11C drew a lone OUT pill. The spec puts SAFE and OUT in a stacked pair. At second it straddles the bag: SAFE toward the outfield, OUT toward the infield. Beside first and third the pair sits just off the bag in foul ground, and at home SAFE is toward the mound with OUT behind the plate. The pill under the finger lights, and releasing commits that pill: nearest wins.</div>
+      <div style="display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:14px;">
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:200px; position:relative; background:#E6D0AF; border-radius:12px;">
+            <div style="position:absolute; left:50%; top:52px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">SAFE</div>
+            <div style="position:absolute; left:50%; top:110px; width:20px; height:20px; margin-left:-10px; background:#FFFEF9; border:2px solid #16211C; transform:rotate(45deg); box-sizing:border-box;"></div>
+            <div style="position:absolute; left:50%; top:142px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">OUT</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">1 &#183; DRAG STARTS</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">R1 is dragged toward second, and the pair appears at that bag only. Neither pill is lit.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:200px; position:relative; background:#E6D0AF; border-radius:12px;">
+            <div style="position:absolute; left:50%; top:52px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">SAFE</div>
+            <div style="position:absolute; left:50%; top:110px; width:20px; height:20px; margin-left:-10px; background:#FFFEF9; border:2px solid #16211C; transform:rotate(45deg); box-sizing:border-box;"></div>
+            <div style="position:absolute; left:50%; top:142px; transform:translateX(-50%); height:44px; padding:0 18px; display:flex; align-items:center; background:#16211C; border-radius:22px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#F4F2EB;">OUT</div>
+            <div style="position:absolute; left:calc(50% + 34px); top:150px; width:40px; height:40px; display:flex; align-items:center; justify-content:center; background:#16211C; border:2.5px solid #FFFEF9; border-radius:50%; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#F4F2EB;">R1</div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">2 &#183; OVER OUT</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">OUT fills Ink. Releasing here opens the OUT popup, which offers only the outs that were possible.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:200px; position:relative; background:#E6D0AF; border-radius:12px;">
+            <div style="position:absolute; left:50%; top:52px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">SAFE</div>
+            <div style="position:absolute; left:50%; top:110px; width:20px; height:20px; margin-left:-10px; background:#FFFEF9; border:2px solid #16211C; transform:rotate(45deg); box-sizing:border-box;"></div>
+            <div style="position:absolute; left:50%; top:136px; transform:translateX(-50%); height:54px; padding:0 14px; display:flex; flex-direction:column; justify-content:center; align-items:center; background:#16211C; border-radius:27px; white-space:nowrap;"><span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#F4F2EB;">OUT AT 2B</span><span style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:0.06em; color:#C9D6CC;">UNASSISTED &#183; SS</span></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">3 &#183; HOLDER ON OUT</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">The SS, holding the ball, is dragged onto OUT while R1 is headed for second. The lit pill spells out the unassisted out before you let go.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:200px; position:relative; background:#E6D0AF; border-radius:12px;">
+            <div style="position:absolute; left:50%; top:52px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">SAFE</div>
+            <div style="position:absolute; left:50%; top:110px; width:20px; height:20px; margin-left:-10px; background:#FFFEF9; border:2px solid #16211C; transform:rotate(45deg); box-sizing:border-box;"></div>
+            <div style="position:absolute; left:50%; top:142px; transform:translateX(-50%); width:104px; height:44px; border:2px solid #16211C; background:#FFFEF9; border-radius:22px; box-sizing:border-box; overflow:hidden; display:flex; align-items:center; justify-content:center;"><div style="position:absolute; left:0; top:0; bottom:0; width:60%; background:#C4C0B4;"></div><span style="position:relative; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#16211C;">HIDING</span></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">4 &#183; HOLD TO HIDE</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">Press and hold the pill: a fill tracks the two-second hold. It's functional progress, not decoration. Letting go early cancels.</div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <div style="height:200px; position:relative; background:#E6D0AF; border-radius:12px;">
+            <div style="position:absolute; left:50%; top:52px; transform:translateX(-50%); height:44px; padding:0 16px; display:flex; align-items:center; background:#FFFEF9; border:2px solid #16211C; border-radius:22px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#16211C;">SAFE</div>
+            <div style="position:absolute; left:50%; top:110px; width:20px; height:20px; margin-left:-10px; background:#FFFEF9; border:2px solid #16211C; transform:rotate(45deg); box-sizing:border-box;"></div>
+            <div style="position:absolute; left:50%; top:156px; width:16px; height:16px; margin-left:-8px; border:1.5px dashed #6A6A62; border-radius:50%; box-sizing:border-box;"></div>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; color:#16211C;">5 &#183; HIDDEN</div>
+          <div style="font-size:12px; line-height:1.5; color:#4A4A44;">The pill becomes a dashed dot so the bag is clear. Dragging away and back restores state 1.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+    <div id="12g" style="display:flex; flex-direction:column; gap:14px; width:1180px; flex:0 0 auto; background:#FFFEF9; border:2px solid #16211C; padding:28px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">12G</div>
+        <div style="font-size:17px; font-weight:700; color:#16211C;">For Mark to rule: where this turn and the spec disagree</div>
+      </div>
+      <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px 30px; font-size:13px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">
+        <div><strong style="color:#16211C;">1. The field's own controls.</strong> §15.5 (v0.54) says "the play surface carries only that ✓", with undo and cancel as a pair in the top bar. The brief asked for a bottom bar with Back one, Start play over, Leave field and ✓, and 12A follows the brief. §15.5 needs rewriting to match, or a ruling the other way.</div>
+        <div><strong style="color:#16211C;">2. "The holder wears the accent ring" (§15.1).</strong> 11B replaces the ring with a Grass fill, the ball in the rim, and a <em>HAS BALL</em> tag. The spec wording needs updating if that's accepted.</div>
+        <div><strong style="color:#16211C;">3. A wrong Bunt chip.</strong> If the outcome sheet's Bunt was a mis-tap, the field asks only ground/air, and there's no way back to the five. Should the pair dialog have a quiet <em>Not a bunt</em> exit? 12B draws it without one, per the spec.</div>
+        <div><strong style="color:#16211C;">4. The code card vs. the ✓ (§10.3).</strong> The spec puts a checkmark <em>beside</em> the code. 10B makes the whole code card the button. §10.3 also asks for swipe-to-re-roll on the code, and a swipe on a big tap target risks confirming by accident. Either keep 10B and move re-roll elsewhere, or go back to a ✓ beside the code.</div>
+        <div><strong style="color:#16211C;">5. <em>Stayed</em> on the wild-pitch prompt.</strong> The brief lists <em>Took second</em>, <em>All runners up one</em>, or go to the field. A wild pitch nobody advanced on is real: did the brief leave it out on purpose? Also, should WP/PB be hidden with the bases empty, like Stolen base?</div>
+        <div><strong style="color:#16211C;">6. Where batter side comes from in M1.</strong> With no roster, the scorer has to set it per batter. 12C makes it a standing segmented control. Is that the intended source?</div>
+        <div><strong style="color:#16211C;">7. Infield fly's home.</strong> §15.3 puts infield fly on the <em>landing</em> node's + chip, but the brief said the ⚾ node. 11A/12A follow the brief. One of them should change.</div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

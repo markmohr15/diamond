@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+  body { margin: 0; background: #E7E5DE; }
+  a { color: #2E5E3E; }
+  a:hover { color: #B4643C; }
+  /* Mirror the artwork only, never the slot's own chrome. Compose with the
+     component's centering translate — overriding left/top would disable its
+     pan/reframe. Art at 30:74 lands the foot on the anchor with no drift. */
+  image-slot#batter-figure[data-flip="1"]::part(image) { transform: translate(-50%, -50%) scaleX(-1); }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:26px; padding:48px; font-family:'Space Grotesk', Helvetica, sans-serif;">
+
+  <div style="display:flex; flex-direction:column; gap:6px; max-width:900px;">
+    <div style="font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase; color:#7A7A70;">Turn 07 &#183; Controls that say what they do</div>
+    <div style="font-size:26px; font-weight:700; color:#16211C; letter-spacing:-0.02em;">The entry is three steps, so the screen says so</div>
+    <div style="font-size:15px; line-height:1.55; color:#4A4A44; text-wrap:pretty;">A step rail replaces the guessing: <b>1 pitch type &#8594; 2 call code &#8594; 3 location</b>, with the current step named and the finished ones showing their value. The three steps are drawn in order: <a href="#7a">7A</a> step 1 with nothing picked, <a href="#7b">7B</a> the call-code gate, <a href="#7c">7C</a> / <a href="#7d">7D</a> the location step. Location only opens once the call is confirmed. All four sit in <b>CALL</b> mode &#8212; calling, confirming and placing is one workflow; RECORD is the shorter path for logging a pitch you didn&#8217;t call. Skip moved out of the commit bar and became <b>Skip location</b>, sitting under the grid next to the thing it skips, and Cancel became <b>Discard pitch</b> next to the step-back. The top-bar arrow is now labelled <span style="font-family:'JetBrains Mono',monospace; font-size:13px;">UNDO PITCH 3</span> so it can&#8217;t be confused with stepping back inside this entry, and the duplicate CALL USED chip is gone &#8212; the receipt lives in the rail. <a href="#7c">7C</a> and <a href="#7d">7D</a> are the same screen; only the selected-state colour differs.</div>
+  </div>
+
+  <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+    <div id="7a" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">7A</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Step 1 &#8212; nothing picked yet</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">ink scheme &#183; entry starts here</div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="Pitch — pick type" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:03 PM</span><span style="color:#8A8A80;">Tue Aug 18</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">2 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px; line-height:1;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:34px; height:34px; position:relative;">
+                  <div style="position:absolute; inset:4px; border:2px solid #C4C0B4; transform:rotate(45deg); box-sizing:border-box;"></div>
+                  <div style="position:absolute; left:1px; top:50%; width:11px; height:11px; margin-top:-5.5px; background:#2E5E3E; transform:rotate(45deg);"></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">&#9650; 1ST</div>
+              </div>
+              <div style="width:1px; height:38px; background:#DCD8CB;"></div>
+              <div style="height:52px; padding:0 16px; display:flex; align-items:center; gap:9px; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:20px; color:#16211C; line-height:1;">&#8634;</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">UNDO PITCH 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:0.06em; color:#16211C; white-space:nowrap;">
+              <span style="background:#16211C; color:#F4F2EB; padding:4px 8px; font-weight:700;">AT BAT</span>
+              <span style="font-weight:700;">#14 REYES</span>
+              <span style="color:#8A8A80;">RHB &#183; 2-for-3</span>
+              <span style="color:#C4C0B4;">|</span>
+              <span style="font-weight:700;">P CHEN</span>
+              <span style="color:#8A8A80;">42 P &#183; 61% K</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9678;</span>PITCHER</div>
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9636;</span>SCOUT</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 150px; display:flex; align-items:center; gap:18px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">MODE</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; background:#16211C; color:#F4F2EB;">CALL</div>
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">RECORD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.14em; color:#16211C;">PITCH TYPE &#183; TAP THE CALL</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:#7A7A70;">EDIT ARSENAL</div>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Fastball</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Change</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Drop</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Rise</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Screw</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Drop&nbsp;curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Knuckle</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Slider</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70;">+ ADD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">BATS</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; background:#16211C; color:#F4F2EB;">R</div>
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#16211C;">L</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 62px; display:flex; align-items:center; gap:10px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#16211C; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A9C0AF;">1 TYPE</span>
+              <span style="font-size:15px; font-weight:700; color:#F4F2EB;">Pick the pitch you called</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A6A29A;">2 CALL CODE</span>
+              <span style="font-size:15px; font-weight:600; color:#A6A29A;">Locked</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A6A29A;">3 LOCATION</span>
+              <span style="font-size:15px; font-weight:600; color:#A6A29A;">Locked</span>
+            </div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">STEP 1 OF 3</div>
+          </div>
+
+          <div style="flex:1; position:relative; background:linear-gradient(#FFFEF9 0%, #FDFBF3 60%, #F7F3E7 100%); overflow:hidden;">
+
+            <div style="position:absolute; inset:0; opacity:0.45;">
+              <div style="position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(#C9A277 0%, #BE9265 100%);"></div>
+              <div style="position:absolute; left:302px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+              <div style="position:absolute; left:686px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+              <div style="position:absolute; left:410px; bottom:32px; width:204px; height:28px; box-sizing:border-box; background:#FFFEF9; border:2px solid #16211C; clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);"></div>
+              <div style="position:absolute; left:350px; bottom:216px; width:324px; height:384px; display:grid; grid-template-columns:60px 68px 68px 68px 60px; grid-template-rows:60px 88px 88px 88px 60px; background:rgba(255,255,250,0.5);">
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              </div>
+              <div style="position:absolute; left:410px; bottom:276px; width:204px; height:264px; box-sizing:border-box; border:3px solid #16211C;"></div>
+            </div>
+
+            <div style="position:absolute; inset:0; opacity:0.55;">
+              <div style="position:absolute; left:427px; bottom:303px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">1</div>
+              <div style="position:absolute; left:495px; bottom:553px; width:34px; height:34px; border-radius:50%; background:#B4643C; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">2</div>
+              <div style="position:absolute; left:563px; bottom:391px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700;">3</div>
+            </div>
+
+            <div style="position:absolute; left:262px; top:96px; width:500px; background:#FFFEF9; border:2px solid #16211C; border-radius:20px; box-sizing:border-box; padding:30px 34px; display:flex; flex-direction:column; gap:18px; box-shadow:0 18px 44px rgba(22,33,28,0.18);">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.16em; color:#7A7A70;">STEP 1 &#183; PITCH 4 OF THIS AT-BAT</div>
+                <div style="font-size:30px; font-weight:700; letter-spacing:-0.02em; color:#16211C; line-height:1.15;">What are you calling?</div>
+                <div style="font-size:16px; line-height:1.5; color:#4A4A44;">Tap a pitch in the row above. The armband code comes up next, then the location.</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:9px; padding-top:16px; border-top:1px solid #DCD8CB;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:#7A7A70;">REYES HAS SEEN</div>
+                <div style="display:flex; gap:8px;">
+                  <div style="display:flex; align-items:center; gap:8px; height:38px; padding:0 13px; background:#F4F2EB; border:1.5px solid #DCD8CB; border-radius:9px; box-sizing:border-box; white-space:nowrap;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#2E5E3E;"></span>
+                    <span style="font-size:14px; font-weight:600; color:#16211C;">Fastball</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">strike</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; height:38px; padding:0 13px; background:#F4F2EB; border:1.5px solid #DCD8CB; border-radius:9px; box-sizing:border-box; white-space:nowrap;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#B4643C;"></span>
+                    <span style="font-size:14px; font-weight:600; color:#16211C;">Rise</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">ball</span>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; height:38px; padding:0 13px; background:#F4F2EB; border:1.5px solid #DCD8CB; border-radius:9px; box-sizing:border-box; white-space:nowrap;">
+                    <span style="width:9px; height:9px; border-radius:50%; background:#2E5E3E;"></span>
+                    <span style="font-size:14px; font-weight:600; color:#16211C;">Curve</span>
+                    <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">strike</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 128px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; gap:12px;">
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; font-size:17px; font-weight:600; color:#4A4A44; white-space:nowrap;">Back to game</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+              <div style="display:flex; flex-direction:column; gap:3px; text-align:right;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH 4 &#183; NOT STARTED</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">NO PITCH TYPE PICKED</div>
+              </div>
+              <div style="height:64px; padding:0 26px; display:flex; align-items:center; gap:10px; background:#EFEDE4; border:1.5px solid #DCD8CB; border-radius:14px; box-sizing:border-box; font-size:20px; font-weight:700; color:#A6A29A; white-space:nowrap;">Save pitch <span style="font-size:22px;">&#8594;</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="7b" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">7B</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">The gate &#8212; step 2, before location opens</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">ink scheme</div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="Pitch — call code gate" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:03 PM</span><span style="color:#8A8A80;">Tue Aug 18</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">2 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px; line-height:1;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:34px; height:34px; position:relative;">
+                  <div style="position:absolute; inset:4px; border:2px solid #C4C0B4; transform:rotate(45deg); box-sizing:border-box;"></div>
+                  <div style="position:absolute; left:1px; top:50%; width:11px; height:11px; margin-top:-5.5px; background:#2E5E3E; transform:rotate(45deg);"></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">&#9650; 1ST</div>
+              </div>
+              <div style="width:1px; height:38px; background:#DCD8CB;"></div>
+              <div style="height:52px; padding:0 16px; display:flex; align-items:center; gap:9px; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:20px; color:#16211C; line-height:1;">&#8634;</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">UNDO PITCH 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:0.06em; color:#16211C; white-space:nowrap;">
+              <span style="background:#16211C; color:#F4F2EB; padding:4px 8px; font-weight:700;">AT BAT</span>
+              <span style="font-weight:700;">#14 REYES</span>
+              <span style="color:#8A8A80;">RHB &#183; 2-for-3</span>
+              <span style="color:#C4C0B4;">|</span>
+              <span style="font-weight:700;">P CHEN</span>
+              <span style="color:#8A8A80;">42 P &#183; 61% K</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9678;</span>PITCHER</div>
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9636;</span>SCOUT</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 150px; display:flex; align-items:center; gap:18px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">MODE</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; background:#16211C; color:#F4F2EB;">CALL</div>
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">RECORD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH TYPE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:#7A7A70;">EDIT ARSENAL</div>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Fastball</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Change</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:1.5px solid #2E5E3E; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:700; color:#FFFEF9;">Drop</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Rise</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Screw</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Drop&nbsp;curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Knuckle</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Slider</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70;">+ ADD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">BATS</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; background:#16211C; color:#F4F2EB;">R</div>
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#16211C;">L</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 62px; display:flex; align-items:center; gap:10px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:5px; font-size:13px; color:#FFFEF9;">&#10003;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#7A7A70;">1 TYPE</span>
+              <span style="font-size:15px; font-weight:700; color:#16211C;">Drop</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#16211C; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A9C0AF;">2 CALL CODE</span>
+              <span style="font-size:15px; font-weight:700; color:#F4F2EB;">Confirm 702 was used</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A6A29A;">3 LOCATION</span>
+              <span style="font-size:15px; font-weight:600; color:#A6A29A;">Locked</span>
+            </div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">STEP 2 OF 3</div>
+          </div>
+
+          <div style="flex:1; position:relative; background:linear-gradient(#FFFEF9 0%, #FDFBF3 60%, #F7F3E7 100%); overflow:hidden;">
+
+            <div style="position:absolute; inset:0; opacity:0.32;">
+              <div style="position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(#C9A277 0%, #BE9265 100%);"></div>
+              <div style="position:absolute; left:302px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+              <div style="position:absolute; left:686px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+              <div style="position:absolute; left:410px; bottom:32px; width:204px; height:28px; box-sizing:border-box; background:#FFFEF9; border:2px solid #16211C; clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);"></div>
+              <div style="position:absolute; left:350px; bottom:216px; width:324px; height:384px; display:grid; grid-template-columns:60px 68px 68px 68px 60px; grid-template-rows:60px 88px 88px 88px 60px; background:rgba(255,255,250,0.5);">
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px solid rgba(22,33,28,0.2);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+                <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              </div>
+              <div style="position:absolute; left:410px; bottom:276px; width:204px; height:264px; box-sizing:border-box; border:3px solid #16211C;"></div>
+            </div>
+
+            <div style="position:absolute; left:212px; top:56px; width:600px; background:#FFFEF9; border:2px solid #16211C; border-radius:20px; box-sizing:border-box; padding:32px 36px 30px; display:flex; flex-direction:column; gap:24px; box-shadow:0 18px 44px rgba(22,33,28,0.18);">
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.16em; color:#7A7A70;">STEP 2 &#183; CALL CODE &#183; ARMBAND CARD 4</div>
+                <div style="font-size:30px; font-weight:700; letter-spacing:-0.02em; color:#16211C; line-height:1.15;">You called 702 &#8212; Drop.</div>
+                <div style="font-size:16px; line-height:1.5; color:#4A4A44;">Read it off card 4 and confirm once Chen throws, so the pitch logs at the right moment. Location opens next.</div>
+              </div>
+
+              <div style="display:flex; gap:8px;">
+                <div style="flex:1; height:110px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:2.5px solid #16211C; border-radius:14px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:66px; font-weight:700; line-height:1; color:#16211C;">7</div>
+                <div style="flex:1; height:110px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:2.5px solid #16211C; border-radius:14px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:66px; font-weight:700; line-height:1; color:#16211C;">0</div>
+                <div style="flex:1; height:110px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:2.5px solid #16211C; border-radius:14px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:66px; font-weight:700; line-height:1; color:#16211C;">2</div>
+              </div>
+
+              <div style="display:flex; flex-direction:column; gap:10px;">
+                <div style="height:72px; padding:0 24px; display:flex; align-items:center; gap:14px; background:#2E5E3E; border-radius:14px; box-sizing:border-box; box-shadow:0 2px 8px rgba(46,94,62,0.32);">
+                  <span style="width:28px; height:28px; flex:0 0 28px; display:flex; align-items:center; justify-content:center; background:rgba(255,255,250,0.2); border-radius:7px; font-size:17px; color:#FFFEF9;">&#10003;</span>
+                  <div style="display:flex; flex-direction:column; gap:1px;">
+                    <div style="font-size:19px; font-weight:700; color:#FFFEF9; line-height:1.2;">Call was used &#8212; place location</div>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; color:#C5DFCE;">LOGS 702 AS THROWN &#183; OPENS THE ZONE</div>
+                  </div>
+                </div>
+                <div style="height:72px; padding:0 24px; display:flex; align-items:center; gap:14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box;">
+                  <span style="width:28px; height:28px; flex:0 0 28px; display:flex; align-items:center; justify-content:center; border:1.5px solid #A6A29A; border-radius:7px; font-size:15px; color:#7A7A70; box-sizing:border-box;">&#10005;</span>
+                  <div style="display:flex; flex-direction:column; gap:1px;">
+                    <div style="font-size:19px; font-weight:700; color:#16211C; line-height:1.2;">Skip location</div>
+                    <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; color:#7A7A70;">SAVES DROP WITH NO SPOT &#183; STRAIGHT TO RESULT</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style="position:absolute; left:212px; top:672px; width:600px; display:flex; align-items:center; justify-content:center; gap:10px;">
+              <span style="font-size:15px; color:#8A8A80;">&#128274;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.12em; color:#8A8A80; text-align:center;">LOCATION OPENS ONCE YOU CONFIRM ABOVE</span>
+            </div>
+          </div>
+
+          <div style="flex:0 0 128px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; gap:12px;">
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; gap:10px; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:19px; color:#4A4A44;">&#8592;</span>
+                <span style="font-size:17px; font-weight:600; color:#4A4A44;">Back to pitch type</span>
+              </div>
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; font-size:17px; font-weight:600; color:#B4643C; white-space:nowrap;">Discard pitch</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+              <div style="display:flex; flex-direction:column; gap:3px; text-align:right;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH 4 &#183; IN PROGRESS</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">DROP &#183; AWAITING CONFIRM</div>
+              </div>
+              <div style="height:64px; padding:0 26px; display:flex; align-items:center; gap:10px; background:#EFEDE4; border:1.5px solid #DCD8CB; border-radius:14px; box-sizing:border-box; font-size:20px; font-weight:700; color:#A6A29A; white-space:nowrap;">Save pitch <span style="font-size:22px;">&#8594;</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div><div id="7c" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">7C</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Ink for state, Grass for data</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">step 3 of 3</div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="Pitch — location (ink state)" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:03 PM</span><span style="color:#8A8A80;">Tue Aug 18</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">2 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px; line-height:1;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:34px; height:34px; position:relative;">
+                  <div style="position:absolute; inset:4px; border:2px solid #C4C0B4; transform:rotate(45deg); box-sizing:border-box;"></div>
+                  <div style="position:absolute; left:1px; top:50%; width:11px; height:11px; margin-top:-5.5px; background:#2E5E3E; transform:rotate(45deg);"></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">&#9650; 1ST</div>
+              </div>
+              <div style="width:1px; height:38px; background:#DCD8CB;"></div>
+              <div style="height:52px; padding:0 16px; display:flex; align-items:center; gap:9px; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:20px; color:#16211C; line-height:1;">&#8634;</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">UNDO PITCH 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:0.06em; color:#16211C; white-space:nowrap;">
+              <span style="background:#16211C; color:#F4F2EB; padding:4px 8px; font-weight:700;">AT BAT</span>
+              <span style="font-weight:700;">#14 REYES</span>
+              <span style="color:#8A8A80;">RHB &#183; 2-for-3</span>
+              <span style="color:#C4C0B4;">|</span>
+              <span style="font-weight:700;">P CHEN</span>
+              <span style="color:#8A8A80;">42 P &#183; 61% K</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9678;</span>PITCHER</div>
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9636;</span>SCOUT</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 150px; display:flex; align-items:center; gap:18px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">MODE</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; background:#16211C; color:#F4F2EB;">CALL</div>
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">RECORD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH TYPE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:#7A7A70;">EDIT ARSENAL</div>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Fastball</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Change</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:1.5px solid #2E5E3E; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:700; color:#FFFEF9;">Drop</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Rise</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Screw</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Drop&nbsp;curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Knuckle</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Slider</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70;">+ ADD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">BATS</div>
+              <div style="display:flex; border:1.5px solid #16211C; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; background:#16211C; color:#F4F2EB;">R</div>
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#16211C;">L</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 62px; display:flex; align-items:center; gap:10px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:5px; font-size:13px; color:#FFFEF9;">&#10003;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#7A7A70;">1 TYPE</span>
+              <span style="font-size:15px; font-weight:700; color:#16211C;">Drop</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:5px; font-size:13px; color:#FFFEF9;">&#10003;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#7A7A70;">2 CALL CODE</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#16211C;">702 used</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; color:#7A7A70; text-decoration:underline;">CHANGE</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#16211C; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#A9C0AF;">3 LOCATION</span>
+              <span style="font-size:15px; font-weight:700; color:#F4F2EB;">Tap the zone below</span>
+            </div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">STEP 3 OF 3</div>
+          </div>
+
+          <div style="flex:1; position:relative; background:linear-gradient(#FFFEF9 0%, #FDFBF3 60%, #F7F3E7 100%); overflow:hidden;">
+
+            <div style="position:absolute; top:22px; right:28px; display:flex; flex-direction:column; gap:16px; align-items:flex-start;">
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">DRAWN TO SCALE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#16211C; white-space:nowrap;">zone 17 &#215; 22 in &#183; 12 px/in</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:7px;">
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; background:#2E5E3E;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">STRIKE</span></div>
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; background:#B4643C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">BALL</span></div>
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; border:2.5px solid #16211C; box-sizing:border-box;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">THIS PITCH</span></div>
+              </div>
+            </div>
+
+            <div style="position:absolute; left:118px; bottom:60px; width:232px; height:592px;">
+              <image-slot id="batter-figure-7c" shape="rect" fit="cover" placeholder="Drop batter art"></image-slot>
+            </div>
+
+            <div style="position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(#C9A277 0%, #BE9265 100%);"></div>
+            <div style="position:absolute; left:0; right:0; bottom:58px; height:2px; background:#AD8558;"></div>
+
+            <div style="position:absolute; right:24px; bottom:11px; height:38px; display:flex; align-items:center; gap:9px; padding:0 13px; background:rgba(22,33,28,0.82); border-radius:9px; box-sizing:border-box;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;">IN THE DIRT</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.06em; color:#C9A277; white-space:nowrap;">GROUND VIEW &#8594;</span>
+            </div>
+
+            <div style="position:absolute; left:302px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+            <div style="position:absolute; left:686px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+            <div style="position:absolute; left:410px; bottom:32px; width:204px; height:28px; box-sizing:border-box; background:#FFFEF9; border:2px solid #16211C; clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);"></div>
+
+            <div style="position:absolute; left:350px; bottom:216px; width:324px; height:384px; display:grid; grid-template-columns:60px 68px 68px 68px 60px; grid-template-rows:60px 88px 88px 88px 60px; background:rgba(255,255,250,0.5);">
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+            </div>
+
+            <div style="position:absolute; left:410px; bottom:276px; width:204px; height:264px; box-sizing:border-box; border:3px solid #16211C; pointer-events:none;"></div>
+
+            <div style="position:absolute; left:692px; bottom:60px; width:96px; height:592px;">
+              <div style="position:absolute; left:0; bottom:0; width:1.5px; height:100%; background:#DCD8CB;"></div>
+              <div style="position:absolute; left:0; bottom:0; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div></div>
+              <div style="position:absolute; left:0; bottom:144px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">12</span></div>
+              <div style="position:absolute; left:0; bottom:288px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">24</span></div>
+              <div style="position:absolute; left:0; bottom:432px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">36</span></div>
+              <div style="position:absolute; left:0; bottom:576px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">48</span></div>
+              <div style="position:absolute; left:0; bottom:216px; display:flex; align-items:center; gap:6px;"><div style="width:20px; height:2px; background:#16211C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#16211C; white-space:nowrap;">18 &#183; knees</span></div>
+              <div style="position:absolute; left:0; bottom:480px; display:flex; align-items:center; gap:6px;"><div style="width:20px; height:2px; background:#16211C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#16211C; white-space:nowrap;">40 &#183; letters</span></div>
+            </div>
+
+            <div style="position:absolute; left:427px; bottom:303px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">1</div>
+            <div style="position:absolute; left:495px; bottom:553px; width:34px; height:34px; border-radius:50%; background:#B4643C; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">2</div>
+            <div style="position:absolute; left:563px; bottom:391px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">3</div>
+
+            <div style="position:absolute; left:495px; bottom:303px; width:34px; height:34px;">
+              <div style="position:absolute; inset:0; border-radius:50%; border:3.5px solid #16211C; background:rgba(255,255,250,0.75); box-sizing:border-box;"></div>
+              <div style="position:absolute; left:50%; top:-14px; width:2px; height:12px; margin-left:-1px; background:#16211C;"></div>
+              <div style="position:absolute; left:50%; bottom:-14px; width:2px; height:12px; margin-left:-1px; background:#16211C;"></div>
+              <div style="position:absolute; top:50%; left:-14px; height:2px; width:12px; margin-top:-1px; background:#16211C;"></div>
+              <div style="position:absolute; top:50%; right:-14px; height:2px; width:12px; margin-top:-1px; background:#16211C;"></div>
+            </div>
+
+            <div style="position:absolute; left:350px; bottom:104px; width:324px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.16em; color:#7A7A70;">TAP THE ZONE TO PLACE THIS PITCH</div>
+              <div style="height:56px; padding:0 20px; display:flex; align-items:center; gap:10px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:17px; color:#7A7A70;">&#10005;</span>
+                <span style="font-size:17px; font-weight:600; color:#4A4A44;">Skip location</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 128px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; gap:12px;">
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; gap:10px; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:19px; color:#4A4A44;">&#8592;</span>
+                <span style="font-size:17px; font-weight:600; color:#4A4A44;">Back to call code</span>
+              </div>
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; font-size:17px; font-weight:600; color:#B4643C; white-space:nowrap;">Discard pitch</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+              <div style="display:flex; flex-direction:column; gap:3px; text-align:right;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH 4 &#183; READY TO SAVE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">DROP &#183; CALL 702 &#183; LOW, MIDDLE</div>
+              </div>
+              <div style="height:64px; padding:0 26px; display:flex; align-items:center; gap:10px; background:#2E5E3E; border-radius:14px; box-sizing:border-box; font-size:20px; font-weight:700; color:#FFFEF9; white-space:nowrap; box-shadow:0 2px 8px rgba(46,94,62,0.35);">Save pitch <span style="font-size:22px;">&#8594;</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="7d" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="font-family:'JetBrains Mono', monospace; font-size:11px; font-weight:700; letter-spacing:0.1em; background:#16211C; color:#F4F2EB; padding:3px 7px;">7D</div>
+        <div style="font-size:15px; font-weight:700; color:#16211C;">Grass for every active choice</div>
+        <div style="font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.12em; text-transform:uppercase; color:#8A8A80;">same screen as <a href="#7c">7C</a></div>
+      </div>
+
+      <div style="width:1056px; height:1398px; background:#1A1A18; border-radius:46px; padding:16px; box-shadow:0 24px 60px rgba(22,33,28,0.28);">
+        <div data-screen-label="Pitch — location (grass state)" style="width:1024px; height:1366px; background:#F4F2EB; border-radius:32px; overflow:hidden; display:flex; flex-direction:column;">
+
+          <div style="height:44px; flex:0 0 44px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:500; color:#16211C;">
+            <div style="display:flex; gap:12px;"><span>4:03 PM</span><span style="color:#8A8A80;">Tue Aug 18</span></div>
+            <div style="display:flex; gap:10px; align-items:center;"><span>100%</span><div style="width:26px; height:12px; border:1.5px solid #16211C; border-radius:3px; padding:1.5px; box-sizing:border-box;"><div style="width:100%; height:100%; background:#16211C; border-radius:1px;"></div></div></div>
+          </div>
+
+          <div style="flex:0 0 84px; display:flex; align-items:center; justify-content:space-between; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:baseline; gap:20px;">
+              <div style="font-size:44px; font-weight:700; letter-spacing:-0.04em; color:#16211C; line-height:1; white-space:nowrap;">1<span style="color:#B4643C;">-</span>2</div>
+              <div style="display:flex; gap:7px; align-items:center;">
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; background:#B4643C;"></div>
+                <div style="width:11px; height:11px; border-radius:50%; border:1.5px solid #C4C0B4; box-sizing:border-box;"></div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.08em; color:#16211C; padding-left:6px; white-space:nowrap;">2 OUT</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="display:flex; align-items:baseline; gap:7px; font-family:'JetBrains Mono',monospace;">
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">HAWKS</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">4</span>
+                <span style="font-size:14px; color:#C4C0B4;">&#8211;</span>
+                <span style="font-size:24px; font-weight:700; letter-spacing:-0.02em; color:#16211C;">3</span>
+                <span style="font-size:12px; font-weight:700; letter-spacing:0.1em; color:#7A7A70;">RIDGE</span>
+              </div>
+              <div style="height:36px; padding:0 12px; display:flex; align-items:center; gap:6px; background:#16211C; border-radius:9px; font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;"><span style="font-size:10px; line-height:1;">&#9650;</span>5</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:20px;">
+              <div style="display:flex; align-items:center; gap:11px;">
+                <div style="width:34px; height:34px; position:relative;">
+                  <div style="position:absolute; inset:4px; border:2px solid #C4C0B4; transform:rotate(45deg); box-sizing:border-box;"></div>
+                  <div style="position:absolute; left:1px; top:50%; width:11px; height:11px; margin-top:-5.5px; background:#2E5E3E; transform:rotate(45deg);"></div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.08em; color:#16211C; white-space:nowrap;">&#9650; 1ST</div>
+              </div>
+              <div style="width:1px; height:38px; background:#DCD8CB;"></div>
+              <div style="height:52px; padding:0 16px; display:flex; align-items:center; gap:9px; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:20px; color:#16211C; line-height:1;">&#8634;</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">UNDO PITCH 3</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 68px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:0.06em; color:#16211C; white-space:nowrap;">
+              <span style="background:#16211C; color:#F4F2EB; padding:4px 8px; font-weight:700;">AT BAT</span>
+              <span style="font-weight:700;">#14 REYES</span>
+              <span style="color:#8A8A80;">RHB &#183; 2-for-3</span>
+              <span style="color:#C4C0B4;">|</span>
+              <span style="font-weight:700;">P CHEN</span>
+              <span style="color:#8A8A80;">42 P &#183; 61% K</span>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9678;</span>PITCHER</div>
+              <div style="height:46px; padding:0 16px; display:flex; align-items:center; gap:9px; background:#FFFEF9; border:1.5px solid #16211C; border-radius:11px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12.5px; font-weight:700; letter-spacing:0.06em; color:#16211C; white-space:nowrap;"><span style="font-size:15px;">&#9636;</span>SCOUT</div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 150px; display:flex; align-items:center; gap:18px; padding:0 28px; background:#FFFEF9; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">MODE</div>
+              <div style="display:flex; border:1.5px solid #2E5E3E; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; background:#2E5E3E; color:#FFFEF9;">CALL</div>
+                <div style="padding:10px 15px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#16211C;">RECORD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px; flex:1;">
+              <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH TYPE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.1em; color:#7A7A70;">EDIT ARSENAL</div>
+              </div>
+              <div style="display:grid; grid-template-columns:repeat(5, 1fr); gap:8px;">
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Fastball</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Change</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border:1.5px solid #2E5E3E; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:700; color:#FFFEF9;">Drop</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Rise</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Screw</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Drop&nbsp;curve</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Knuckle</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F0EEE5; border:1.5px solid #DCD8CB; border-radius:10px; box-sizing:border-box; font-size:16px; font-weight:600; color:#16211C;">Slider</div>
+                <div style="height:50px; display:flex; align-items:center; justify-content:center; background:#F4F2EB; border:1.5px dashed #C4C0B4; border-radius:10px; box-sizing:border-box; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:0.06em; color:#7A7A70;">+ ADD</div>
+              </div>
+            </div>
+
+            <div style="width:1px; height:52px; background:#DCD8CB;"></div>
+
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">BATS</div>
+              <div style="display:flex; border:1.5px solid #2E5E3E; border-radius:10px; overflow:hidden;">
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; background:#2E5E3E; color:#FFFEF9;">R</div>
+                <div style="padding:10px 16px; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; color:#16211C;">L</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 62px; display:flex; align-items:center; gap:10px; padding:0 28px; background:#EFEDE4; border-bottom:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:5px; font-size:13px; color:#FFFEF9;">&#10003;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#7A7A70;">1 TYPE</span>
+              <span style="font-size:15px; font-weight:700; color:#16211C;">Drop</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="width:20px; height:20px; flex:0 0 20px; display:flex; align-items:center; justify-content:center; background:#2E5E3E; border-radius:5px; font-size:13px; color:#FFFEF9;">&#10003;</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#7A7A70;">2 CALL CODE</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; color:#16211C;">702 used</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.08em; color:#7A7A70; text-decoration:underline;">CHANGE</span>
+            </div>
+            <div style="width:18px; height:1.5px; background:#C4C0B4;"></div>
+            <div style="display:flex; align-items:center; gap:10px; height:40px; padding:0 14px; background:#2E5E3E; border-radius:10px; box-sizing:border-box; white-space:nowrap;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.12em; color:#C5DFCE;">3 LOCATION</span>
+              <span style="font-size:15px; font-weight:700; color:#FFFEF9;">Tap the zone below</span>
+            </div>
+            <div style="flex:1;"></div>
+            <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:0.14em; color:#7A7A70; white-space:nowrap;">STEP 3 OF 3</div>
+          </div>
+
+          <div style="flex:1; position:relative; background:linear-gradient(#FFFEF9 0%, #FDFBF3 60%, #F7F3E7 100%); overflow:hidden;">
+
+            <div style="position:absolute; top:22px; right:28px; display:flex; flex-direction:column; gap:16px; align-items:flex-start;">
+              <div style="display:flex; flex-direction:column; gap:3px;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">DRAWN TO SCALE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#16211C; white-space:nowrap;">zone 17 &#215; 22 in &#183; 12 px/in</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:7px;">
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; background:#2E5E3E;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">STRIKE</span></div>
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; background:#B4643C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">BALL</span></div>
+                <div style="display:flex; align-items:center; gap:8px;"><div style="width:15px; height:15px; border-radius:50%; border:2.5px solid #16211C; box-sizing:border-box;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#4A4A44;">THIS PITCH</span></div>
+              </div>
+            </div>
+
+            <div style="position:absolute; left:118px; bottom:60px; width:232px; height:592px;">
+              <image-slot id="batter-figure-7d" shape="rect" fit="cover" placeholder="Drop batter art"></image-slot>
+            </div>
+
+            <div style="position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(#C9A277 0%, #BE9265 100%);"></div>
+            <div style="position:absolute; left:0; right:0; bottom:58px; height:2px; background:#AD8558;"></div>
+
+            <div style="position:absolute; right:24px; bottom:11px; height:38px; display:flex; align-items:center; gap:9px; padding:0 13px; background:rgba(22,33,28,0.82); border-radius:9px; box-sizing:border-box;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; font-weight:700; letter-spacing:0.1em; color:#F4F2EB; white-space:nowrap;">IN THE DIRT</span>
+              <span style="font-family:'JetBrains Mono',monospace; font-size:11.5px; letter-spacing:0.06em; color:#C9A277; white-space:nowrap;">GROUND VIEW &#8594;</span>
+            </div>
+
+            <div style="position:absolute; left:302px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+            <div style="position:absolute; left:686px; bottom:14px; width:36px; height:46px; background:#FDFBF2;"></div>
+            <div style="position:absolute; left:410px; bottom:32px; width:204px; height:28px; box-sizing:border-box; background:#FFFEF9; border:2px solid #16211C; clip-path:polygon(0 0,100% 0,100% 42%,50% 100%,0 42%);"></div>
+
+            <div style="position:absolute; left:350px; bottom:216px; width:324px; height:384px; display:grid; grid-template-columns:60px 68px 68px 68px 60px; grid-template-rows:60px 88px 88px 88px 60px; background:rgba(255,255,250,0.5);">
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px solid rgba(22,33,28,0.2); background:rgba(255,255,250,0.72);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+              <div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div><div style="border:1px dashed rgba(22,33,28,0.16);"></div>
+            </div>
+
+            <div style="position:absolute; left:410px; bottom:276px; width:204px; height:264px; box-sizing:border-box; border:3px solid #16211C; pointer-events:none;"></div>
+
+            <div style="position:absolute; left:692px; bottom:60px; width:96px; height:592px;">
+              <div style="position:absolute; left:0; bottom:0; width:1.5px; height:100%; background:#DCD8CB;"></div>
+              <div style="position:absolute; left:0; bottom:0; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div></div>
+              <div style="position:absolute; left:0; bottom:144px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">12</span></div>
+              <div style="position:absolute; left:0; bottom:288px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">24</span></div>
+              <div style="position:absolute; left:0; bottom:432px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">36</span></div>
+              <div style="position:absolute; left:0; bottom:576px; display:flex; align-items:center; gap:6px;"><div style="width:12px; height:1.5px; background:#DCD8CB;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#7A7A70;">48</span></div>
+              <div style="position:absolute; left:0; bottom:216px; display:flex; align-items:center; gap:6px;"><div style="width:20px; height:2px; background:#16211C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#16211C; white-space:nowrap;">18 &#183; knees</span></div>
+              <div style="position:absolute; left:0; bottom:480px; display:flex; align-items:center; gap:6px;"><div style="width:20px; height:2px; background:#16211C;"></div><span style="font-family:'JetBrains Mono',monospace; font-size:11px; font-weight:700; color:#16211C; white-space:nowrap;">40 &#183; letters</span></div>
+            </div>
+
+            <div style="position:absolute; left:427px; bottom:303px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">1</div>
+            <div style="position:absolute; left:495px; bottom:553px; width:34px; height:34px; border-radius:50%; background:#B4643C; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">2</div>
+            <div style="position:absolute; left:563px; bottom:391px; width:34px; height:34px; border-radius:50%; background:#2E5E3E; color:#FFFEF9; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:700; box-shadow:0 1px 4px rgba(22,33,28,0.3);">3</div>
+
+            <div style="position:absolute; left:495px; bottom:303px; width:34px; height:34px;">
+              <div style="position:absolute; inset:0; border-radius:50%; border:3.5px solid #2E5E3E; background:rgba(255,255,250,0.75); box-sizing:border-box;"></div>
+              <div style="position:absolute; left:50%; top:-14px; width:2px; height:12px; margin-left:-1px; background:#2E5E3E;"></div>
+              <div style="position:absolute; left:50%; bottom:-14px; width:2px; height:12px; margin-left:-1px; background:#2E5E3E;"></div>
+              <div style="position:absolute; top:50%; left:-14px; height:2px; width:12px; margin-top:-1px; background:#2E5E3E;"></div>
+              <div style="position:absolute; top:50%; right:-14px; height:2px; width:12px; margin-top:-1px; background:#2E5E3E;"></div>
+            </div>
+
+            <div style="position:absolute; left:350px; bottom:104px; width:324px; display:flex; flex-direction:column; gap:10px; align-items:center;">
+              <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.16em; color:#7A7A70;">TAP THE ZONE TO PLACE THIS PITCH</div>
+              <div style="height:56px; padding:0 20px; display:flex; align-items:center; gap:10px; background:#FFFEF9; border:1.5px solid #C4C0B4; border-radius:12px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:17px; color:#7A7A70;">&#10005;</span>
+                <span style="font-size:17px; font-weight:600; color:#4A4A44;">Skip location</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 128px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px 28px; background:#FFFEF9; border-top:1px solid #DCD8CB; box-sizing:border-box;">
+            <div style="display:flex; gap:12px;">
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; gap:10px; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; white-space:nowrap;">
+                <span style="font-size:19px; color:#4A4A44;">&#8592;</span>
+                <span style="font-size:17px; font-weight:600; color:#4A4A44;">Back to call code</span>
+              </div>
+              <div style="height:64px; padding:0 22px; display:flex; align-items:center; border:1.5px solid #C4C0B4; border-radius:14px; box-sizing:border-box; font-size:17px; font-weight:600; color:#B4643C; white-space:nowrap;">Discard pitch</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+              <div style="display:flex; flex-direction:column; gap:3px; text-align:right;">
+                <div style="font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.14em; color:#7A7A70;">PITCH 4 &#183; READY TO SAVE</div>
+                <div style="font-family:'JetBrains Mono',monospace; font-size:14px; font-weight:700; color:#16211C; white-space:nowrap;">DROP &#183; CALL 702 &#183; LOW, MIDDLE</div>
+              </div>
+              <div style="height:64px; padding:0 26px; display:flex; align-items:center; gap:10px; background:#2E5E3E; border-radius:14px; box-sizing:border-box; font-size:20px; font-weight:700; color:#FFFEF9; white-space:nowrap; box-shadow:0 2px 8px rgba(46,94,62,0.35);">Save pitch <span style="font-size:22px;">&#8594;</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1500},&quot;batterHand&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;R&quot;,&quot;L&quot;],&quot;default&quot;:&quot;R&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Batter&quot;},&quot;batterSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:0.7,&quot;max&quot;:2.2,&quot;step&quot;:0.05,&quot;default&quot;:1.15,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Batter&quot;}}">
+class Component extends DCLogic {
+  state = { hand: null };
+
+  renderVals() {
+    const P = 12, GROUND = 60;
+    const hand = this.state.hand || this.props.batterHand || "R";
+    // batter is nearer the camera than the zone plane, so his size is a framing
+    // multiplier — the zone's 12 px/in geometry never moves
+    const size = this.props.batterSize ?? 1.15;
+    const k = P * size;
+    // Artwork is pre-cropped so the front foot is its bottom-outer corner; that
+    // corner pins to the ground line, 17 in from plate center, either side.
+    // The box is then clamped to the visible scene so the slot's own
+    // Replace/Edit controls stay reachable — the crop comes from the image.
+    const SCENE_H = 970;
+    const fullW = 30 * k;
+    const foot = hand === "R" ? (512 - 17 * P) : (512 + 17 * P);
+    const rawLeft = hand === "R" ? foot - fullW : foot;
+    const left = Math.max(0, rawLeft);
+    const svgW = Math.min(1024, rawLeft + fullW) - left;
+    const svgH = Math.min(74 * k, SCENE_H - GROUND);
+    const bottom = GROUND;
+
+    const mask = "";  // hard crop at the frame edge, broadcast-style
+
+    const tabDark = (on) => "padding:10px 17px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.06em; " +
+      (on ? "background:#F4F2EB; color:#16211C;" : "color:#A9C0AF;");
+
+    const tab = (on) => "padding:10px 17px; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; letter-spacing:0.06em; " +
+      (on ? "background:#16211C; color:#F4F2EB;" : "color:#16211C;");
+
+    return {
+      scaleNote: "zone 17 × 22 in · 12 px/in",
+      rightTabStyle: tab(hand === "R"),
+      leftTabStyle: tab(hand === "L"),
+      rightTabStyleDark: tabDark(hand === "R"),
+      leftTabStyleDark: tabDark(hand === "L"),
+      setRight: () => this.setState({ hand: "R" }),
+      setLeft: () => this.setState({ hand: "L" }),
+      // legend and height scale always sit opposite the batter
+      legendStyle: "position:absolute; top:22px; " + (hand === "R" ? "right:28px;" : "left:28px;") +
+        " display:flex; flex-direction:column; gap:16px; align-items:flex-start;",
+      scaleStyle: "position:absolute; left:" + (hand === "R" ? 692 : 236) + "px; bottom:60px; width:96px; height:730px;",
+      batterFlip: hand === "L" ? "1" : "0",
+      batterBoxStyle: "position:absolute; left:" + left.toFixed(1) + "px; bottom:" + bottom.toFixed(1) +
+        "px; width:" + svgW.toFixed(1) + "px; height:" + svgH.toFixed(1) + "px;" + mask
+    };
+  }
+}
+</script>
+</body>
+</html>
