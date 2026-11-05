@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Field surface</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;margin:0;cursor:pointer}
+a{color:#2E5E3E}a:hover{color:#16211C}
+</style>
+</helmet>
+<div style="width: 1024px; height: 1366px; box-sizing: border-box; background: {{t.bg}}; display: flex; flex-direction: column; font-family: 'Space Grotesk', Helvetica, sans-serif; color: {{t.text}}; overflow: hidden">
+
+  <div style="flex: 0 0 84px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.card}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 20px">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 42px; font-weight: 700; letter-spacing: -0.04em; line-height: 1">1<span style="color: {{t.clayText}}">–</span>1</div>
+      <div style="display: flex; align-items: center; gap: 7px">
+        <div style="width: 11px; height: 11px; border-radius: 50%; background: {{t.clayDot}}"></div>
+        <div style="width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid {{t.outline}}; box-sizing: border-box"></div>
+        <div style="width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid {{t.outline}}; box-sizing: border-box"></div>
+        <div style="font-size: 16px; font-weight: 700; padding-left: 6px">1 out</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px; font-family: 'JetBrains Mono', monospace">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">HAWKS</span>
+      <span style="font-size: 24px; font-weight: 700">4</span>
+      <span style="font-size: 14px; color: {{t.outline}}">–</span>
+      <span style="font-size: 24px; font-weight: 700">3</span>
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">RIDGE</span>
+      <span style="height: 36px; padding: 0 12px; display: flex; align-items: center; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 9px; font-size: 14px; font-weight: 700">▲5</span>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px">
+      <button type="button" disabled aria-disabled="true" style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 9px; background: {{t.disabledFill}}; border: 1.5px solid {{t.hair}}; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: {{t.disabledText}}; cursor: default">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 9h11a5 5 0 0 1 0 10H8"></path><path d="M8 5 4 9l4 4"></path></svg>
+        UNDO PITCH 3
+      </button>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: {{t.muted}}">OFF WHILE A PLAY IS OPEN</span>
+    </div>
+  </div>
+
+  <div style="flex: 0 0 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.panel}}; color: {{t.onPanel}}; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 14px">
+      <span style="height: 40px; padding: 0 15px; display: flex; align-items: center; background: {{t.onPanel}}; color: {{t.panel}}; border-radius: 10px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.08em">POP-UP</span>
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; letter-spacing: 0.06em">LANDED 96 FT</span>
+    </div>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: {{t.onPanelMuted}}">TAP FIELDERS IN ORDER · DRAG RUNNERS</span>
+  </div>
+
+  <div style="flex: 0 0 168px; display: flex; align-items: flex-start; gap: 12px; padding: 18px 28px 0; background: {{t.card}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: {{t.muted}}; padding-top: 20px">PLAY</span>
+
+    <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px">
+      <button type="button" style="height: 56px; padding: 0 14px 0 12px; display: flex; align-items: center; gap: 10px; background: {{t.chip}}; color: {{t.onChip}}; border: none; border-radius: 12px">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFFEF9" stroke="{{t.ballStroke}}" stroke-width="1.5"></circle><path d="M6 5.5C9 9 9 15 6 18.5M18 5.5C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.06em">POP-UP</span>
+      </button>
+      <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed {{t.grassLine}}; border-radius: 10px; font-size: 14px; font-weight: 700; color: {{t.grassLine}}">+ infield fly · fair/foul · fan</button>
+    </div>
+
+    <svg width="26" height="56" viewBox="0 0 26 56" aria-hidden="true"><path d="M3 28h18M15 22l6 6-6 6" fill="none" stroke="{{t.outline}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+
+    <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px">
+      <button type="button" style="height: 56px; padding: 0 18px; display: flex; align-items: center; gap: 11px; background: {{t.grass}}; color: {{t.onGrass}}; border: none; border-radius: 12px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: {{t.onGrassMuted}}">1</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 700">SS</span>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: {{t.onGrassMuted}}">CATCH</span>
+      </button>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed {{t.grassLine}}; border-radius: 10px; font-size: 14px; font-weight: 700; color: {{t.grassLine}}">+ misplay</button>
+        <div style="height: 44px; padding: 0 12px; display: flex; align-items: center; gap: 8px; background: {{t.raised}}; border: 1.5px solid {{t.strong}}; border-radius: 10px; font-size: 15px; font-weight: 700">Batter out <span style="font-weight: 500; color: {{t.muted}}">caught</span></div>
+        <button type="button" style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px dashed {{t.grassLine}}; border-radius: 10px; font-size: 14px; font-weight: 700; color: {{t.grassLine}}">+ call</button>
+      </div>
+    </div>
+
+    <button type="button" style="height: 56px; padding: 0 16px; background: {{t.raised}}; border: 1.5px dashed {{t.outline}}; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: {{t.muted}}">+ THROW</button>
+  </div>
+
+  <div style="flex: 0 0 900px; position: relative; background: {{t.foul}}; overflow: hidden">
+    <svg width="1024" height="810" viewBox="0 0 1024 810" style="position: absolute; left: 0; top: 0" role="img" aria-label="The field, drawn to scale">
+      <path d="M512 744 L59.5 291.5 A533 533 0 0 1 964.5 291.5 Z" fill="{{t.outfield}}"></path>
+      <path d="M59.5 291.5 A533 533 0 0 1 964.5 291.5" fill="none" stroke="{{t.lineFaint}}" stroke-width="3"></path>
+      <path d="M512 757.6 L700.4 569.3 A192 192 0 0 0 323.6 569.3 Z" fill="{{t.infield}}"></path>
+      <circle cx="512" cy="606.4" r="25.6" fill="none" stroke="{{t.circle}}" stroke-width="2.5"></circle>
+      <line x1="512" y1="744" x2="59.5" y2="291.5" stroke="{{t.line}}" stroke-width="3"></line>
+      <line x1="512" y1="744" x2="964.5" y2="291.5" stroke="{{t.line}}" stroke-width="3"></line>
+      <polygon points="512,744 647.8,608.2 512,472.5 376.2,608.2" fill="none" stroke="{{t.lineFaint}}" stroke-width="2.5"></polygon>
+      <rect x="635.8" y="596.2" width="24" height="24" transform="rotate(45 647.8 608.2)" fill="{{t.base}}" stroke="{{t.baseStroke}}" stroke-width="2"></rect>
+      <rect x="500" y="460.5" width="24" height="24" transform="rotate(45 512 472.5)" fill="{{t.base}}" stroke="{{t.baseStroke}}" stroke-width="2"></rect>
+      <rect x="364.2" y="596.2" width="24" height="24" transform="rotate(45 376.2 608.2)" fill="{{t.base}}" stroke="{{t.baseStroke}}" stroke-width="2"></rect>
+      <path d="M512 744 Q 470 420 425 500" fill="none" stroke="{{t.pathHalo}}" stroke-width="9.5" stroke-linecap="round"></path>
+      <path d="M512 744 Q 470 420 425 500" fill="none" stroke="{{t.path}}" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="2 10"></path>
+      <polygon points="497,730 527,730 527,746 512,758 497,746" fill="{{t.base}}" stroke="{{t.baseStroke}}" stroke-width="3"></polygon>
+    </svg>
+
+    <button type="button" style="position: absolute; left: 485px; top: 125px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">CF</button>
+    <button type="button" style="position: absolute; left: 208px; top: 250px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">LF</button>
+    <button type="button" style="position: absolute; left: 762px; top: 250px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">RF</button>
+    <button type="button" style="position: absolute; left: 578px; top: 461px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">2B</button>
+    <button type="button" style="position: absolute; left: 640px; top: 530px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">1B</button>
+    <button type="button" style="position: absolute; left: 330px; top: 530px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">3B</button>
+    <button type="button" style="position: absolute; left: 485px; top: 579px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">P</button>
+    <button type="button" style="position: absolute; left: 485px; top: 763px; width: 54px; height: 54px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.token}}; border: 1.5px solid {{t.tokenBorder}}; color: {{t.tokenText}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">C</button>
+
+    <button type="button" aria-label="Shortstop, has the ball" style="position: absolute; left: 394px; top: 471px; width: 64px; height: 64px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.grass}}; border: 4px solid {{t.holderRing}}; color: {{t.onGrass}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700">SS</button>
+    <svg width="28" height="28" viewBox="0 0 24 24" style="position: absolute; left: 440px; top: 463px" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#FFFEF9" stroke="{{t.holderRing}}" stroke-width="2.5"></circle><path d="M6 5.5C9 9 9 15 6 18.5M18 5.5C15 9 15 15 18 18.5" fill="none" stroke="#B4643C" stroke-width="1.6"></path></svg>
+    <div style="position: absolute; left: 384px; top: 541px; height: 24px; padding: 0 8px; display: flex; align-items: center; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">HAS BALL</div>
+
+    <button type="button" aria-label="Runner on first" style="position: absolute; left: 668px; top: 625px; width: 46px; height: 46px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.runner}}; border: 2.5px solid {{t.runnerRing}}; color: {{t.onRunner}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">R1</button>
+    <button type="button" aria-label="Runner on second" style="position: absolute; left: 536px; top: 420px; width: 46px; height: 46px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.runner}}; border: 2.5px solid {{t.runnerRing}}; color: {{t.onRunner}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">R2</button>
+  </div>
+
+  <div style="flex: 0 0 150px; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 0 28px; background: {{t.card}}; border-top: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="display: flex; align-items: baseline; gap: 12px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: {{t.muted}}">SCORES AS</span>
+      <span style="font-size: 18px; font-weight: 700">Pop out to short (6) · runners hold</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <button type="button" style="height: 64px; padding: 0 18px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 1.5px solid {{t.outline}}; border-radius: 13px; text-align: left">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg>
+        <span style="display: flex; flex-direction: column; gap: 1px">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">LEAVE FIELD</span>
+          <span style="font-size: 15px; font-weight: 700">Back to pitch 4's result</span>
+        </span>
+      </button>
+      <button type="button" style="height: 64px; padding: 0 18px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 1.5px solid {{t.outline}}; border-radius: 13px; font-size: 15px; font-weight: 700">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v5h5"></path></svg>
+        Start play over
+      </button>
+      <div style="flex: 1"></div>
+      <button type="button" style="height: 64px; padding: 0 18px; display: flex; align-items: center; gap: 12px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 13px; text-align: left">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 9h11a5 5 0 0 1 0 10H8"></path><path d="M8 5 4 9l4 4"></path></svg>
+        <span style="display: flex; flex-direction: column; gap: 1px">
+          <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">BACK ONE</span>
+          <span style="font-size: 15px; font-weight: 700">SS catch</span>
+        </span>
+      </button>
+      <button type="button" style="height: 64px; padding: 0 30px; display: flex; align-items: center; gap: 12px; background: {{t.grass}}; color: {{t.onGrass}}; border: none; border-radius: 13px; font-size: 20px; font-weight: 700">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>
+        Commit play
+      </button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","tsType":"string","section":"Theme"},"$preview":{"width":1024,"height":1366}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = {
+      bg: '#F4F2EB', card: '#FFFEF9', raised: '#F4F2EB', hair: '#D6D3C8',
+      text: '#16211C', muted: '#4A4A44', outline: '#8A8A80', strong: '#16211C',
+      chip: '#16211C', onChip: '#F4F2EB', ballStroke: '#FFFEF9',
+      panel: '#16211C', onPanel: '#F4F2EB', onPanelMuted: '#C9D6CC',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', onGrassMuted: '#E3ECE5', grassLine: '#2E5E3E',
+      clayDot: '#B4643C', clayText: '#9A4F2C',
+      disabledFill: '#EFEDE4', disabledText: '#8A8A80',
+      foul: '#F4F2EB', outfield: '#D6DCD1', infield: '#E6D0AF',
+      line: 'rgba(22,33,28,0.5)', lineFaint: 'rgba(22,33,28,0.36)', circle: 'rgba(255,254,249,0.85)',
+      base: '#FFFEF9', baseStroke: '#16211C', path: '#16211C', pathHalo: '#F4F2EB',
+      token: 'rgba(255,254,249,0.92)', tokenBorder: '#8A8A80', tokenText: '#4A4A44',
+      holderRing: '#16211C', runner: '#16211C', runnerRing: '#FFFEF9', onRunner: '#F4F2EB'
+    };
+    const dark = {
+      bg: '#0E1613', card: '#16211C', raised: '#1E2C25', hair: '#2A3A32',
+      text: '#F4F2EB', muted: '#A9C0AF', outline: '#8FA396', strong: '#A9C0AF',
+      chip: '#F4F2EB', onChip: '#16211C', ballStroke: '#16211C',
+      panel: '#1E2C25', onPanel: '#F4F2EB', onPanelMuted: '#A9C0AF',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', onGrassMuted: '#E3ECE5', grassLine: '#5FA97A',
+      clayDot: '#B4643C', clayText: '#D07E4E',
+      disabledFill: '#16211C', disabledText: '#6E7C74',
+      foul: '#0E1613', outfield: '#22312A', infield: '#4A3F31',
+      line: 'rgba(244,242,235,0.42)', lineFaint: 'rgba(244,242,235,0.26)', circle: 'rgba(244,242,235,0.5)',
+      base: '#16211C', baseStroke: '#A9C0AF', path: '#F4F2EB', pathHalo: '#0E1613',
+      token: '#1E2C25', tokenBorder: '#8FA396', tokenText: '#F4F2EB',
+      holderRing: '#F4F2EB', runner: '#F4F2EB', runnerRing: '#16211C', onRunner: '#16211C'
+    };
+    return { t: (this.props.theme ?? 'light') === 'dark' ? dark : light };
+  }
+}
+</script>
+</body>
+</html>
