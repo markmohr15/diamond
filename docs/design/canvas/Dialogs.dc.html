@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Field dialogs and states</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;margin:0;cursor:pointer}
+a{color:#2E5E3E}a:hover{color:#16211C}
+</style>
+</helmet>
+<div style="width: 1024px; height: 1640px; box-sizing: border-box; background: {{t.bg}}; display: flex; flex-direction: column; gap: 30px; padding: 32px 28px; font-family: 'Space Grotesk', Helvetica, sans-serif; color: {{t.text}}; overflow: hidden">
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: {{t.muted}}">ON THE FIELD · CENTERED, SIZED TO CONTENT (§15.1)</span>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border-radius: 14px">
+            <span style="font-size: 18px; font-weight: 700">How was it hit?</span>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <button type="button" style="height: 56px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 16px; font-weight: 700">Grounder</button>
+              <button type="button" style="height: 56px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 16px; font-weight: 700">Line drive</button>
+              <button type="button" style="height: 56px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 16px; font-weight: 700">Fly ball</button>
+              <button type="button" style="height: 56px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 16px; font-weight: 700">Popup</button>
+              <button type="button" style="grid-column: span 2; height: 56px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 16px; font-weight: 700">Bunt…</button>
+            </div>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">The field's first question. Start play over brings it back. Until it's answered, a touch on the field brings it back to the front (§15.1).</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border-radius: 14px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <button type="button" aria-label="Not a bunt" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: transparent; border: 1.5px solid {{t.outline}}; border-radius: 10px; padding: 0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg>
+              </button>
+              <span style="font-size: 18px; font-weight: 700">Bunt</span>
+            </div>
+            <button type="button" style="height: 64px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 17px; font-weight: 700">Bunt on the ground</button>
+            <button type="button" style="height: 64px; background: {{t.raised}}; border: 1.5px solid {{t.outline}}; border-radius: 11px; font-size: 17px; font-weight: 700">Bunt in the air</button>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">From the five, the back arrow (<em>Not a bunt</em>) returns to them. When the outcome sheet already said Bunt there's no arrow, and Leave field is the way out.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border-radius: 14px">
+            <span style="font-size: 18px; font-weight: 700">Back to pitch 4's result?</span>
+            <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">This play is discarded. Pitch 4 keeps its call and location, and you choose its result again.</span>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <button type="button" style="height: 56px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 11px; font-size: 15px; font-weight: 700">Keep this play</button>
+              <button type="button" style="height: 56px; background: {{t.chip}}; color: {{t.onChip}}; border: none; border-radius: 11px; font-size: 15px; font-weight: 700">Discard play</button>
+            </div>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Leave field asks only when the chain has something on it. With an empty chain it goes straight back.</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: {{t.muted}}">SAFE / OUT AT SECOND · STACKED, NEAREST WINS</span>
+    <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px">
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="height: 200px; position: relative; background: {{t.infield}}; border-radius: 12px">
+          <div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">SAFE</div>
+          <div style="position: absolute; left: 50%; top: 98px; width: 20px; height: 20px; margin-left: -10px; background: {{t.base}}; border: 2px solid {{t.baseStroke}}; transform: rotate(45deg); box-sizing: border-box"></div>
+          <div style="position: absolute; left: 50%; top: 132px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">OUT</div>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">1 · DRAG STARTS</span>
+        <span style="font-size: 13px; line-height: 1.45; color: {{t.muted}}">The pair appears at the bag she's headed for. Nothing lit.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="height: 200px; position: relative; background: {{t.infield}}; border-radius: 12px">
+          <div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">SAFE</div>
+          <div style="position: absolute; left: 50%; top: 98px; width: 20px; height: 20px; margin-left: -10px; background: {{t.base}}; border: 2px solid {{t.baseStroke}}; transform: rotate(45deg); box-sizing: border-box"></div>
+          <div style="position: absolute; left: 50%; top: 132px; transform: translateX(-50%); height: 44px; padding: 0 18px; display: flex; align-items: center; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 22px; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">OUT</div>
+          <div style="position: absolute; left: calc(50% + 30px); top: 142px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: {{t.runner}}; border: 2.5px solid {{t.runnerRing}}; color: {{t.onRunner}}; border-radius: 50%; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">R1</div>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">2 · OVER OUT</span>
+        <span style="font-size: 13px; line-height: 1.45; color: {{t.muted}}">The pill under her lights. Releasing records it and asks only possible outs.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="height: 200px; position: relative; background: {{t.infield}}; border-radius: 12px">
+          <div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">SAFE</div>
+          <div style="position: absolute; left: 50%; top: 98px; width: 20px; height: 20px; margin-left: -10px; background: {{t.base}}; border: 2px solid {{t.baseStroke}}; transform: rotate(45deg); box-sizing: border-box"></div>
+          <div style="position: absolute; left: 50%; top: 126px; transform: translateX(-50%); height: 56px; padding: 0 12px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 28px; white-space: nowrap"><span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">OUT AT 2B</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.06em; color: {{t.onChipMuted}}">UNASSISTED · SS</span></div>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">3 · HOLDER ON OUT</span>
+        <span style="font-size: 13px; line-height: 1.45; color: {{t.muted}}">Dragging the fielder with the ball onto OUT. The pill spells out what it will record.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="height: 200px; position: relative; background: {{t.infield}}; border-radius: 12px">
+          <div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">SAFE</div>
+          <div style="position: absolute; left: 50%; top: 98px; width: 20px; height: 20px; margin-left: -10px; background: {{t.base}}; border: 2px solid {{t.baseStroke}}; transform: rotate(45deg); box-sizing: border-box"></div>
+          <div style="position: absolute; left: 50%; top: 132px; transform: translateX(-50%); width: 104px; height: 44px; border: 2px solid {{t.strong}}; background: {{t.chip}}; border-radius: 22px; box-sizing: border-box; overflow: hidden; display: flex; align-items: center; justify-content: center"><div style="position: absolute; left: 0; top: 0; bottom: 0; width: 60%; background: {{t.holdFill}}"></div><span style="position: relative; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: {{t.onChip}}">HIDING…</span></div>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">4 · HOLDING TO HIDE</span>
+        <span style="font-size: 13px; line-height: 1.45; color: {{t.muted}}">A fill tracks the two-second hold. Let go before it fills and the lit pill is recorded.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <div style="height: 200px; position: relative; background: {{t.infield}}; border-radius: 12px">
+          <div style="position: absolute; left: 50%; top: 40px; transform: translateX(-50%); height: 44px; padding: 0 16px; display: flex; align-items: center; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 22px; box-sizing: border-box; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700">SAFE</div>
+          <div style="position: absolute; left: 50%; top: 98px; width: 20px; height: 20px; margin-left: -10px; background: {{t.base}}; border: 2px solid {{t.baseStroke}}; transform: rotate(45deg); box-sizing: border-box"></div>
+          <div style="position: absolute; left: 50%; top: 146px; width: 16px; height: 16px; margin-left: -8px; border: 1.5px dashed {{t.text}}; border-radius: 50%; box-sizing: border-box"></div>
+        </div>
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.1em">5 · HIDDEN</span>
+        <span style="font-size: 13px; line-height: 1.45; color: {{t.muted}}">Only the hold completing hides it. Dragging away and back restores state 1.</span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; color: {{t.muted}}">AFTER THE PITCH · AT THE ✓ · WHEN A PITCH CAN'T BE RECORDED</span>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border-radius: 14px">
+            <span style="font-size: 18px; font-weight: 700">Wild pitch — what did the runner do?</span>
+            <button type="button" style="height: 60px; background: {{t.grass}}; color: {{t.onGrass}}; border: none; border-radius: 12px; font-size: 17px; font-weight: 700">Took third</button>
+            <button type="button" style="height: 56px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 12px; font-size: 16px; font-weight: 700">Go to field</button>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Built wording. One runner names her base; more than one reads <em>All runners up one</em>. There's no <em>Stayed</em>: a wild pitch nobody advanced on isn't one.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border-radius: 14px">
+            <span style="font-size: 18px; font-weight: 700">Sacrifice fly?</span>
+            <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">R3 scored on the drop by CF, 1 out.</span>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+              <button type="button" style="height: 56px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 12px; font-size: 16px; font-weight: 700">No</button>
+              <button type="button" style="height: 56px; background: {{t.grass}}; color: {{t.onGrass}}; border: none; border-radius: 12px; font-size: 16px; font-weight: 700">Yes, sac fly</button>
+            </div>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Asked only where the record can't settle it (§13.6). Adds the reason line and a Yes that names what it records; the build has bare Yes / No today.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 14px">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: {{t.muted}}">THIS PITCH WASN'T RECORDED</span>
+            <span style="font-size: 18px; font-weight: 700">The game is still loading</span>
+            <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Your call and location are kept. Try again in a moment.</span>
+            <button type="button" style="height: 56px; background: {{t.chip}}; color: {{t.onChip}}; border: none; border-radius: 12px; font-size: 16px; font-weight: 700">Try again</button>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Transient, so the one way out retries. Ink, not the error red: the app hasn't failed.</span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <div style="padding: 20px; background: {{t.scrim}}; border-radius: 16px">
+          <div style="display: flex; flex-direction: column; gap: 12px; padding: 18px; background: {{t.card}}; border: 2px solid {{t.strong}}; border-radius: 14px">
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; color: {{t.muted}}">THIS PITCH WASN'T RECORDED</span>
+            <span style="font-size: 18px; font-weight: 700">No batter is due</span>
+            <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">The lineup is missing, so there's no one to charge this pitch to. Add the lineup, then record it.</span>
+            <button type="button" style="height: 56px; background: {{t.chip}}; color: {{t.onChip}}; border: none; border-radius: 12px; font-size: 16px; font-weight: 700">Back to the pitch</button>
+          </div>
+        </div>
+        <span style="font-size: 14px; line-height: 1.45; color: {{t.muted}}">Blocked, so the one way out goes back. The build says the same in one line with OK.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","tsType":"string","section":"Theme"},"$preview":{"width":1024,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = {
+      bg: '#F4F2EB', card: '#FFFEF9', raised: '#F4F2EB', hair: '#D6D3C8',
+      text: '#16211C', muted: '#4A4A44', outline: '#8A8A80', strong: '#16211C',
+      chip: '#16211C', onChip: '#F4F2EB', onChipMuted: '#C9D6CC',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', scrim: 'rgba(22,33,28,0.5)',
+      infield: '#E6D0AF', base: '#FFFEF9', baseStroke: '#16211C',
+      runner: '#16211C', runnerRing: '#FFFEF9', onRunner: '#F4F2EB', holdFill: '#4A4A44'
+    };
+    const dark = {
+      bg: '#0E1613', card: '#16211C', raised: '#1E2C25', hair: '#2A3A32',
+      text: '#F4F2EB', muted: '#A9C0AF', outline: '#8FA396', strong: '#A9C0AF',
+      chip: '#F4F2EB', onChip: '#16211C', onChipMuted: '#4A4A44',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', scrim: 'rgba(0,0,0,0.6)',
+      infield: '#4A3F31', base: '#16211C', baseStroke: '#A9C0AF',
+      runner: '#F4F2EB', runnerRing: '#16211C', onRunner: '#16211C', holdFill: '#A9C0AF'
+    };
+    return { t: (this.props.theme ?? 'light') === 'dark' ? dark : light };
+  }
+}
+</script>
+</body>
+</html>
