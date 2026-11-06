@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Call screen</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+button{font:inherit;color:inherit;margin:0;cursor:pointer}
+a{color:#2E5E3E}a:hover{color:#16211C}
+</style>
+</helmet>
+<div style="width: 1024px; height: 1366px; box-sizing: border-box; background: {{t.bg}}; display: flex; flex-direction: column; font-family: 'Space Grotesk', Helvetica, sans-serif; color: {{t.text}}; overflow: hidden">
+
+  <div style="flex: 0 0 84px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.card}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 20px">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 42px; font-weight: 700; letter-spacing: -0.04em; line-height: 1">1<span style="color: {{t.clayText}}">–</span>2</div>
+      <div style="display: flex; align-items: center; gap: 7px">
+        <div style="width: 11px; height: 11px; border-radius: 50%; background: {{t.clayDot}}"></div>
+        <div style="width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid {{t.outline}}; box-sizing: border-box"></div>
+        <div style="width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid {{t.outline}}; box-sizing: border-box"></div>
+        <div style="font-size: 16px; font-weight: 700; padding-left: 6px">1 out</div>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 14px; font-family: 'JetBrains Mono', monospace">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">HAWKS</span>
+      <span style="font-size: 24px; font-weight: 700">4</span>
+      <span style="font-size: 14px; color: {{t.outline}}">–</span>
+      <span style="font-size: 24px; font-weight: 700">3</span>
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">RIDGE</span>
+      <span style="height: 36px; padding: 0 12px; display: flex; align-items: center; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 9px; font-size: 14px; font-weight: 700">▲5</span>
+    </div>
+    <button type="button" style="height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 9px; background: {{t.card}}; border: 1.5px solid {{t.outline}}; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 9h11a5 5 0 0 1 0 10H8"></path><path d="M8 5 4 9l4 4"></path></svg>
+      UNDO PITCH 3
+    </button>
+  </div>
+
+  <div style="flex: 0 0 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.strip}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">BATS</span>
+      <div style="height: 46px; display: flex; border: 1.5px solid {{t.strong}}; border-radius: 11px; overflow: hidden; box-sizing: border-box">
+        <button type="button" style="padding: 0 16px; border: none; background: {{t.chip}}; color: {{t.onChip}}; font-size: 15px; font-weight: 700">Right</button>
+        <button type="button" style="padding: 0 16px; border: none; background: {{t.card}}; font-size: 15px; font-weight: 700">Left</button>
+      </div>
+      <svg width="40" height="40" viewBox="0 0 40 40" role="img" aria-label="Runner on second" style="margin-left: 10px">
+        <rect x="21" y="14" width="12" height="12" transform="rotate(45 27 20)" fill="none" stroke="{{t.outline}}" stroke-width="2"></rect>
+        <rect x="14" y="7" width="12" height="12" transform="rotate(45 20 13)" fill="{{t.text}}"></rect>
+        <rect x="7" y="14" width="12" height="12" transform="rotate(45 13 20)" fill="none" stroke="{{t.outline}}" stroke-width="2"></rect>
+      </svg>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <button type="button" style="height: 46px; padding: 0 15px; display: flex; align-items: center; gap: 9px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 11px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">FIELD</span>
+        <span style="font-size: 14px; color: {{t.muted}}">steals, WP/PB</span>
+      </button>
+      <div style="width: 1px; height: 34px; background: {{t.outline}}; margin: 0 4px"></div>
+      <div style="height: 46px; display: flex; border: 1.5px solid {{t.strong}}; border-radius: 11px; overflow: hidden; box-sizing: border-box">
+        <button type="button" style="padding: 0 13px; border: none; background: {{t.lightSeg}}; color: {{t.lightSegText}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">LIGHT</button>
+        <button type="button" style="padding: 0 13px; border: none; background: {{t.darkSeg}}; color: {{t.darkSegText}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">DARK</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex: 0 0 76px; display: flex; align-items: center; gap: 14px; padding: 0 28px; background: {{t.card}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 2px solid {{t.grassLine}}; border-radius: 10px; box-sizing: border-box">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: {{t.grassLine}}">1 CALL</span>
+      <span style="font-size: 15px; font-weight: 700">Yell it, then ✓</span>
+    </div>
+    <div style="width: 18px; height: 2px; background: {{t.outline}}"></div>
+    <button type="button" style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 10px; box-sizing: border-box">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: {{t.muted}}">2 RECORD</span>
+      <span style="font-size: 15px; font-weight: 700">Jump here — no call</span>
+    </button>
+    <div style="flex: 1"></div>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">PITCH 4 · CALL</span>
+  </div>
+
+  <div style="flex: 0 0 150px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: {{t.bg}}">
+    <div style="display: flex; align-items: center; gap: 24px">
+      <span aria-label="Code 7 0 2" style="font-family: 'JetBrains Mono', monospace; font-size: 120px; font-weight: 700; letter-spacing: -0.02em; line-height: 1; color: {{t.code}}">702</span>
+      <button type="button" aria-label="Pitch thrown" style="width: 96px; height: 96px; padding: 0; display: flex; align-items: center; justify-content: center; background: {{t.grass}}; color: {{t.onGrass}}; border: none; border-radius: 16px">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"></path></svg>
+      </button>
+    </div>
+    <span style="font-size: 15px; color: {{t.muted}}">Drop · Low middle · #702 <span style="color: {{t.outline}}">·</span> swipe the code for another</span>
+  </div>
+
+  <div style="flex: 0 0 66px; display: flex; align-items: center; justify-content: center; background: {{t.bg}}">
+    <span style="height: 50px; padding: 0 22px; display: flex; align-items: center; background: {{t.grass}}; color: {{t.onGrass}}; border-radius: 8px; font-size: 24px; font-weight: 700">Drop</span>
+  </div>
+
+  <div style="flex: 0 0 810px; position: relative; background: {{t.bg}}; overflow: hidden">
+    <svg width="1024" height="810" viewBox="0 0 1024 810" style="position: absolute; left: 0; top: 0" role="img" aria-label="The zone for a right-handed batter, Drop callable at four spots in the zone and two below it, low middle called">
+      <rect x="0" y="680" width="1024" height="130" fill="{{t.dirt}}"></rect>
+      <line x1="0" y1="680" x2="1024" y2="680" stroke="{{t.groundLine}}" stroke-width="1.5"></line>
+      <polygon points="407,668 617,668 617,682 512,712 407,682" fill="{{t.plate}}" stroke="{{t.plateStroke}}" stroke-width="2"></polygon>
+
+      <rect x="410" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="480" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="550" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="410" y="294" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="480" y="294" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="550" y="294" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="410" y="392.8" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="480" y="392.8" width="64" height="92.8" rx="4" fill="{{t.grass}}"></rect>
+      <rect x="550" y="392.8" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="480" y="491.6" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="620" y="491.6" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+
+      <rect x="407" y="192.2" width="210" height="296.4" fill="none" stroke="{{t.zone}}" stroke-width="2.5"></rect>
+      <line x1="477" y1="192.2" x2="477" y2="488.6" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="547" y1="192.2" x2="547" y2="488.6" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="407" y1="291" x2="617" y2="291" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="407" y1="389.8" x2="617" y2="389.8" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+
+      <text x="372" y="345" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">IN</text>
+      <text x="652" y="345" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">AWAY</text>
+    </svg>
+  </div>
+
+  <div style="flex: 1; display: flex; align-items: center; gap: 16px; padding: 0 28px; background: {{t.card}}; border-top: 1px solid {{t.hair}}; box-sizing: border-box">
+    <button type="button" style="height: 64px; padding: 0 18px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 1.5px solid {{t.outline}}; border-radius: 13px; text-align: left">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      <span style="display: flex; flex-direction: column; gap: 1px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">DISCARD PITCH</span>
+        <span style="font-size: 15px; font-weight: 700">Back to the pitch list</span>
+      </span>
+    </button>
+    <div style="flex: 1"></div>
+    <span style="font-size: 15px; color: {{t.muted}}">Shake-off? Tap another spot. Nothing is recorded until ✓.</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light","tsType":"string","section":"Theme"},"$preview":{"width":1024,"height":1366}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const light = {
+      bg: '#F4F2EB', card: '#FFFEF9', strip: '#E7E5DE', hair: '#D6D3C8',
+      text: '#16211C', muted: '#4A4A44', outline: '#8A8A80', strong: '#16211C',
+      chip: '#16211C', onChip: '#F4F2EB',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', grassLine: '#2E5E3E', code: '#2E5E3E',
+      clayDot: '#B4643C', clayText: '#9A4F2C',
+      lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#FFFEF9', darkSegText: '#16211C',
+      wash: 'rgba(46,94,62,0.14)', washLine: 'rgba(46,94,62,0.34)', offDash: 'rgba(46,94,62,0.55)',
+      zone: '#16211C', zoneGrid: 'rgba(22,33,28,0.35)',
+      dirt: '#C9A87A', groundLine: 'rgba(22,33,28,0.3)',
+      plate: '#FFFEF9', plateStroke: '#16211C'
+    };
+    const dark = {
+      bg: '#0E1613', card: '#16211C', strip: '#1E2C25', hair: '#2A3A32',
+      text: '#F4F2EB', muted: '#A9C0AF', outline: '#8FA396', strong: '#A9C0AF',
+      chip: '#F4F2EB', onChip: '#16211C',
+      grass: '#2E5E3E', onGrass: '#FFFEF9', grassLine: '#5FA97A', code: '#5FA97A',
+      clayDot: '#B4643C', clayText: '#D07E4E',
+      lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#F4F2EB', darkSegText: '#16211C',
+      wash: 'rgba(46,94,62,0.18)', washLine: 'rgba(46,94,62,0.42)', offDash: 'rgba(95,169,122,0.55)',
+      zone: '#F4F2EB', zoneGrid: 'rgba(244,242,235,0.3)',
+      dirt: '#4A3F31', groundLine: 'rgba(244,242,235,0.25)',
+      plate: '#16211C', plateStroke: '#A9C0AF'
+    };
+    return { t: (this.props.theme ?? 'light') === 'dark' ? dark : light };
+  }
+}
+</script>
+</body>
+</html>
