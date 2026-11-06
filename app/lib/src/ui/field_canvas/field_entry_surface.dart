@@ -15,6 +15,7 @@ import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
+import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -259,15 +260,19 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     ink: scheme.onSurface,
                     accent: scheme.primary,
                     surface: scheme.surface,
+                    onAccent: scheme.onPrimary,
+                    seam: DiamondSemantics.of(context).clayLine,
                     landing: draft.landing,
                     rollEnd: draft.rollEnd,
                     tokens: tokens,
                     dragPosition: _drag?.current,
                     dragTokenId: _drag?.runnerId,
                     dragFielderPosition: _drag?.fielderPosition,
-                    // Seed included, so the ring is right between pitches
-                    // too — and absent once the ball is loose.
+                    // Seed included, so the holder is right between pitches
+                    // too — and absent once the ball is loose, which is when
+                    // [ballAt] draws it loose instead.
                     holderPosition: draft.holderPosition,
+                    ballAt: draft.ballAt,
                     movedFielders: draft.movedFielders,
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,

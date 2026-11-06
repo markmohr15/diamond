@@ -3,6 +3,24 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.62
+
+**Tablet is the target device (§21.1), and the holder's size is a step, not a pixel count
+(§15.1).** DIA-018a, ruled by Mark on 2026-11-06.
+
+**§21.1.** The spec never mentioned phones; only CLAUDE.md's opening said "phone-capable", and no
+board or golden had ever been drawn at phone size. Mark: *"we have a ton of stuff on the screen
+and that's going to make using a phone tough."* The scoring surfaces are where it breaks first:
+§11.4's ±4.0 lateral range gives a zone about 225 px wide on a 1024-wide tablet and about 85 px
+on a phone in portrait. A phone is now a post-M1 question, more likely answered by the review
+surfaces than by live scoring.
+
+**§15.1.** v0.60 gave the holder's token as "64 against the others' 54", which were 14A's pixels on
+a 1024-wide board. The build draws fielders at a 15 px radius, so taking the numbers literally
+would have nearly doubled every token, with the hit-testing and overlap changes that brings. The
+bullet now states the relationship: one size up, about a fifth larger than the other fielders, at
+whatever size the surface draws them.
+
 ## v0.61
 
 **§11.1 describes the outcome step that was built.** Found in the Turn 15 design review

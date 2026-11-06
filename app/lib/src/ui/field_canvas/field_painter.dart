@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
+import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:flutter/material.dart';
 
@@ -47,6 +48,8 @@ class FieldPainter extends CustomPainter {
     required this.ink,
     required this.accent,
     required this.surface,
+    required this.onAccent,
+    required this.seam,
     this.landing,
     this.rollEnd,
     this.tokens = const [],
@@ -54,6 +57,7 @@ class FieldPainter extends CustomPainter {
     this.dragTokenId,
     this.dragFielderPosition,
     this.holderPosition,
+    this.ballAt,
     this.movedFielders = const {},
     this.route = const [],
     this.forcePlayBase,
@@ -72,6 +76,14 @@ class FieldPainter extends CustomPainter {
   /// Token text color against [accent] fills.
   final Color surface;
 
+  /// Label color on an [accent] fill (`colorScheme.onPrimary`, which
+  /// `deriveScheme` picks by contrast against the accent itself).
+  final Color onAccent;
+
+  /// The ball's seams: Clay as line (`DiamondSemantics.clayLine`), which
+  /// never moves with a team accent (§23.3).
+  final Color seam;
+
   final FieldCoord? landing;
   final FieldCoord? rollEnd;
   final List<RunnerToken> tokens;
@@ -86,9 +98,15 @@ class FieldPainter extends CustomPainter {
   /// wherever she is dropped is where the ball went).
   final int? dragFielderPosition;
 
-  /// The position currently holding the ball, ringed in accent — where a
-  /// throw drag starts (§15.1).
+  /// The position currently holding the ball — where a throw drag starts
+  /// (§15.1). Her token is the one filled on the field.
   final int? holderPosition;
+
+  /// Where the ball is (`PlayDraft.ballAt`). With no [holderPosition] it is
+  /// drawn **loose** here; null draws no ball at all, which is the case
+  /// between pitches when the pitch got past the catcher and nobody has
+  /// said where it went.
+  final FieldCoord? ballAt;
 
   /// Where the fielder drag left fielders this play — overrides the
   /// standard spot for the positions it names.
@@ -111,6 +129,19 @@ class FieldPainter extends CustomPainter {
 
   static const double _tokenRadiusPx = 20;
 
+  /// Fielder tokens, and the holder's one size up (§15.1 v0.62): the step
+  /// 14A draws as 64 against 54, applied to the surface's own size.
+  static const double _fielderRadiusPx = 15;
+  static const double _holderRadiusPx = 18;
+
+  /// The ball glyph, and the dashed ground ring a loose ball sits in.
+  static const double _ballRadiusPx = 6.5;
+  static const double _looseRingRadiusPx = 10;
+
+  /// How close the ball must lie to a fielder's token to be drawn *at her
+  /// feet* — over her token's lower edge — rather than in the open.
+  static const double _atFeetPx = _fielderRadiusPx + 6;
+
   /// How close (px) a dragged runner must be to a base before its Safe/Out
   /// pair fades in (§15.1 v0.43).
   static const double approachRadiusPx = 110;
@@ -132,6 +163,10 @@ class FieldPainter extends CustomPainter {
     _paintFielders(canvas, faint);
     _paintPlay(canvas);
     _paintRoute(canvas);
+    _paintLooseBall(canvas);
+    // After the play's own marks: a ball caught where it landed puts the
+    // landing marker on her spot, and it must not cover her label.
+    _paintHolder(canvas);
     _paintBaseTargets(canvas);
     _paintTokens(canvas);
   }
@@ -228,7 +263,7 @@ class FieldPainter extends CustomPainter {
       canvas,
       text,
       center,
-      lit ? surface : ink,
+      lit ? onAccent : ink,
       fontSize: 15,
       bold: true,
     );
@@ -299,33 +334,194 @@ class FieldPainter extends CustomPainter {
       );
   }
 
+  /// Where a fielder renders right now: on the finger while she is in hand,
+  /// else where this play moved her, else her standard spot.
+  Map<int, Offset> _fielderCenters() {
+    return {
+      for (final entry in standardFielderSpots(geometry.profile).entries)
+        entry.key: entry.key == dragFielderPosition && dragPosition != null
+            ? dragPosition!
+            : geometry.toPx(movedFielders[entry.key] ?? entry.value),
+    };
+  }
+
   void _paintFielders(Canvas canvas, Paint faint) {
-    final spots = standardFielderSpots(geometry.profile);
-    for (final entry in spots.entries) {
-      final inHand = entry.key == dragFielderPosition && dragPosition != null;
-      final px = inHand
-          ? dragPosition!
-          : geometry.toPx(movedFielders[entry.key] ?? entry.value);
-      canvas.drawCircle(px, 15, faint);
-      // The ball's current holder: accent ring — the throw drag's grip.
-      if (entry.key == holderPosition) {
-        canvas.drawCircle(
-          px,
-          19,
-          Paint()
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 2
-            ..color = accent,
-        );
-      }
+    for (final MapEntry(key: position, value: px)
+        in _fielderCenters().entries) {
+      if (position == holderPosition) continue;
+      canvas.drawCircle(px, _fielderRadiusPx, faint);
       _paintLabel(
         canvas,
-        positionAbbreviations[entry.key] ?? '${entry.key}',
+        positionAbbreviations[position] ?? '$position',
         px,
         ink.withValues(alpha: 0.55),
         fontSize: 11,
       );
     }
+  }
+
+  void _paintHolder(Canvas canvas) {
+    final position = holderPosition;
+    final px = position == null ? null : _fielderCenters()[position];
+    if (position == null || px == null) return;
+    final label = positionAbbreviations[position] ?? '$position';
+    // Who has the ball, three ways at once and none of them motion
+    // (§15.1 v0.60): the only filled token on the field, a heavy ink ring
+    // and one size up; the ball seated in her rim; HAS BALL beneath. Fill
+    // against outline and ink against nothing are differences of value, not
+    // hue, so they survive glare and grayscale.
+    canvas
+      ..drawCircle(px, _holderRadiusPx, Paint()..color = accent)
+      ..drawCircle(
+        px,
+        _holderRadiusPx,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..color = ink,
+      );
+    _paintLabel(canvas, label, px, onAccent, fontSize: 12, bold: true);
+    const rim = _holderRadiusPx * math.sqrt1_2;
+    _paintBall(canvas, px + const Offset(rim, -rim), ring: ink);
+    _paintTag(canvas, 'HAS BALL', _below(px, _holderRadiusPx), solid: true);
+  }
+
+  /// A loose ball (§15.1 v0.60) is a different object, not a weaker holder:
+  /// the ball in a dashed ground ring with a dashed LOOSE tag, and every
+  /// token left neutral. Nothing to draw while someone holds it — the ball
+  /// rides her token — or once it is over the fence and out of play.
+  void _paintLooseBall(Canvas canvas) {
+    final at = ballAt;
+    if (at == null || holderPosition != null) return;
+    if (FieldGeometry.isFair(at) && geometry.fenceDepthFt(at) < 0) return;
+    var center = geometry.toPx(at);
+    // At a fielder's feet — a boot, a deflection, "missed it" where she was
+    // dropped — the ball sits over her token's lower edge, so *the ball is
+    // here* and *she has it* stay distinct at zero separation (§15.1). Her
+    // label stays clear above it.
+    for (final px in _fielderCenters().values) {
+      if ((px - center).distance <= _atFeetPx) {
+        center = px + const Offset(0, _fielderRadiusPx + 2);
+        break;
+      }
+    }
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..color = ink.withValues(alpha: 0.75);
+    canvas
+      ..drawCircle(center, _looseRingRadiusPx, Paint()..color = surface)
+      ..drawPath(
+        _dashed(
+          Path()..addOval(
+            Rect.fromCircle(center: center, radius: _looseRingRadiusPx),
+          ),
+          dash: 4,
+          gap: 3,
+        ),
+        ringPaint,
+      );
+    _paintBall(canvas, center, ring: ink.withValues(alpha: 0.75));
+    _paintTag(canvas, 'LOOSE', _below(center, _looseRingRadiusPx));
+  }
+
+  /// The ball glyph: Chalk with Clay seams in both themes, since a ball is
+  /// white whatever the screen is doing.
+  void _paintBall(Canvas canvas, Offset center, {required Color ring}) {
+    const r = _ballRadiusPx;
+    canvas
+      ..drawCircle(center, r, Paint()..color = BrandBaseline.onBrandFill)
+      ..drawCircle(
+        center,
+        r,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5
+          ..color = ring,
+      );
+    final seams = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..color = seam;
+    for (final side in const [-1.0, 1.0]) {
+      canvas.drawArc(
+        Rect.fromCircle(
+          center: center + Offset(side * r * 1.15, 0),
+          radius: r * 0.85,
+        ),
+        side < 0 ? -math.pi / 3 : math.pi * 2 / 3,
+        math.pi * 2 / 3,
+        false,
+        seams,
+      );
+    }
+  }
+
+  /// Where a tag beneath something of [radius] centers — flipped above it
+  /// when beneath would leave the canvas, as it can for the catcher.
+  Offset _below(Offset center, double radius) {
+    const gap = 4.0;
+    const half = _tagHeightPx / 2;
+    final under = center.dy + radius + gap + half;
+    final dy = under + half <= geometry.size.height
+        ? under
+        : center.dy - radius - gap - half;
+    return Offset(center.dx, dy);
+  }
+
+  static const double _tagHeightPx = 16;
+
+  /// A small mono tag. [solid] is Ink with Chalk text (HAS BALL); otherwise
+  /// a dashed outline (LOOSE), matching the dashed ring it labels.
+  void _paintTag(
+    Canvas canvas,
+    String text,
+    Offset center, {
+    bool solid = false,
+  }) {
+    final width = 9.0 + text.length * 6.4;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: center, width: width, height: _tagHeightPx),
+      const Radius.circular(4),
+    );
+    if (solid) {
+      canvas.drawRRect(rect, Paint()..color = ink);
+    } else {
+      canvas
+        ..drawRRect(rect, Paint()..color = surface)
+        ..drawPath(
+          _dashed(Path()..addRRect(rect), dash: 4, gap: 3),
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.2
+            ..color = ink.withValues(alpha: 0.75),
+        );
+    }
+    _paintLabel(
+      canvas,
+      text,
+      center,
+      solid ? surface : ink,
+      fontSize: 9.5,
+      bold: true,
+    );
+  }
+
+  /// [source] cut into dashes along its length.
+  static Path _dashed(
+    Path source, {
+    required double dash,
+    required double gap,
+  }) {
+    final out = Path();
+    for (final metric in source.computeMetrics()) {
+      var d = 0.0;
+      while (d < metric.length) {
+        out.addPath(metric.extractPath(d, d + dash), Offset.zero);
+        d += dash + gap;
+      }
+    }
+    return out;
   }
 
   void _paintPlay(Canvas canvas) {
@@ -405,7 +601,9 @@ class FieldPainter extends CustomPainter {
         canvas,
         token.label,
         center,
-        surface,
+        // On the accent while she is in hand, so its on-color; `surface` is
+        // dark after dark and vanished against the fill.
+        dragging ? onAccent : surface,
         fontSize: 14,
         bold: true,
       );
@@ -465,6 +663,9 @@ class FieldPainter extends CustomPainter {
         oldDelegate.dragTokenId != dragTokenId ||
         oldDelegate.dragFielderPosition != dragFielderPosition ||
         oldDelegate.holderPosition != holderPosition ||
+        oldDelegate.ballAt != ballAt ||
+        oldDelegate.onAccent != onAccent ||
+        oldDelegate.seam != seam ||
         oldDelegate.movedFielders != movedFielders ||
         oldDelegate.route != route ||
         oldDelegate.forcePlayBase != forcePlayBase ||
