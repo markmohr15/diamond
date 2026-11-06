@@ -98,30 +98,44 @@ a{color:#2E5E3E}a:hover{color:#16211C}
 
   <div style="flex: 0 0 810px; position: relative; background: {{t.bg}}; overflow: hidden">
     <svg width="1024" height="810" viewBox="0 0 1024 810" style="position: absolute; left: 0; top: 0" role="img" aria-label="The zone for a right-handed batter, Drop callable at four spots in the zone and two below it, low middle called">
-      <rect x="0" y="680" width="1024" height="130" fill="{{t.dirt}}"></rect>
-      <line x1="0" y1="680" x2="1024" y2="680" stroke="{{t.groundLine}}" stroke-width="1.5"></line>
-      <polygon points="407,668 617,668 617,682 512,712 407,682" fill="{{t.plate}}" stroke="{{t.plateStroke}}" stroke-width="2"></polygon>
+      <defs>
+        <linearGradient id="fade" gradientUnits="userSpaceOnUse" x1="0" y1="554.6" x2="0" y2="681.7">
+          <stop offset="0" stop-color="{{t.dirt}}" stop-opacity="0"></stop>
+          <stop offset="1" stop-color="{{t.dirt}}" stop-opacity="0.55"></stop>
+        </linearGradient>
+        <linearGradient id="chalkFade" gradientUnits="userSpaceOnUse" x1="0" y1="591.9" x2="0" y2="681.7">
+          <stop offset="0" stop-color="{{t.chalk}}" stop-opacity="0.3"></stop>
+          <stop offset="1" stop-color="{{t.chalk}}" stop-opacity="1"></stop>
+        </linearGradient>
+      </defs>
+      <rect x="0" y="554.6" width="1024" height="127.1" fill="url(#fade)"></rect>
+      <rect x="0" y="681.7" width="1024" height="128.3" fill="{{t.dirt}}"></rect>
+      <polygon points="742.7,810.0 790.4,810.0 710.9,591.9 676.8,591.9" fill="url(#chalkFade)"></polygon>
+      <polygon points="281.3,810.0 233.6,810.0 313.1,591.9 347.2,591.9" fill="url(#chalkFade)"></polygon>
+      <polygon points="676.8,591.9 962.0,591.9 962.0,586.1 675.0,586.1" fill="{{t.chalk}}" opacity="0.3"></polygon>
+      <polygon points="347.2,591.9 62.0,591.9 62.0,586.1 349.0,586.1" fill="{{t.chalk}}" opacity="0.3"></polygon>
+      <polygon points="399.5,681.7 624.5,681.7 628.6,705.0 512.0,730.1 395.4,705.0" fill="{{t.plate}}" stroke="{{t.plateStroke}}" stroke-width="2"></polygon>
 
-      <rect x="410" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
-      <rect x="480" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
-      <rect x="550" y="195.2" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
-      <rect x="410" y="294" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
-      <rect x="480" y="294" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
-      <rect x="550" y="294" width="64" height="92.8" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
-      <rect x="410" y="392.8" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
-      <rect x="480" y="392.8" width="64" height="92.8" rx="4" fill="{{t.grass}}"></rect>
-      <rect x="550" y="392.8" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
-      <rect x="480" y="491.6" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
-      <rect x="620" y="491.6" width="64" height="92.8" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="402.5" y="161.8" width="69.0" height="99.9" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="477.5" y="161.8" width="69.0" height="99.9" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="552.5" y="161.8" width="69.0" height="99.9" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="402.5" y="267.7" width="69.0" height="99.9" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="477.5" y="267.7" width="69.0" height="99.9" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="552.5" y="267.7" width="69.0" height="99.9" rx="4" fill="none" stroke="{{t.offDash}}" stroke-width="1.5" stroke-dasharray="6 5"></rect>
+      <rect x="402.5" y="373.6" width="69.0" height="99.9" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="477.5" y="373.6" width="69.0" height="99.9" rx="4" fill="{{t.grass}}"></rect>
+      <rect x="552.5" y="373.6" width="69.0" height="99.9" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="477.5" y="479.4" width="69.0" height="99.9" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
+      <rect x="627.5" y="479.4" width="69.0" height="99.9" rx="4" fill="{{t.wash}}" stroke="{{t.washLine}}" stroke-width="1.5"></rect>
 
-      <rect x="407" y="192.2" width="210" height="296.4" fill="none" stroke="{{t.zone}}" stroke-width="2.5"></rect>
-      <line x1="477" y1="192.2" x2="477" y2="488.6" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
-      <line x1="547" y1="192.2" x2="547" y2="488.6" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
-      <line x1="407" y1="291" x2="617" y2="291" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
-      <line x1="407" y1="389.8" x2="617" y2="389.8" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <rect x="399.5" y="158.8" width="225.0" height="317.7" fill="none" stroke="{{t.zone}}" stroke-width="2.5"></rect>
+      <line x1="474.5" y1="158.8" x2="474.5" y2="476.5" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="549.5" y1="158.8" x2="549.5" y2="476.5" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="399.5" y1="264.7" x2="624.5" y2="264.7" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
+      <line x1="399.5" y1="370.6" x2="624.5" y2="370.6" stroke="{{t.zoneGrid}}" stroke-width="1"></line>
 
-      <text x="372" y="345" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">IN</text>
-      <text x="652" y="345" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">AWAY</text>
+      <text x="362.0" y="317.6" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">IN</text>
+      <text x="662.0" y="317.6" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1.4" fill="{{t.muted}}">AWAY</text>
     </svg>
   </div>
 
@@ -150,7 +164,7 @@ class Component extends DCLogic {
       lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#FFFEF9', darkSegText: '#16211C',
       wash: 'rgba(46,94,62,0.14)', washLine: 'rgba(46,94,62,0.34)', offDash: 'rgba(46,94,62,0.55)',
       zone: '#16211C', zoneGrid: 'rgba(22,33,28,0.35)',
-      dirt: '#C9A87A', groundLine: 'rgba(22,33,28,0.3)',
+      dirt: '#C9A87A', chalk: '#FFFEF9',
       plate: '#FFFEF9', plateStroke: '#16211C'
     };
     const dark = {
@@ -162,7 +176,7 @@ class Component extends DCLogic {
       lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#F4F2EB', darkSegText: '#16211C',
       wash: 'rgba(46,94,62,0.18)', washLine: 'rgba(46,94,62,0.42)', offDash: 'rgba(95,169,122,0.55)',
       zone: '#F4F2EB', zoneGrid: 'rgba(244,242,235,0.3)',
-      dirt: '#4A3F31', groundLine: 'rgba(244,242,235,0.25)',
+      dirt: '#4A3F31', chalk: '#CFCBBE',
       plate: '#16211C', plateStroke: '#A9C0AF'
     };
     return { t: (this.props.theme ?? 'light') === 'dark' ? dark : light };
