@@ -42,68 +42,83 @@ a{color:#2E5E3E}a:hover{color:#16211C}
     </button>
   </div>
 
-  <div style="flex: 0 0 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.panel}}; color: {{t.onPanel}}; box-sizing: border-box">
-    <div style="display: flex; align-items: center; gap: 14px">
-      <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.14em">IN THE DIRT</span>
-      <span style="font-size: 16px; color: {{t.onPanelMuted}}">Where did it land? Lifting your finger records it.</span>
-    </div>
-    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.1em; color: {{t.onPanelMuted}}">TOP-DOWN · 12 PX / IN</span>
-  </div>
-
-  <div style="flex: 1; position: relative; display: flex; overflow: hidden">
-
-    <div style="flex: 0 0 190px; position: relative; background: {{t.card}}; border-right: 1px solid {{t.hair}}">
-      <div style="position: absolute; left: 0; right: 0; top: 0; height: 272px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 18px; border-bottom: 1px dashed {{t.outline}}; box-sizing: border-box">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em">SHORT · 2 FT +</span>
-        <span style="font-size: 14px; color: {{t.muted}}">Well out front</span>
+  <div style="flex: 0 0 68px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; background: {{t.strip}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">BATS</span>
+      <div style="height: 46px; display: flex; border: 1.5px solid {{t.strong}}; border-radius: 11px; overflow: hidden; box-sizing: border-box">
+        <button type="button" style="padding: 0 16px; border: none; background: {{t.chip}}; color: {{t.onChip}}; font-size: 15px; font-weight: 700">Right</button>
+        <button type="button" style="padding: 0 16px; border: none; background: {{t.card}}; font-size: 15px; font-weight: 700">Left</button>
       </div>
-      <div style="position: absolute; left: 0; right: 0; top: 272px; height: 144px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 18px; border-bottom: 1px dashed {{t.outline}}; box-sizing: border-box">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em">SHORT · 1–2 FT</span>
-        <span style="font-size: 14px; color: {{t.muted}}">Catchable on a hop</span>
-      </div>
-      <div style="position: absolute; left: 0; right: 0; top: 416px; height: 144px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 18px; border-bottom: 2px solid {{t.strong}}; box-sizing: border-box">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em">SHORT · &lt; 1 FT</span>
-        <span style="font-size: 14px; color: {{t.muted}}">At the front edge</span>
-      </div>
-      <div style="position: absolute; left: 0; right: 0; top: 560px; height: 204px; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 18px; border-bottom: 2px solid {{t.strong}}; box-sizing: border-box; background: {{t.raised}}">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em">ON THE PLATE</span>
-        <span style="font-size: 14px; color: {{t.muted}}">Bounced on it</span>
-      </div>
-      <div style="position: absolute; left: 0; right: 0; top: 764px; bottom: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 0 18px; box-sizing: border-box">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.08em">PAST THE PLATE</span>
-        <span style="font-size: 14px; color: {{t.muted}}">Skipped through</span>
-      </div>
-    </div>
-
-    <div style="flex: 1; position: relative; background: {{t.dirt}}">
-      <div style="position: absolute; left: 0; right: 0; top: 0; height: 272px; background: {{t.shadeFar}}"></div>
-      <div style="position: absolute; left: 0; right: 0; top: 272px; height: 144px; background: {{t.shadeNear}}"></div>
-      <div style="position: absolute; left: 0; right: 0; top: 764px; bottom: 0; background: {{t.shadePast}}"></div>
-      <div style="position: absolute; left: 0; right: 0; top: 271px; height: 0; border-top: 2px dashed {{t.bandLine}}"></div>
-      <div style="position: absolute; left: 0; right: 0; top: 415px; height: 0; border-top: 2px dashed {{t.bandLine}}"></div>
-
-      <div style="position: absolute; left: 112px; top: 0; bottom: 0; width: 36px; background: {{t.chalk}}"></div>
-      <div style="position: absolute; left: 496px; top: 0; bottom: 0; width: 36px; background: {{t.chalk}}"></div>
-
-      <svg width="834" height="1034" viewBox="0 0 834 1034" style="position: absolute; left: 0; top: 0" role="img" aria-label="Home plate from above, front edge toward the pitcher">
-        <polygon points="220,560 424,560 424,662 322,764 220,662" fill="{{t.plate}}" stroke="{{t.plateStroke}}" stroke-width="3"></polygon>
-        <line x1="0" y1="560" x2="834" y2="560" stroke="{{t.plateStroke}}" stroke-width="2" stroke-dasharray="2 8" opacity="0.6"></line>
+      <svg width="40" height="40" viewBox="0 0 40 40" role="img" aria-label="Runner on second" style="margin-left: 10px">
+        <rect x="21" y="14" width="12" height="12" transform="rotate(45 27 20)" fill="none" stroke="{{t.outline}}" stroke-width="2"></rect>
+        <rect x="14" y="7" width="12" height="12" transform="rotate(45 20 13)" fill="{{t.text}}"></rect>
+        <rect x="7" y="14" width="12" height="12" transform="rotate(45 13 20)" fill="none" stroke="{{t.outline}}" stroke-width="2"></rect>
       </svg>
-
-      <div style="position: absolute; left: 279px; top: 490px; width: 44px; height: 44px; border-radius: 50%; background: {{t.ball}}; border: 3px solid {{t.ballRing}}; box-sizing: border-box; box-shadow: 0 0 0 2px {{t.ball}}"></div>
-      <div style="position: absolute; left: 301px; top: 440px; width: 0; height: 44px; border-left: 2px solid {{t.ball}}"></div>
-      <div style="position: absolute; left: 360px; top: 486px; height: 52px; padding: 0 16px; display: flex; align-items: center; gap: 12px; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 11px">
-        <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; letter-spacing: 0.06em">SHORT 4 IN · MIDDLE</span>
-        <span style="font-size: 14px; color: {{t.onChipMuted}}">lift to record</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <button type="button" style="height: 46px; padding: 0 15px; display: flex; align-items: center; gap: 9px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 11px">
+        <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">FIELD</span>
+        <span style="font-size: 14px; color: {{t.muted}}">steals, WP/PB</span>
+      </button>
+      <div style="width: 1px; height: 34px; background: {{t.outline}}; margin: 0 4px"></div>
+      <div style="height: 46px; display: flex; border: 1.5px solid {{t.strong}}; border-radius: 11px; overflow: hidden; box-sizing: border-box">
+        <button type="button" style="padding: 0 13px; border: none; background: {{t.lightSeg}}; color: {{t.lightSegText}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">LIGHT</button>
+        <button type="button" style="padding: 0 13px; border: none; background: {{t.darkSeg}}; color: {{t.darkSegText}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.06em">DARK</button>
       </div>
-
-      <div style="position: absolute; right: 24px; top: 572px; padding: 8px 12px; background: {{t.plaque}}; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em">FRONT EDGE · 0 FT</div>
-      <div style="position: absolute; left: 24px; bottom: 20px; padding: 8px 12px; background: {{t.plaque}}; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em">CATCHER</div>
-      <div style="position: absolute; left: 24px; top: 20px; padding: 8px 12px; background: {{t.plaque}}; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.08em">PITCHER ↑</div>
     </div>
   </div>
 
-  <div style="flex: 0 0 118px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 28px; background: {{t.card}}; border-top: 1px solid {{t.hair}}; box-sizing: border-box">
+  <div style="flex: 0 0 76px; display: flex; align-items: center; gap: 14px; padding: 0 28px; background: {{t.card}}; border-bottom: 1px solid {{t.hair}}; box-sizing: border-box">
+    <div style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: {{t.chip}}; color: {{t.onChip}}; border-radius: 10px">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: {{t.onChipMuted}}">1 CALL</span>
+      <span style="font-size: 15px; font-weight: 700">Drop · low middle · <span style="font-family: 'JetBrains Mono', monospace">702</span></span>
+      <span style="color: {{t.onChipMuted}}">✓</span>
+    </div>
+    <div style="width: 18px; height: 2px; background: {{t.outline}}"></div>
+    <div style="height: 44px; padding: 0 14px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 2px solid {{t.grassLine}}; border-radius: 10px; box-sizing: border-box">
+      <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: {{t.grassLine}}">2 RECORD</span>
+      <span style="font-size: 15px; font-weight: 700">In the dirt</span>
+    </div>
+    <div style="flex: 1"></div>
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: {{t.muted}}">PITCH 4 · LOCATION</span>
+  </div>
+
+  <div style="flex: 0 0 62px; display: flex; align-items: center; gap: 14px; padding: 0 28px; background: {{t.panel}}; color: {{t.onPanel}}; box-sizing: border-box">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; letter-spacing: 0.14em">IN THE DIRT</span>
+    <span style="font-size: 16px; color: {{t.onPanelMuted}}">Where did it land? Lifting your finger records it.</span>
+  </div>
+
+  <div style="flex: 0 0 154px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: {{t.bg}}">
+    <span style="font-family: 'JetBrains Mono', monospace; font-size: 44px; font-weight: 700; letter-spacing: -0.01em">4 in out front</span>
+    <span style="font-size: 15px; color: {{t.muted}}">Over the middle of the plate · lift to record</span>
+  </div>
+
+  <div style="flex: 0 0 810px; position: relative; background: {{t.dirt}}; overflow: hidden">
+    <svg width="1024" height="810" viewBox="0 0 1024 810" style="position: absolute; left: 0; top: 0" role="img" aria-label="Home plate from directly above with a gridline every foot; the finger is four inches in front of the plate, over the middle">
+      <rect x="280.4" y="0" width="39.7" height="810" fill="{{t.chalk}}"></rect>
+      <rect x="703.9" y="0" width="39.7" height="810" fill="{{t.chalk}}"></rect>
+      <line x1="0" y1="95.3" x2="1024" y2="95.3" stroke="{{t.gridLine}}" stroke-width="1.5"></line>
+      <text x="16" y="87.3" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">2 ft</text>
+      <text x="1008" y="87.3" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">2 ft</text>
+      <line x1="0" y1="254.1" x2="1024" y2="254.1" stroke="{{t.gridLine}}" stroke-width="1.5"></line>
+      <text x="16" y="246.1" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">1 ft</text>
+      <text x="1008" y="246.1" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">1 ft</text>
+      <line x1="0" y1="412.9" x2="1024" y2="412.9" stroke="{{t.gridLine}}" stroke-width="1.5"></line>
+      <text x="16" y="404.9" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">0 ft</text>
+      <text x="1008" y="404.9" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">0 ft</text>
+      <line x1="0" y1="571.7" x2="1024" y2="571.7" stroke="{{t.gridLine}}" stroke-width="1.5"></line>
+      <text x="16" y="563.7" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">1 ft</text>
+      <text x="1008" y="563.7" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">1 ft</text>
+      <line x1="0" y1="730.5" x2="1024" y2="730.5" stroke="{{t.gridLine}}" stroke-width="1.5"></line>
+      <text x="16" y="722.5" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">2 ft</text>
+      <text x="1008" y="722.5" text-anchor="end" font-family="JetBrains Mono, monospace" font-size="12" font-weight="700" letter-spacing="1" fill="{{t.gridText}}">2 ft</text>
+      <polygon points="399.5,412.9 624.5,412.9 624.5,525.4 512,637.9 399.5,525.4" fill="{{t.plate}}" stroke="{{t.plateStroke}}" stroke-width="3"></polygon>
+      <circle cx="516" cy="360.0" r="20" fill="{{t.ball}}" stroke="{{t.ballRing}}" stroke-width="3"></circle>
+      <circle cx="516" cy="360.0" r="23" fill="none" stroke="{{t.ball}}" stroke-width="2"></circle>
+    </svg>
+  </div>
+
+  <div style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 28px; background: {{t.card}}; border-top: 1px solid {{t.hair}}; box-sizing: border-box">
     <div style="display: flex; gap: 12px">
       <button type="button" style="height: 64px; padding: 0 22px; display: flex; align-items: center; gap: 10px; background: {{t.card}}; border: 1.5px solid {{t.strong}}; border-radius: 13px; font-size: 18px; font-weight: 700">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"></path><path d="m11 6-6 6 6 6"></path></svg>
@@ -114,11 +129,7 @@ a{color:#2E5E3E}a:hover{color:#16211C}
         <span style="font-size: 13px; color: {{t.muted}}">keeps side to side, records no depth</span>
       </button>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 3px; text-align: right">
-      <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: {{t.muted}}">PITCH 4</span>
-      <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700">DROP · IN THE DIRT</span>
-      <span style="font-size: 13px; color: {{t.muted}}">Then the result, as on 13A</span>
-    </div>
+    <span style="font-size: 14px; color: {{t.muted}}">Then the result, as on 13A</span>
   </div>
 </div>
 </x-dc>
@@ -126,26 +137,26 @@ a{color:#2E5E3E}a:hover{color:#16211C}
 class Component extends DCLogic {
   renderVals() {
     const light = {
-      bg: '#F4F2EB', card: '#FFFEF9', raised: '#F4F2EB', hair: '#D6D3C8',
+      bg: '#F4F2EB', card: '#FFFEF9', strip: '#E7E5DE', hair: '#D6D3C8',
       text: '#16211C', muted: '#4A4A44', outline: '#8A8A80', strong: '#16211C',
       chip: '#16211C', onChip: '#F4F2EB', onChipMuted: '#C9D6CC',
       panel: '#16211C', onPanel: '#F4F2EB', onPanelMuted: '#E3ECE5',
-      clayDot: '#B4643C', clayText: '#9A4F2C',
-      dirt: '#C9A87A', shadeFar: 'rgba(22,33,28,0.14)', shadeNear: 'rgba(22,33,28,0.08)',
-      shadePast: 'rgba(255,254,249,0.18)', bandLine: 'rgba(255,254,249,0.75)',
-      chalk: '#FFFEF9', plate: '#FFFEF9', plateStroke: '#16211C',
-      ball: '#16211C', ballRing: '#FFFEF9', plaque: 'rgba(255,254,249,0.92)'
+      grassLine: '#2E5E3E', clayDot: '#B4643C', clayText: '#9A4F2C',
+      lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#FFFEF9', darkSegText: '#16211C',
+      dirt: '#C9A87A', gridLine: 'rgba(22,33,28,0.28)', gridText: 'rgba(22,33,28,0.72)',
+      chalk: 'rgba(255,254,249,0.85)', plate: '#FFFEF9', plateStroke: '#16211C',
+      ball: '#16211C', ballRing: '#FFFEF9'
     };
     const dark = {
-      bg: '#0E1613', card: '#16211C', raised: '#1E2C25', hair: '#2A3A32',
+      bg: '#0E1613', card: '#16211C', strip: '#1E2C25', hair: '#2A3A32',
       text: '#F4F2EB', muted: '#A9C0AF', outline: '#8FA396', strong: '#A9C0AF',
       chip: '#F4F2EB', onChip: '#16211C', onChipMuted: '#4A4A44',
       panel: '#1E2C25', onPanel: '#F4F2EB', onPanelMuted: '#A9C0AF',
-      clayDot: '#B4643C', clayText: '#D07E4E',
-      dirt: '#4A3F31', shadeFar: 'rgba(0,0,0,0.26)', shadeNear: 'rgba(0,0,0,0.14)',
-      shadePast: 'rgba(244,242,235,0.06)', bandLine: 'rgba(244,242,235,0.45)',
-      chalk: '#CFCBBE', plate: '#26352E', plateStroke: '#A9C0AF',
-      ball: '#F4F2EB', ballRing: '#16211C', plaque: 'rgba(14,22,19,0.88)'
+      grassLine: '#5FA97A', clayDot: '#B4643C', clayText: '#D07E4E',
+      lightSeg: '#16211C', lightSegText: '#F4F2EB', darkSeg: '#F4F2EB', darkSegText: '#16211C',
+      dirt: '#4A3F31', gridLine: 'rgba(244,242,235,0.22)', gridText: 'rgba(244,242,235,0.7)',
+      chalk: 'rgba(207,203,190,0.7)', plate: '#26352E', plateStroke: '#A9C0AF',
+      ball: '#F4F2EB', ballRing: '#16211C'
     };
     return { t: (this.props.theme ?? 'light') === 'dark' ? dark : light };
   }

@@ -3,6 +3,24 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.61
+
+**§11.1 describes the outcome step that was built.** Found in the Turn 15 design review
+(2026-11-06), where 13A and the build agreed with each other and not with the spec.
+
+**The suggestion is gone.** §11.1 still had Diamond propose `ball` or `called_strike` from the
+tap location and lead the surface with it as one full-width button. Mark ruled it out on
+2026-08-23, and the outcome step was rebuilt without it. A location cannot tell a called strike
+from a swinging one, and a pitch in the zone is more often swung at than taken, so the
+suggestion's most confident case promoted the wrong button. The step now leads with five fixed
+outcomes ranked by frequency (ball, called strike, swinging strike, foul, in play), with in play
+on a full-width row of its own as v0.43 required, and an everything-else row below. The loop
+diagram and the tap budget lose "confirm or override" with it.
+
+**The batter actions are three.** The batter-action bullet still listed `bunt / pulled / slap /
+fake / slash`. §4.1's schema narrowed them to `bunt / slap / slash` in v0.52, because *pulled* and
+*fake* each stored whether she offered, which the outcome already says. The bullet now matches.
+
 ## v0.60
 
 **The field gets its own labeled controls (§15.5), and possession is redrawn (§15.1).** DIA-018,
