@@ -3,7 +3,9 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
+import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
+import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:flutter/material.dart';
 
@@ -16,16 +18,24 @@ const _canvasSize = Size(700, 640);
 /// — stage in ink, and only the play itself (landing, roll, tokens) in
 /// accent.
 void main() {
-  final scheme = deriveScheme(
+  ColorScheme schemeFor(Brightness brightness) => deriveScheme(
     accentSeed: StubTeamColors.ownTeam.primary!,
-    brightness: Brightness.light,
+    brightness: brightness,
   );
 
   Widget canvas({
     FieldCoord? landing,
     FieldCoord? endedAt,
     List<RunnerToken> tokens = const [],
+    int? holderPosition,
+    FieldCoord? ballAt,
+    Map<int, FieldCoord> movedFielders = const {},
+    Brightness brightness = Brightness.light,
   }) {
+    final scheme = schemeFor(brightness);
+    final seam = DiamondSemantics.fromBaseline(
+      brightness == Brightness.light ? BrandBaseline.light : BrandBaseline.dark,
+    ).clayLine;
     return ColoredBox(
       color: scheme.surface,
       child: CustomPaint(
@@ -38,9 +48,14 @@ void main() {
           ink: scheme.onSurface,
           accent: scheme.primary,
           surface: scheme.surface,
+          onAccent: scheme.onPrimary,
+          seam: seam,
           landing: landing,
           rollEnd: endedAt,
           tokens: tokens,
+          holderPosition: holderPosition,
+          ballAt: ballAt,
+          movedFielders: movedFielders,
         ),
       ),
     );
@@ -129,6 +144,65 @@ void main() {
             ],
           ),
         ),
+      ],
+    ),
+  );
+
+  // Who has the ball (§15.1 v0.60). The case this exists for is the last
+  // row: on 2026-09-04 a ball lying where a fielder had been dragged read as
+  // her holding it, so *the ball is here* and *she has it* have to differ at
+  // zero separation.
+  final shortstop = FieldCoord(x: -22.5, y: 84);
+  final possession = <(String, Widget Function(Brightness))>[
+    (
+      'between pitches: the catcher holds it by seed',
+      (b) => canvas(
+        brightness: b,
+        holderPosition: 2,
+        tokens: const [RunnerToken(runnerId: 'r2', label: '2', base: 2)],
+      ),
+    ),
+    (
+      'popup caught by the shortstop: she has it',
+      (b) => canvas(
+        brightness: b,
+        landing: shortstop,
+        holderPosition: 6,
+        ballAt: shortstop,
+      ),
+    ),
+    (
+      'grounder nobody has reached: loose in the open',
+      (b) => canvas(
+        brightness: b,
+        landing: FieldCoord(x: -50, y: 95),
+        ballAt: FieldCoord(x: -50, y: 95),
+      ),
+    ),
+    (
+      'booted by the shortstop: loose at her feet, not hers',
+      (b) => canvas(
+        brightness: b,
+        landing: FieldCoord(x: -40, y: 66),
+        ballAt: shortstop,
+        movedFielders: {6: shortstop},
+      ),
+    ),
+  ];
+
+  goldenTest(
+    'who has the ball, light and dark',
+    fileName: 'field_possession',
+    builder: () => GoldenTestGroup(
+      columns: 2,
+      children: [
+        for (final (name, build) in possession)
+          for (final b in Brightness.values.reversed)
+            GoldenTestScenario(
+              name: '$name (${b.name})',
+              constraints: BoxConstraints.tight(_canvasSize),
+              child: build(b),
+            ),
       ],
     ),
   );
