@@ -1,12 +1,12 @@
 # Diamond — CLAUDE.md
 
-Diamond is a tablet-first (phone-capable) **fastpitch softball** coaching app (baseball was cut in v0.55 — a
+Diamond is a **fastpitch softball** coaching app for tablets (phones are a post-M1 question, §21.1; baseball was cut in v0.55 — a
 different product with a different design; the taxonomy stays sport-agnostic so it could return as config): live pitch-by-pitch
 scoring with pitch calling (wristband codes), pitch locations (intended AND actual), batted-ball
 coordinates including fouls, misplay/error tracking, scouting books with heat maps and spray charts,
 and full stats — all offline-first. Built by Mark (senior dev, architect/reviewer) with Claude Code.
 
-**The full spec is `docs/spec.md` (v0.61). It is authoritative. When this file and the spec disagree,
+**The full spec is `docs/spec.md` (v0.62). It is authoritative. When this file and the spec disagree,
 the spec wins; flag the discrepancy.** Section references below (§N) point into that document.
 
 ## Architecture in five sentences
@@ -40,7 +40,7 @@ the spec wins; flag the discrepancy.** Section references below (§N) point into
 ## Repo map
 
 ```
-docs/spec.md        authoritative spec (v0.61)
+docs/spec.md        authoritative spec (v0.62)
 docs/spec-history.md  version history; the spec's status line keeps only the last three
 schema/             JSON Schema source of truth (common/ + events/)
 tools/codegen/      schema → Dart + TS generation (see its README)
