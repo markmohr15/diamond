@@ -56,4 +56,62 @@ void main() {
       expect(await store.load('other-game'), isNotNull);
     });
   });
+
+  group('committed plays (§15.5 v0.63: undo reopens them)', () {
+    const steal = PlayDraft(
+      pitchEventId: 'p-1',
+      batterId: '',
+      battedBall: false,
+    );
+    const play = PlayDraft(pitchEventId: 'p-2', batterId: 'opp-1');
+
+    test('takes the newest match and removes it', () async {
+      await store.pushCommitted('g', steal);
+      await store.pushCommitted('g', play);
+
+      final taken = await store.takeCommitted(
+        'g',
+        (d) => d.battedBall && d.pitchEventId == 'p-2',
+      );
+      expect(taken?.pitchEventId, 'p-2');
+      expect(
+        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-2'),
+        isNull,
+        reason: 'taken once',
+      );
+      expect(
+        (await store.takeCommitted('g', (d) => !d.battedBall))?.pitchEventId,
+        'p-1',
+      );
+    });
+
+    test('lives beside the crash journal without touching it', () async {
+      await store.save('g', play);
+      await store.pushCommitted('g', steal);
+      expect((await store.load('g'))?.pitchEventId, 'p-2');
+      await store.clear('g');
+      expect(
+        await store.takeCommitted('g', (_) => true),
+        isNotNull,
+        reason: 'clearing the open draft keeps the committed copies',
+      );
+    });
+
+    test('keeps only the last ${PlayJournalStore.committedDepth}', () async {
+      for (var i = 0; i < PlayJournalStore.committedDepth + 3; i++) {
+        await store.pushCommitted(
+          'g',
+          PlayDraft(pitchEventId: 'p-$i', batterId: 'b'),
+        );
+      }
+      expect(
+        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-0'),
+        isNull,
+      );
+      expect(
+        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-12'),
+        isNotNull,
+      );
+    });
+  });
 }

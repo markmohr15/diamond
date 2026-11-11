@@ -21,8 +21,6 @@ const Key countHudUndoKey = Key('countHudUndo');
 const Key countHudThemeKey = Key('countHudTheme');
 const Key countHudLogKey = Key('countHudLog');
 @visibleForTesting
-const Key countHudCancelKey = Key('countHudCancel');
-@visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
 @visibleForTesting
 const Key countHudUnsureKey = Key('countHudUnsure');
@@ -48,7 +46,8 @@ const Key countCorrectionSetKey = Key('countCorrectionSet');
 /// the words. Long-press on the count opens §12.5's CountCorrection sheet —
 /// the checkpoint that clears it.
 ///
-/// Undo lives here too: top-level, always visible, one event per tap (§6).
+/// Undo lives here too: top-level, always visible, one action per tap (§6),
+/// and labeled with the action it would take (DIA-021a).
 class CountHud extends ConsumerWidget {
   const CountHud({super.key});
 
@@ -74,12 +73,18 @@ class CountHud extends ConsumerWidget {
     // the strip a solid block of chroma.
     final foreground = scheme.onSurface;
 
-    // Optimistic while the check is in flight: the button guesses, and
+    final isDark = ref.watch(themeModeProvider).valueOrNull == ThemeMode.dark;
+
+    // §15.5 v0.60: off while a play is open — the field's own controls own
+    // that screen. Known synchronously, so it never flickers.
+    final playOpen = ref.watch(playDraftProvider).valueOrNull != null;
+    // Optimistic while the first check is in flight: the button guesses, and
     // `undoLast` re-reads the seal and is authoritative. Defaulting to
     // disabled would make the first tap after every action a dead one.
-    final isDark = ref.watch(themeModeProvider).valueOrNull == ThemeMode.dark;
-    final canCancel = ref.watch(canCancelProvider);
-    final canUndo = ref.watch(canUndoProvider).valueOrNull ?? true;
+    final undo = ref.watch(undoLabelProvider);
+    final undoLabel = undo.valueOrNull;
+    final canUndo =
+        !playOpen && (undoLabel != null || (undo.isLoading && !undo.hasValue));
 
     return Container(
       key: countHudKey,
@@ -147,8 +152,7 @@ class CountHud extends ConsumerWidget {
           const SizedBox(width: 12),
           // DIA-024b: the half-inning, read back. Hidden by default and
           // opened from here (Mark, 2026-09-29) — review rather than
-          // chrome, so it takes a tap and no permanent space. It sits
-          // outside the ↺/✕ pair, which is one cluster with one meaning.
+          // chrome, so it takes a tap and no permanent space.
           IconButton(
             key: countHudLogKey,
             onPressed: () => showPlayLog(context),
@@ -171,57 +175,35 @@ class CountHud extends ConsumerWidget {
             // Names what the tap *does*, not what is showing.
             tooltip: isDark ? 'Light' : 'Dark',
           ),
-          // Disabled rather than inert when the plate appearance behind it
-          // is sealed (§11.3 v0.54). A button that silently does nothing
-          // reads as a bug, and this one declines often by design.
-          IconButton(
-            key: countHudUndoKey,
-            // Through the pitch flow, not straight to the store: undoing a
-            // pitch hands its call and location back to the loop (§11.3).
-            onPressed: canUndo
-                ? () => ref.read(pitchFlowProvider.notifier).undoLast()
-                : null,
-            icon: Icon(
-              Icons.undo,
-              color: canUndo ? foreground : foreground.withValues(alpha: 0.35),
+          // DIA-021a: the button names what it will take — "UNDO PITCH 3",
+          // "UNDO WP" — because a bare ↺ could mean the pitch, the play or
+          // the entry step, and greyed out it explained nothing. When nothing
+          // is reachable it is **not on screen** (§23.1 v0.63, reversing
+          // §11.3 v0.54's disable), and it keeps its space so the strip
+          // never shifts when it comes back.
+          Visibility(
+            visible: canUndo,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: OutlinedButton.icon(
+              key: countHudUndoKey,
+              // Through the pitch flow, not straight to the store: undoing
+              // a pitch hands its call and location back (§11.3).
+              onPressed: canUndo
+                  ? () => ref.read(pitchFlowProvider.notifier).undoLast()
+                  : null,
+              style: OutlinedButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: foreground,
+              ),
+              icon: const Icon(Icons.undo, size: 18),
+              label: Text(undoLabel ?? 'UNDO', style: BrandType.eyebrow),
             ),
-            // Plain, both ways. An explanation here would live behind a
-            // long-press on a greyed-out button, which nobody performs — the
-            // disabled state has to carry the message by itself.
-            tooltip: 'Undo',
-          ),
-          // §15.2 v0.54: ↺ and ✕ are one cluster, on every screen, per the
-          // design — the ✕ that used to live in the field surface's own
-          // chrome, where it was one of two undo-shaped controls on two
-          // different layers.
-          IconButton(
-            key: countHudCancelKey,
-            onPressed: canCancel ? () => _cancel(ref) : null,
-            icon: Icon(
-              Icons.close,
-              color: canCancel ? foreground : foreground.withValues(alpha: .35),
-            ),
-            tooltip: 'Cancel',
           ),
         ],
       ),
     );
-  }
-
-  /// The top bar's ✕ (Mark, 2026-09-01).
-  ///
-  /// On a batted ball it **starts the play over in place** — the entries go,
-  /// the field stays up, and the trajectory question comes back to the front.
-  /// Cancel is "I got this play wrong", not "throw the pitch away too", and
-  /// leaving the field is undo's job.
-  ///
-  /// A between-pitch entry has no first question to return to, so there
-  /// cancel is what it always was: close the field, recording nothing.
-  void _cancel(WidgetRef ref) {
-    final draft = ref.read(playDraftProvider).valueOrNull;
-    if (draft == null) return;
-    final play = ref.read(playDraftProvider.notifier);
-    draft.battedBall ? play.startOver() : play.discard();
   }
 
   /// §12.5's CountCorrection sheet: "the scoreboard says 2-1, make it so."

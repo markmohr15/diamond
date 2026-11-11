@@ -4,6 +4,8 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
+import 'package:diamond/src/rules/logical_order.dart';
+import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
@@ -55,35 +57,175 @@ class UndoFloor extends Notifier<String?> {
   }
 }
 
-/// Whether undo has anything it may reach (§11.3 v0.54) — so the button can
-/// **show** it is unavailable instead of silently doing nothing when tapped.
+/// What the top bar's undo would take, as its label says it (DIA-021a) —
+/// null when there is nothing it may reach, which disables the button.
 ///
-/// A sealed plate appearance is the ordinary reason this goes false: the
-/// scorer has started the next pitch, and what came before is history.
-final canUndoProvider = FutureProvider<bool>((ref) async {
-  // A play on screen is always undoable: either a step comes off, or the
-  // whole play does and the pitch with it.
-  if (ref.watch(playDraftProvider).valueOrNull != null) return true;
+/// A sealed plate appearance is the ordinary reason this goes null: the
+/// scorer has started the next pitch, and what came before is history
+/// (§11.3 v0.54). **An open play is the other** (§15.5 v0.60): the field has
+/// its own Leave field, Start play over and Back one, and a second control
+/// meaning one of them is the "which undo am I pressing?" problem again.
+final undoLabelProvider = FutureProvider<String?>((ref) async {
+  if (ref.watch(playDraftProvider).valueOrNull != null) return null;
   // Rebuilds when the fold moves, which is every append and every void.
   ref.watch(gameControllerProvider);
   // The seal has to be read *here* as well as in `undoLast`, not just there:
   // the floor is frozen when undo runs, but the button has to know before it
   // is pressed. One predicate, two readers.
-  if (ref.watch(hasMovedOnProvider)) return false;
+  if (ref.watch(hasMovedOnProvider)) return null;
   final root = await ref
       .read(gameControllerProvider.notifier)
       .undoableRoot(floorEventId: ref.watch(undoFloorProvider));
-  return root != null;
+  if (root == null) return null;
+  // The same order the play log folds in, so the button and the log can
+  // never disagree about what a play scored as.
+  final visible = resolveVisibleLogicalOrder(
+    await ref
+        .read(eventStoreProvider)
+        .readRawStream(ref.read(gameSessionProvider).gameId),
+  );
+  return undoLabelFor(root, visible);
 });
 
-/// Whether the top bar's ✕ has anything to cancel: an open play draft.
+/// The words on the undo button for the action rooted at [root]: **what
+/// happened**, in scorebook terms (Mark, 2026-11-10) — UNDO SINGLE, UNDO FC,
+/// UNDO K, UNDO WP.
 ///
-/// The design keeps ↺ and ✕ together top-right on every screen
-/// (`Pitch Screen.dc.html`), so the pair is one cluster rather than chrome
-/// that belongs to whichever surface is up.
-final canCancelProvider = Provider<bool>(
-  (ref) => ref.watch(playDraftProvider).valueOrNull != null,
-);
+/// A play's words come from official scoring rather than from the events
+/// directly, so the button says what the play log says the play scored as.
+/// The cases are exactly the roots `GameController` recognizes — a tag-out
+/// between pitches is not one, so it has no label of its own.
+String undoLabelFor(GameEvent root, List<GameEvent> visible) {
+  switch (root.type) {
+    case 'CountCorrection':
+      return 'UNDO COUNT FIX';
+    case 'RunnerAdvance':
+      return switch (root.payload['reason']) {
+        'wild_pitch' => 'UNDO WP',
+        'passed_ball' => 'UNDO PB',
+        'stolen_base' => 'UNDO STEAL',
+        'defensive_indifference' => 'UNDO INDIFFERENCE',
+        _ => 'UNDO',
+      };
+    case 'RunnerOut':
+      return switch (root.payload['how']) {
+        'caught_stealing' => 'UNDO CAUGHT STEALING',
+        'picked_off' => 'UNDO PICKOFF',
+        _ => 'UNDO',
+      };
+    case 'BallInPlay':
+      return 'UNDO ${_playWords(root, foldOfficialScoring(visible))}';
+    case 'PitchThrown':
+      return 'UNDO ${_pitchWords(root, visible)}';
+  }
+  return 'UNDO';
+}
+
+/// A committed batted ball, by what it scored as.
+String _playWords(GameEvent ballInPlay, OfficialScoring scoring) {
+  final play = scoring.plays
+      .where((p) => p.ballInPlay?.eventId == ballInPlay.id)
+      .firstOrNull;
+  if (play == null) return 'PLAY';
+  if (play.outs.length >= 3) return 'TP';
+  if (play.outs.length == 2) return 'DP';
+  final outcome = play.plateAppearanceIndex >= 0
+      ? scoring.batterOutcomes[play.plateAppearanceIndex]
+      : null;
+  switch (outcome?.scoring) {
+    case 'single':
+      return 'SINGLE';
+    case 'double':
+      return 'DOUBLE';
+    case 'triple':
+      return 'TRIPLE';
+    case 'home_run':
+      return 'HR';
+    case 'fielders_choice':
+      return 'FC';
+    case 'sacrifice_fly':
+      return 'SAC FLY';
+    case 'sacrifice_bunt':
+      return 'SAC BUNT';
+    case 'reached_on_error':
+      final touches = {for (final t in play.touches) t.eventId};
+      final error = scoring.errors
+          .where((e) => touches.contains(e.touchEventId))
+          .firstOrNull;
+      return error == null ? 'ERROR' : 'E${error.position}';
+    case 'out':
+      return _outWords(play);
+  }
+  return 'PLAY';
+}
+
+/// How the batter was retired on her own batted ball. A catch names the
+/// ball's flight; a ground ball or a bunt put out at first is a groundout;
+/// anything else — thrown out stretching, say — is just an out.
+String _outWords(PlayRecord play) {
+  final out = play.outs
+      .where((o) => o.payload.runnerId == play.batterId)
+      .firstOrNull;
+  final trajectory = play.ballInPlay!.payload.trajectory;
+  final how = out?.payload.how;
+  if (how == How.FLY_OUT || how == How.INFIELD_FLY) {
+    return switch (trajectory) {
+      Trajectory.LINE => 'LINEOUT',
+      Trajectory.POPUP || Trajectory.BUNT_AIR => 'POPOUT',
+      _ => 'FLYOUT',
+    };
+  }
+  final onTheGround =
+      trajectory == Trajectory.GROUND || trajectory == Trajectory.BUNT;
+  if (onTheGround && out?.payload.atBase == 1) return 'GROUNDOUT';
+  return 'OUT';
+}
+
+/// A pitch by its outcome — and, when it ended the plate appearance, by the
+/// way it ended it: ball four is a WALK, strike three a K.
+String _pitchWords(GameEvent pitch, List<GameEvent> visible) {
+  final thrown = PitchThrown.fromJson(pitch.payload);
+  final index = visible.indexWhere((e) => e.id == pitch.id);
+  var endedPa = index >= 0;
+  for (var i = index + 1; i < visible.length && endedPa; i++) {
+    if (visible[i].type != 'PitchThrown') continue;
+    endedPa =
+        PitchThrown.fromJson(visible[i].payload).batterId != thrown.batterId;
+    break;
+  }
+  if (endedPa) {
+    final scoring = foldOfficialScoring(visible);
+    final play = scoring.plays
+        .where((p) => p.pitchEventId == pitch.id)
+        .firstOrNull;
+    final outcome = play == null || play.plateAppearanceIndex < 0
+        ? null
+        : scoring.batterOutcomes[play.plateAppearanceIndex];
+    if (outcome != null && outcome.complete) {
+      switch (outcome.scoring) {
+        case 'walk':
+          return 'WALK';
+        case 'out' when thrown.outcome != Outcome.IN_PLAY:
+          return 'K';
+        case 'dropped_third_strike':
+          return 'D3K';
+      }
+    }
+  }
+  return switch (thrown.outcome) {
+    Outcome.BALL || Outcome.BALL_INTENTIONAL => 'BALL',
+    Outcome.CALLED_STRIKE ||
+    Outcome.SWINGING_STRIKE ||
+    Outcome.FOUL_TIP ||
+    Outcome.STRIKE_UNSPECIFIED => 'STRIKE',
+    Outcome.FOUL || Outcome.FOUL_BUNT => 'FOUL',
+    Outcome.HIT_BY_PITCH => 'HBP',
+    Outcome.CATCHER_INTERFERENCE => 'CI',
+    Outcome.ILLEGAL_PITCH => 'ILLEGAL PITCH',
+    Outcome.IN_PLAY => 'IN PLAY',
+    Outcome.UNKNOWN => 'PITCH',
+  };
+}
 
 /// Whether the scorer has left the finished plate appearance behind.
 ///
@@ -824,34 +966,50 @@ class PitchFlowController extends Notifier<PitchFlowState> {
   /// never on the band. [CallIntent] holds what the event actually knows, and
   /// that is what rides the recommit.
   Future<void> undoLast() async {
-    // §15.2 v0.54: one undo, and on the field it is the *play's* undo.
-    //
-    // Before this the top bar reached straight past the surface the scorer
-    // was looking at: tapping it with a play open voided the pitch
-    // underneath and left the draft anchored to an event that no longer
-    // existed, with nothing on screen changing — so it read as "nothing
-    // happened" (Mark, in the simulator). The play surface owns the screen
-    // (§15.5); the button now respects that.
-    final play = ref.read(playDraftProvider.notifier);
-    final draft = ref.read(playDraftProvider).valueOrNull;
-    if (draft != null) {
-      if (await play.stepUndo()) return;
-      if (!draft.battedBall) {
-        // A between-pitch entry (§15.6) hangs off no outcome of its own: the
-        // scorer opened the field, and closing it is the whole of taking
-        // that back. Falling through here would void the *previous pitch*,
-        // which she never asked about.
-        await play.discard();
-        return;
-      }
-      // Nothing left to step back through — she is at the trajectory
-      // question, having entered nothing. The last thing she actually did
-      // was tap `in_play`, so that is what comes off, and she lands back on
-      // the location canvas with the pitch still placed (Mark). Undo means
-      // the same thing at every depth: take back the last thing I did.
-      await play.discard();
-    }
+    // §15.5 v0.60: never with a play open. The field's own Leave field,
+    // Start play over and Back one cover everything this used to do there,
+    // and the button is disabled while a draft is up (`undoLabelProvider`);
+    // this guard is for a caller that reaches it anyway.
+    if (ref.read(playDraftProvider).valueOrNull != null) return;
+    await _voidLastAndRestore(PitchStep.actual);
+  }
 
+  /// §15.5 v0.60's **Leave field**.
+  ///
+  /// On a batted ball it takes the play off the screen **and** voids the
+  /// `in_play` pitch beneath it, but reopens that pitch's *result* — not its
+  /// location — with the call and location still entered. Mark: *"Leave
+  /// field should not take the pitch with it"*: the scorer who left the field
+  /// was wrong about the result, not about where the ball went in.
+  ///
+  /// A between-pitch entry hangs off no outcome of its own, so there this
+  /// closes the field and records nothing; the pitch before it stands. The
+  /// field's bar only gets here between pitches with nothing entered, or
+  /// after the scorer chose to discard an unfinished entry — a finished one
+  /// is committed instead (§15.5 v0.63).
+  Future<void> leaveField() async {
+    final draft = ref.read(playDraftProvider).valueOrNull;
+    if (draft == null) return;
+    await ref.read(playDraftProvider.notifier).discard();
+    if (!draft.battedBall) return;
+
+    // *Its* pitch, not the last action (§15.5 v0.63): after undo reopened a
+    // committed play, the last action can be a location backfilled onto
+    // this very pitch, and undoing that would leave the pitch standing with
+    // nothing on it.
+    await _sealIfMovedOn();
+    final before = await _visibleStream();
+    final voided = await ref
+        .read(gameControllerProvider.notifier)
+        .voidPitch(draft.pitchEventId);
+    if (voided == null) return;
+    _sealAfterVoid(before);
+    _handBack(voided, PitchStep.outcome);
+  }
+
+  /// Voids the last undo unit and hands back what it took: a pitch's call
+  /// and location on [step], or a play reopened on the field.
+  Future<void> _voidLastAndRestore(PitchStep step) async {
     final game = ref.read(gameControllerProvider.notifier);
     await _sealIfMovedOn();
 
@@ -865,18 +1023,28 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       floorEventId: ref.read(undoFloorProvider),
     );
     if (voided == null) return;
+    _sealAfterVoid(before);
 
+    if (voided.type != 'PitchThrown') {
+      await _reopenPlay(voided, before);
+      return;
+    }
+    _handBack(voided, step);
+  }
+
+  void _sealAfterVoid(List<GameEvent> before) {
     if (before.isNotEmpty) {
       ref.read(undoFloorProvider.notifier).sealAt(_paFloorOf(before), before);
     }
+  }
 
-    if (voided.type != 'PitchThrown') return;
-
+  /// The pitch's call and location, back on [step] (§11.3, DIA-019b).
+  void _handBack(GameEvent voided, PitchStep step) {
     final pitch = PitchThrown.fromJson(voided.payload);
     final type = pitch.intendedType;
     final zone = pitch.intendedZoneId;
     state = PitchFlowState(
-      step: PitchStep.actual,
+      step: step,
       // Both or neither: a call is a type *and* a zone (§10.3), and the
       // pitch that skipped the call has neither.
       intent: (type != null && zone != null)
@@ -884,6 +1052,47 @@ class PitchFlowController extends Notifier<PitchFlowState> {
           : null,
       actual: pitch.actualLocation,
       bounce: pitch.bounceLocation,
+    );
+  }
+
+  /// Undoing a play hands it back to edit (§15.5 v0.63), the way undoing a
+  /// pitch hands back its call and location. Mark: *"if I'm back on the
+  /// pitch screen and I pick undo single, I think it should then take me
+  /// back to the field"* — and a between-pitch entry the same way.
+  ///
+  /// The play comes back as the scorer entered it, from the copy kept at
+  /// commit. Without one, a batted ball still reopens — empty, on its pitch
+  /// — because an `in_play` pitch with no play on it is not a state the
+  /// scorer should be left in; a between-pitch entry with no copy is simply
+  /// gone, since nothing hangs off its absence.
+  Future<void> _reopenPlay(GameEvent root, List<GameEvent> before) async {
+    final play = ref.read(playDraftProvider.notifier);
+    if (root.type == 'BallInPlay') {
+      final pitchId = BallInPlay.fromJson(root.payload).pitchEventId;
+      final kept = await play.reopenCommitted(
+        (draft) => draft.battedBall && draft.pitchEventId == pitchId,
+      );
+      if (kept != null) return;
+      final pitch = before.where((e) => e.id == pitchId).firstOrNull;
+      if (pitch == null) return;
+      await play.start(
+        pitchEventId: pitchId,
+        batterId: PitchThrown.fromJson(pitch.payload).batterId,
+      );
+      return;
+    }
+    // A between-pitch entry hangs off the pitch before it (§15.6 v0.45).
+    final index = before.indexWhere((e) => e.id == root.id);
+    String? anchor;
+    for (var i = index - 1; i >= 0; i--) {
+      if (before[i].type == 'PitchThrown') {
+        anchor = before[i].id;
+        break;
+      }
+    }
+    if (anchor == null) return;
+    await play.reopenCommitted(
+      (draft) => !draft.battedBall && draft.pitchEventId == anchor,
     );
   }
 

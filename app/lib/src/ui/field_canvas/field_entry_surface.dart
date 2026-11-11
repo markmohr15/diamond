@@ -9,6 +9,7 @@ import 'package:diamond/src/play/possible_entries.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
+import 'package:diamond/src/ui/field_canvas/field_controls.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
@@ -20,10 +21,17 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+export 'package:diamond/src/ui/field_canvas/field_controls.dart'
+    show
+        fieldBackOneKey,
+        fieldCommitKey,
+        fieldLeaveKey,
+        fieldStartOverKey,
+        leaveDiscardKey,
+        leaveKeepKey;
+
 /// Keys the widget tests resolve against. Production code has no reason to
 /// look them up.
-@visibleForTesting
-const Key fieldCommitKey = Key('fieldCommit');
 @visibleForTesting
 const Key offWallChipKey = Key('offWallChip');
 @visibleForTesting
@@ -154,8 +162,8 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     return Column(
       children: [
         if (!draft.battedBall)
-          // Between pitches: no trajectory, no chain, nothing to commit —
-          // the only chrome is a way back out.
+          // Between pitches: no trajectory question, so the row says who
+          // has the ball. The controls are the bar at the bottom (§15.5).
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: BrandMetrics.spaceLg,
@@ -170,18 +178,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const Spacer(),
-                // The same pair the play surface uses, and they mean the
-                // same things: ✕ leaves with nothing recorded, ✓ commits
-                // what is on the chain. A between-pitch entry accumulates
-                // now, so it earns a real commit rather than a "close".
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  key: fieldCommitKey,
-                  onPressed: draft.committable ? _commitOrAsk : null,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Commit'),
                 ),
               ],
             ),
@@ -213,19 +209,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     style: Theme.of(context).textTheme.titleMedium,
                     overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const Spacer(),
-                // ↺ and ✕ moved to the top bar (§15.2 v0.54): they were
-                // undo-shaped controls living on the surface while a third
-                // undo sat above them, and the split is what made "which
-                // undo am I pressing?" a real question. Commit stays here —
-                // it is this surface's own verb, not a general one.
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  key: fieldCommitKey,
-                  onPressed: draft.committable ? _commitOrAsk : null,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Commit play'),
                 ),
               ],
             ),
@@ -298,6 +281,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               onSelected: (value) => controller.setOffWall(offWall: value),
             ),
           ),
+        FieldControls(
+          draft: draft,
+          runnerLabels: _runnerLabels(draft, bases),
+          onCommit: _commitOrAsk,
+        ),
       ],
     );
   }
