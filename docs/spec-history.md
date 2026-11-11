@@ -3,6 +3,46 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.63
+
+**The game undo names what it would take back, and Leave field between pitches means done
+(§15.5).** DIA-018b-1, ruled by Mark on 2026-11-09 and 2026-11-10.
+
+**Undo's label.** v0.60 labeled the top-bar undo with the last committed pitch. Building it showed
+the number was the wrong datum: undo takes a committed batted ball back *without* its pitch, so
+two taps in a row both read *UNDO PITCH 3* while doing different things. Mark: *"can we say undo
+Single, undo FC, undo whatever it was that happened?"* The label now comes from §13's official
+scoring — *UNDO SINGLE*, *UNDO FC*, *UNDO E6*, *UNDO GROUNDOUT*, *UNDO DP* — and for a pitch from
+its outcome or the way it ended the plate appearance (*UNDO BALL*, *UNDO WALK*, *UNDO K*).
+Between-pitch entries keep their reasons, with wild pitch and passed ball in their scorebook
+abbreviations (*UNDO WP*, *UNDO PB*), as Mark asked on 2026-11-09.
+
+**Leave field between pitches.** v0.60 had it close the field and record nothing. Mark: a steal
+"isn't like a batted ball where we have to have something concretely entered" — leaving after
+entering one means it is done. Leave field now keeps a finished entry, says so on its label, and
+asks *Finish it* / *Discard it* only when the entry is too unfinished to commit. On a batted ball
+nothing changes: there leaving really does discard the play and reopen the pitch's result.
+
+**Undoing a play reopens it.** Mark: *"if I'm back on the pitch screen and I pick undo single,
+I think it should then take me back to the field"*, and between-pitch entries the same way. The
+play comes back as entered, from a copy kept beside the stream at commit; without one a batted ball
+reopens empty on its pitch. That made Leave field's old mechanism wrong — it undid "the last
+action", which after a reopen can be a location backfilled onto the pitch — so Leave field now
+removes its own pitch and every correction to it.
+
+**A control that can't act is not on screen (§23.1).** Mark, 2026-11-10: *"if something is off,
+it should just not be on the screen instead of showing somebody a disabled button."* Held that day,
+and built on 2026-11-11 after he noticed the fresh game's undo sitting there doing nothing. It
+reverses two sentences: §11.3 v0.54's undo that "disables when everything is sealed", and §15.5
+v0.60's undo "greyed, with *off while a play is open* beneath it" (that caption is gone). The field's
+bar follows it too: Start play over and Back one wait for a step, and Commit play waits until the play
+is committable. Hidden controls keep their space. Other screens that still disable a control, the
+call screen's ✓ and the outcome sheet's options, haven't been checked against the rule yet. The same
+pass fixes two British "greyed"s in the spec.
+
+**Status line.** v0.62's bump dropped v0.60's entry from the status line instead of v0.59's, so it
+carried v0.62, v0.61 and v0.59. This bump drops v0.59, which puts the newest three back.
+
 ## v0.62
 
 **Tablet is the target device (§21.1), and the holder's size is a step, not a pixel count

@@ -57,6 +57,26 @@ bool _isActionRoot(GameEvent event) {
   };
 }
 
+/// Which pitch of its plate appearance [pitchEventId] was, counting from 1,
+/// or null when it is not a visible `PitchThrown`.
+///
+/// A plate appearance is the run of pitches sharing a `batterId` — the same
+/// boundary undo's wall uses ([GameController.undoableRoot]) — so this is
+/// the number a scorer reads off the rail ("pitch 4"), not a game total.
+int? pitchNumberInPa(List<GameEvent> visible, String pitchEventId) {
+  final index = visible.indexWhere((e) => e.id == pitchEventId);
+  if (index < 0 || visible[index].type != 'PitchThrown') return null;
+  final batter = PitchThrown.fromJson(visible[index].payload).batterId;
+  var number = 0;
+  for (var i = index; i >= 0; i--) {
+    final event = visible[i];
+    if (event.type != 'PitchThrown') continue;
+    if (PitchThrown.fromJson(event.payload).batterId != batter) break;
+    number++;
+  }
+  return number;
+}
+
 /// The UI's one writer and one reader of the event stream: append an event,
 /// re-project [GameState] (§5's pure fold, snapshot-aware via
 /// [GameStateProjector]).
@@ -297,6 +317,41 @@ class GameController extends AsyncNotifier<GameState> {
     // root — which the loop never writes): a no-op, not an error.
     if (unit.isEmpty || !unit.any(_isActionRoot)) return null;
     return unit;
+  }
+
+  /// Voids one pitch — [pitchEventId] is the id it was first written under —
+  /// with every §6 correction made to it, and returns its latest version so
+  /// the caller can hand back the call and location the scorer last gave it.
+  /// Null when no such pitch is visible.
+  ///
+  /// §15.5's Leave field, which removes *its* pitch rather than the last
+  /// action: once undo can reopen a committed play (v0.63), the last action
+  /// may be a location backfilled onto that pitch after the play, and
+  /// undoing that would strand an `in_play` pitch with nothing on it.
+  /// Voiding the original hides the whole correction chain, so one
+  /// `VoidEvent` is the entire write.
+  Future<GameEvent?> voidPitch(String pitchEventId) async {
+    final raw = await _store.readRawStream(_session.gameId);
+    final byId = {for (final e in raw) e.id: e};
+    String origin(GameEvent event) {
+      var e = event;
+      while (e.corrects != null && byId.containsKey(e.corrects)) {
+        e = byId[e.corrects]!;
+      }
+      return e.id;
+    }
+
+    final visible = await _store.readStream(_session.gameId);
+    final latest = visible
+        .where((e) => e.type == 'PitchThrown' && origin(e) == pitchEventId)
+        .firstOrNull;
+    if (latest == null) return null;
+    await _append(
+      type: 'VoidEvent',
+      payload: VoidEvent(targetId: pitchEventId).toJson(),
+    );
+    state = AsyncData(await _projector.project(_session.gameId));
+    return latest;
   }
 
   /// Undoes the last action, and returns **the root that was voided** so a

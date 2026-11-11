@@ -98,32 +98,28 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     return _mutate((draft) => draft.copyWith(heldBy: position));
   }
 
-  /// §15.5's escape hatch for a locked path (§15.1 v0.43): the whole play
-  /// starts over — trajectory question included — with the committed pitch
-  /// untouched. Everything or nothing; there is no partial unpick once
-  /// plays hang off the path.
-  /// Start this play over without leaving the field (Mark, 2026-09-01).
+  /// §15.5's **Start play over**: the entries go, the play stays open on
+  /// the same anchor, and nothing committed is touched.
   ///
-  /// What the top bar's ✕ does to a batted ball: the entries go, the play
-  /// stays open on the same pitch, and the trajectory question comes back to
-  /// the front — so cancel is "I got this play wrong, let me redo it" rather
-  /// than "throw the pitch away too". That is also what keeps ✕ from being
-  /// able to strand a pitch: it no longer abandons anything, so an `in_play`
-  /// pitch can never be left with no play recorded.
-  ///
-  /// Leaving the field entirely is undo's job — step back to the bottom and
-  /// once more, which takes the pitch with it.
+  /// On a batted ball that means the opening draft — walk-up included — with
+  /// the trajectory question back at the front. Mark: *"Start play over
+  /// should not keep the trajectory."* Between pitches it is the draft as the
+  /// field opened, which the oldest step snapshot holds: who had the ball and
+  /// whether a dropped third strike's batter was running are facts of the
+  /// opening, not entries, so rebuilding from scratch could get them wrong.
   Future<void> startOver() async {
     final draft = state.valueOrNull;
     if (draft == null) return;
+    final opening = draft.battedBall
+        ? _openingDraft(
+            pitchEventId: draft.pitchEventId,
+            batterId: draft.batterId,
+            bunted: draft.bunted,
+          )
+        : (_steps.firstOrNull ?? draft);
     _steps.clear();
-    final fresh = _openingDraft(
-      pitchEventId: draft.pitchEventId,
-      batterId: draft.batterId,
-      bunted: draft.bunted,
-    );
-    await _journal.save(_gameId, fresh);
-    state = AsyncData(fresh);
+    await _journal.save(_gameId, opening);
+    state = AsyncData(opening);
   }
 
   /// Everyone the play found on the field, batter first: the fold's base
@@ -597,8 +593,22 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     await ref
         .read(gameControllerProvider.notifier)
         .appendAllPending(draft.toEvents());
+    await _journal.pushCommitted(_gameId, draft);
     await _journal.clear(_gameId);
     state = const AsyncData(null);
+  }
+
+  /// Puts a play back on the field after undo voided it (§15.5 v0.63): the
+  /// newest kept copy anchored where [matches] says, or null when none was
+  /// kept. Its step history starts empty, so Back one has nothing to take
+  /// until the scorer changes something.
+  Future<PlayDraft?> reopenCommitted(bool Function(PlayDraft) matches) async {
+    final draft = await _journal.takeCommitted(_gameId, matches);
+    if (draft == null) return null;
+    _steps.clear();
+    await _journal.save(_gameId, draft);
+    state = AsyncData(draft);
+    return draft;
   }
 
   /// Abandons the draft; the committed pitch stands (undo reverses it
@@ -623,12 +633,16 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// (§15.5), not so it can be rewound afterwards.
   final _steps = <PlayDraft>[];
 
-  /// Whether [stepUndo] has anything to pop — for the top bar's button.
+  /// Whether [stepUndo] has anything to pop — for the field's Back one.
   bool get hasSteps => _steps.isNotEmpty;
 
-  /// Pops one step. False when there is nothing left, which is the caller's
-  /// signal to take the play off the screen entirely rather than sit on an
-  /// empty draft (Mark, 2026-09-01).
+  /// The draft one [stepUndo] would return to, or null with nothing to pop.
+  /// Back one compares it with the current draft to name what it removes.
+  PlayDraft? get previousStep => _steps.lastOrNull;
+
+  /// Pops one step — §15.5's **Back one**. False when there is nothing
+  /// left: Back one stops at the play's opening, so a run of step-backs never
+  /// turns into leaving the field.
   Future<bool> stepUndo() async {
     if (_steps.isEmpty) return false;
     final previous = _steps.removeLast();

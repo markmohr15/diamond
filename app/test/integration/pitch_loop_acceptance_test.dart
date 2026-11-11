@@ -3,6 +3,7 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
+import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
@@ -65,18 +66,6 @@ void main() {
   Future<void> tapText(WidgetTester tester, String label) async {
     await tester.tap(find.text(label));
     await tester.pumpAndSettle();
-  }
-
-  /// The most recent visible pitch — post-undo, the §6 chains have already
-  /// collapsed or vanished.
-  Future<PitchThrown> lastPitch() async {
-    final session = container.read(gameSessionProvider);
-    final events = await container
-        .read(eventStoreProvider)
-        .readStream(session.gameId);
-    return PitchThrown.fromJson(
-      events.lastWhere((e) => e.type == 'PitchThrown').payload,
-    );
   }
 
   Future<void> tapCanvasAt(WidgetTester tester, ZoneCoord coord) async {
@@ -302,34 +291,44 @@ void main() {
     // seal: undo takes back what the scorer just did, and DIA-020's
     // editing surface — not this button — reaches into a finished batter.
 
-    // Undo #1: the committed play, as one unit. It goes first because a
-    // correction is shown at its *original's* position, so the play's
-    // events are the last visible ones.
+    // Undo #1: the committed play, as one unit — and it comes back on the
+    // field to edit (§15.5 v0.63) rather than vanishing. It goes first
+    // because a correction is shown at its *original's* position, so the
+    // play's events are the last visible ones.
     await tester.tap(find.byKey(countHudUndoKey));
     await tester.pumpAndSettle();
     gs = container.read(gameControllerProvider).requireValue;
     expect(gs.bases.first, 'opp-1', reason: 'back to just the walk');
     expect(gs.bases.second, isNull);
+    final reopened = container.read(playDraftProvider).valueOrNull;
+    expect(reopened, isNotNull, reason: 'the play is back on the field');
+    expect(reopened!.trajectory, Trajectory.GROUND);
 
-    // Undo #2: the §6 correction — the backfilled location goes, the pitch
-    // stays. A correction unwind, so nothing is voided and nothing seals.
-    await tester.tap(find.byKey(countHudUndoKey));
+    // Leave field takes *its* pitch — backfilled location and all — not the
+    // last action, which is that backfill. Undoing the backfill would have
+    // stranded an in-play pitch with no play on it.
+    await tester.tap(find.byKey(fieldLeaveKey));
     await tester.pumpAndSettle();
-    expect((await lastPitch()).actualLocation, isNull);
-    expect((await lastPitch()).outcome, Outcome.IN_PLAY);
-
-    // Undo #3: the in-play pitch itself; opp-2's PA reopens. Still hers, so
-    // still reachable.
-    await tester.tap(find.byKey(countHudUndoKey));
+    await tester.tap(find.byKey(leaveDiscardKey));
     await tester.pumpAndSettle();
+    expect(container.read(playDraftProvider).valueOrNull, isNull);
     gs = container.read(gameControllerProvider).requireValue;
-    expect(gs.batterDue('opp'), 'opp-2');
+    expect(gs.batterDue('opp'), 'opp-2', reason: "opp-2's PA reopens");
+    expect(
+      (await store.readStream(session.gameId)).where(
+        (e) =>
+            e.type == 'PitchThrown' &&
+            PitchThrown.fromJson(e.payload).batterId == 'opp-2',
+      ),
+      isEmpty,
+      reason: 'the in-play pitch came off with its backfill',
+    );
 
-    // Undo #4 is refused: the next tap would cross into opp-1, whose walk
+    // Undo is refused now: the next tap would cross into opp-1, whose walk
     // is a finished plate appearance. The button says so rather than
     // silently declining.
     expect(
-      tester.widget<IconButton>(find.byKey(countHudUndoKey)).onPressed,
+      tester.widget<ButtonStyleButton>(find.byKey(countHudUndoKey)).onPressed,
       isNull,
       reason: 'sealed, and the button shows it',
     );

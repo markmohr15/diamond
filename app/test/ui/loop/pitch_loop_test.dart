@@ -25,6 +25,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../shown.dart';
+
 void main() {
   late ProviderContainer container;
 
@@ -737,8 +739,8 @@ void main() {
       expect(pitch.actualLocation, isNotNull);
     });
 
-    testWidgets('undoing a §6 correction reopens nothing: the pitch it '
-        'corrected is still standing', (tester) async {
+    testWidgets('undoing a play reopens it on the field, even after its '
+        'location was backfilled (§15.5 v0.63)', (tester) async {
       await pumpLoop(tester);
       // In play with no location, then take the standing offer — that
       // backfill is a correction, not a new pitch.
@@ -750,17 +752,30 @@ void main() {
       await placeActualAt(tester, ZoneCoord(x: 0.4, y: 0.2));
       expect((await lastPitch()).actualLocation, isNotNull);
 
-      // Two taps, not one. A correction is shown at the *original's*
-      // position (`applyVisibility` collapses the chain there), so the last
-      // visible event is the committed play — that comes off first.
+      // A correction is shown at the *original's* position, so the last
+      // visible action is the committed play — that comes off first, and
+      // comes back on the field.
       await tapKey(tester, countHudUndoKey);
-      await tapKey(tester, countHudUndoKey);
+      final reopened = container.read(playDraftProvider).valueOrNull;
+      expect(reopened, isNotNull, reason: 'the play is back to edit');
+      expect(
+        (await stream()).where((e) => e.type == 'BallInPlay'),
+        isEmpty,
+        reason: 'and gone from the stream until it is committed again',
+      );
 
-      final pitch = await lastPitch();
-      expect(pitch.actualLocation, isNull, reason: 'the backfill came off');
-      expect(pitch.outcome, Outcome.IN_PLAY, reason: 'the pitch stands');
-      // Nothing to re-answer, so the loop stayed where it was.
-      expect(find.text('Called strike'), findsNothing);
+      // Leave field removes its own pitch, backfill and all, and reopens
+      // the result with the backfilled location kept.
+      await tapKey(tester, fieldLeaveKey);
+      await tapKey(tester, leaveDiscardKey);
+      expect(
+        (await stream()).where((e) => e.type == 'PitchThrown'),
+        isEmpty,
+        reason: 'no in-play pitch left standing with nothing on it',
+      );
+      final flow = container.read(pitchFlowProvider);
+      expect(flow.step, PitchStep.outcome);
+      expect(flow.actual?.x, closeTo(0.4, 1e-9));
     });
   });
 
@@ -780,8 +795,11 @@ void main() {
     }
 
     bool undoEnabled(WidgetTester tester) =>
-        tester.widget<IconButton>(find.byKey(countHudUndoKey)).onPressed !=
-        null;
+        isShown(tester, countHudUndoKey) &&
+        tester
+                .widget<ButtonStyleButton>(find.byKey(countHudUndoKey))
+                .onPressed !=
+            null;
 
     testWidgets('the finished plate appearance is still undoable until the '
         'scorer moves on — the strikeout she just mistapped', (tester) async {
@@ -844,7 +862,7 @@ void main() {
     });
   });
 
-  group("one undo, and on the field it is the play's (§15.2 v0.54)", () {
+  group("the field's own controls (§15.5 v0.60)", () {
     /// An in-play pitch with a real call and location, onto the field with
     /// the trajectory answered — the state where a step exists to undo.
     Future<void> toFieldWith(WidgetTester tester, Trajectory trajectory) async {
@@ -856,82 +874,125 @@ void main() {
       await tapKey(tester, trajectoryKey(trajectory));
     }
 
-    testWidgets('it no longer reaches past the surface: the pitch under an '
-        'open play survives a tap', (tester) async {
+    VoidCallback? pressed(WidgetTester tester, Key key) =>
+        tester.widget<ButtonStyleButton>(find.byKey(key)).onPressed;
+
+    testWidgets('the top-bar undo is not on screen while a play is open '
+        '(§23.1 v0.63)', (tester) async {
       await pumpLoop(tester);
       await toFieldWith(tester, Trajectory.GROUND);
 
-      await tapKey(tester, countHudUndoKey);
+      expect(isShown(tester, countHudUndoKey), isFalse);
+      expect(pressed(tester, countHudUndoKey), isNull);
+    });
 
-      final events = await stream();
+    testWidgets('the field bar shows only what can act', (tester) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      // The trajectory is the opening step, so there is one to take back,
+      // but nothing is committable yet.
+      expect(isShown(tester, fieldLeaveKey), isTrue);
+      expect(isShown(tester, fieldBackOneKey), isTrue);
+      expect(isShown(tester, fieldStartOverKey), isTrue);
+      expect(isShown(tester, fieldCommitKey), isFalse);
+
+      await tapKey(tester, fieldStartOverKey);
+      expect(isShown(tester, fieldBackOneKey), isFalse);
+      expect(isShown(tester, fieldStartOverKey), isFalse);
       expect(
-        events.where((e) => e.type == 'PitchThrown'),
-        hasLength(1),
-        reason: 'the tap took back the trajectory, not the pitch',
-      );
-      expect(
-        container.read(playDraftProvider).valueOrNull,
-        isNotNull,
-        reason: 'and left the play on screen',
+        isShown(tester, fieldLeaveKey),
+        isTrue,
+        reason: 'always a way out',
       );
     });
 
-    testWidgets('with nothing entered, undo leaves the field and lands on '
-        'the location canvas with the pitch still placed', (tester) async {
+    testWidgets('Back one names the step it removes and stops at the '
+        'opening', (tester) async {
       await pumpLoop(tester);
       await toFieldWith(tester, Trajectory.GROUND);
 
-      // First tap: back to the trajectory question, nothing entered.
-      await tapKey(tester, countHudUndoKey);
+      expect(
+        find.descendant(
+          of: find.byKey(fieldBackOneKey),
+          matching: find.text('Grounder'),
+        ),
+        findsOneWidget,
+      );
+      await tapKey(tester, fieldBackOneKey);
       expect(find.text('How did it come off the bat?'), findsOneWidget);
       await tester.tapAt(const Offset(20, 20)); // wave the modal off
       await tester.pumpAndSettle();
 
-      // Second: nothing left to step through, so the play comes off and the
-      // pitch with it.
-      await tapKey(tester, countHudUndoKey);
-      expect(container.read(playDraftProvider).valueOrNull, isNull);
-      expect(find.text('Skip location'), findsOneWidget, reason: 'the canvas');
-
-      // And the entry survived: recommitting carries the same call.
-      await placeActualAt(tester, ZoneCoord(x: -0.2, y: 0.1));
-      await tapText(tester, 'Foul');
-      final pitch = await lastPitch();
-      expect(pitch.outcome, Outcome.FOUL);
-      expect(pitch.intendedZoneId, 'c2r2');
+      expect(
+        isShown(tester, fieldBackOneKey),
+        isFalse,
+        reason: 'a run of step-backs never turns into leaving the field',
+      );
+      expect(container.read(playDraftProvider).valueOrNull, isNotNull);
     });
 
-    testWidgets('cancel starts the play over in place: the field stays up '
-        'and the first question comes back', (tester) async {
+    testWidgets('Start play over keeps the field and brings the first '
+        'question back — the pitch is never stranded', (tester) async {
       await pumpLoop(tester);
       await toFieldWith(tester, Trajectory.GROUND);
 
-      await tapKey(tester, countHudCancelKey);
+      await tapKey(tester, fieldStartOverKey);
 
       final draft = container.read(playDraftProvider).valueOrNull;
       expect(draft, isNotNull, reason: 'still on the field');
       expect(draft!.trajectory, isNull, reason: 'and back at the start');
       expect(find.text('How did it come off the bat?'), findsOneWidget);
+      final events = await stream();
+      expect(events.where((e) => e.type == 'PitchThrown'), hasLength(1));
     });
 
-    testWidgets('so cancel can never strand a pitch: an in-play pitch is '
-        'never left with no play recorded', (tester) async {
+    testWidgets('Leave field asks first, and Keep this play keeps it', (
+      tester,
+    ) async {
       await pumpLoop(tester);
       await toFieldWith(tester, Trajectory.GROUND);
 
-      await tapKey(tester, countHudCancelKey);
+      await tapKey(tester, fieldLeaveKey);
+      expect(find.text("Back to pitch 1's result?"), findsOneWidget);
+      await tapKey(tester, leaveKeepKey);
 
+      expect(container.read(playDraftProvider).valueOrNull, isNotNull);
       final events = await stream();
       expect(events.where((e) => e.type == 'PitchThrown'), hasLength(1));
-      expect(
-        container.read(playDraftProvider).valueOrNull,
-        isNotNull,
-        reason: 'the play it belongs to is still being entered',
-      );
     });
 
-    testWidgets('undo out of a between-pitch entry closes the field and '
-        'leaves the previous pitch alone', (tester) async {
+    testWidgets("Leave field returns to the pitch's result with the call and "
+        'location kept, not to the location canvas', (tester) async {
+      await pumpLoop(tester);
+      await toFieldWith(tester, Trajectory.GROUND);
+
+      await tapKey(tester, fieldLeaveKey);
+      await tapKey(tester, leaveDiscardKey);
+
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+      expect(
+        (await stream()).where((e) => e.type == 'PitchThrown'),
+        isEmpty,
+        reason: 'the in-play pitch came off with the play',
+      );
+      expect(
+        container.read(pitchFlowProvider).step,
+        PitchStep.outcome,
+        reason: 'on the result, not the location canvas',
+      );
+
+      // And the entry survived: choosing again recommits the same call and
+      // the same location.
+      await tapText(tester, 'Foul');
+      final pitch = await lastPitch();
+      expect(pitch.outcome, Outcome.FOUL);
+      expect(pitch.intendedZoneId, 'c2r2');
+      expect(pitch.actualLocation?.x, closeTo(-0.2, 1e-9));
+    });
+
+    testWidgets('Leave field out of a between-pitch entry closes the field '
+        'and leaves the previous pitch alone', (tester) async {
       await pumpLoop(tester);
       // A committed pitch to sit behind the idle field.
       await tapText(tester, 'Skip call');
@@ -939,8 +1000,9 @@ void main() {
       await tapText(tester, 'Ball');
       await tapKey(tester, openIdleFieldKey);
       expect(container.read(playDraftProvider).valueOrNull, isNotNull);
+      expect(find.text('Back to the call'), findsOneWidget);
 
-      await tapKey(tester, countHudUndoKey);
+      await tapKey(tester, fieldLeaveKey);
 
       expect(container.read(playDraftProvider).valueOrNull, isNull);
       final events = await stream();
@@ -953,14 +1015,6 @@ void main() {
         container.read(gameControllerProvider).requireValue.balls,
         1,
         reason: 'the ball she recorded still stands',
-      );
-    });
-
-    testWidgets('cancel is disabled with no play to abandon', (tester) async {
-      await pumpLoop(tester);
-      expect(
-        tester.widget<IconButton>(find.byKey(countHudCancelKey)).onPressed,
-        isNull,
       );
     });
   });
@@ -979,6 +1033,27 @@ void main() {
       await tester.tap(find.byKey(countHudUndoKey));
       await tester.pumpAndSettle();
       expect(find.text('0-0', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('the button names what it will take (DIA-021a)', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      expect(
+        isShown(tester, countHudUndoKey),
+        isFalse,
+        reason: 'nothing to take, so not on screen (§23.1 v0.63)',
+      );
+
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'Ball');
+      expect(find.text('UNDO BALL'), findsOneWidget);
+
+      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'Called strike');
+      expect(find.text('UNDO STRIKE'), findsOneWidget);
     });
   });
 
@@ -1368,9 +1443,9 @@ void main() {
       await pumpLoop(tester);
       await d3kUnlocated(tester);
       await tapKey(tester, d3kFieldKey);
-      // The between-pitches surface, so its own ✕ — `countHudCancelKey` is the
-      // play surface's, and a D3K to the field opens the idle chrome.
-      await tapKey(tester, countHudCancelKey);
+      // A D3K opens a pitch-anchored draft, so Leave field closes it and
+      // records nothing.
+      await tapKey(tester, fieldLeaveKey);
 
       expect(find.byKey(recordLastPitchKey), findsOneWidget);
     });

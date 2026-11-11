@@ -1883,16 +1883,9 @@ void main() {
       await tapWorld(tester, FieldCoord(x: -85, y: 190));
       expect(find.text('152 ft'), findsOneWidget);
 
-      // Stepping back to the start wipes the play — trajectory question and
-      // all — and the path draws fresh. The ↺ that used to do this in one
-      // tap is gone (§15.2 v0.54): undo is one button in the top bar, and
-      // starting over is undoing to the bottom of the stack.
-      for (var i = 0; i < 6; i++) {
-        if (find.text('How did it come off the bat?').evaluate().isNotEmpty) {
-          break;
-        }
-        await tapKey(tester, countHudUndoKey);
-      }
+      // Start play over wipes the play — trajectory question and all — and
+      // the path draws fresh (§15.5 v0.60).
+      await tapKey(tester, fieldStartOverKey);
       expect(find.text('How did it come off the bat?'), findsOneWidget);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await tapWorld(tester, FieldCoord(x: 30, y: 160));
@@ -2424,19 +2417,16 @@ void main() {
   });
 
   group('discard and restore (§15.5)', () {
-    testWidgets('cancel starts the play over and never strands the pitch', (
-      tester,
-    ) async {
-      // This used to assert that ✕ abandoned the play and left the pitch —
-      // an `in_play` pitch with no play recorded, which is an incomplete
-      // record the scorer could reach in one tap. Cancel now restarts the
-      // play in place (Mark, 2026-09-01), so that state is unreachable:
-      // leaving the field is undo's job, and undo takes the pitch with it.
+    testWidgets('Start play over keeps the play open and never strands the '
+        'pitch', (tester) async {
+      // An `in_play` pitch with no play recorded is an incomplete record, so
+      // starting over restarts the play in place (Mark, 2026-09-01), and
+      // only Leave field takes the pitch — reopening its result (§15.5).
       await pumpLoop(tester);
       await reachFieldSurface(tester);
       await tapKey(tester, trajectoryKey(Trajectory.GROUND));
       await tapWorld(tester, FieldCoord(x: 0, y: 100));
-      await tapKey(tester, countHudCancelKey);
+      await tapKey(tester, fieldStartOverKey);
 
       expect(find.byKey(fieldCanvasKey), findsOneWidget, reason: 'still here');
       expect(find.text('How did it come off the bat?'), findsOneWidget);
@@ -2903,6 +2893,63 @@ void main() {
         'opp-1',
       );
       expect(after.where((e) => e.type == 'PitchThrown'), hasLength(4));
+    });
+
+    testWidgets('Leave field keeps a finished steal: leaving means done '
+        '(§15.5 v0.63)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      final before = (await stream()).length;
+
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('stolen_base'));
+      expect(find.text('Back to the call · keeps the steal'), findsOneWidget);
+      await tapKey(tester, fieldLeaveKey);
+
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+      final after = await stream();
+      expect(after.length, before + 1, reason: 'the steal was recorded');
+      expect(
+        RunnerAdvance.fromJson(after.last.payload).reason,
+        RunnerAdvanceReason.STOLEN_BASE,
+      );
+    });
+
+    testWidgets('undoing a committed steal brings it back on the field '
+        '(§15.5 v0.63)', (tester) async {
+      await runnerOnFirstThenField(tester);
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('UNDO STEAL'), findsOneWidget);
+
+      await tapKey(tester, countHudUndoKey);
+
+      final draft = container.read(playDraftProvider).valueOrNull;
+      expect(draft, isNotNull, reason: 'back on the field');
+      expect(draft!.battedBall, isFalse);
+      expect(draft.entries, isNotEmpty, reason: 'with the steal as entered');
+      expect(find.text('Back to the call · keeps the steal'), findsOneWidget);
+    });
+
+    testWidgets('an unfinished entry asks before it is thrown away', (
+      tester,
+    ) async {
+      await runnerOnFirstThenField(tester);
+      final before = (await stream()).length;
+
+      // Tapping the catcher says the pitch got by her: a step, but nothing
+      // the ✓ could commit yet.
+      await tapWorld(tester, standardSpot(2));
+      await tapKey(tester, fieldLeaveKey);
+      expect(find.text("This entry isn't finished"), findsOneWidget);
+
+      await tapKey(tester, leaveKeepKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNotNull);
+
+      await tapKey(tester, fieldLeaveKey);
+      await tapKey(tester, leaveDiscardKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+      expect((await stream()).length, before, reason: 'nothing recorded');
     });
   });
 
