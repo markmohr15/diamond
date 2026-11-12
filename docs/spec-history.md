@@ -35,6 +35,14 @@ and could disagree with it after an edit. Play #4's fixture changes from *catchi
 The spec's own Play #4 never named a kind, so the fixture was recording the code's answer. Two
 fixtures are new: this popup (play 26) and a grounder through the legs (play 27).
 
+**The hit-and-error split moves onto the SAFE dialog (§15.1).** Mark re-entered the play on
+2026-11-12. Settled on first and dragged to second, he was asked *"How much did she earn?"* with one
+option, *"a pointless extra click"*. Dragged straight from home to second, he saw *Double* and *On
+the fielding error*: *"I need Single + error and don't have it."* It was there, but one dialog
+deeper, behind a chip that read as *reached on error*. With one misplay on the play, the SAFE dialog
+now offers the splits itself. A split with only one possible answer is applied without a dialog.
+Two or more misplays keep v0.56's two steps: name the error, then divide the bases.
+
 ## v0.63
 
 **The game undo names what it would take back, and Leave field between pitches means done

@@ -1394,13 +1394,15 @@ void main() {
       await tapKey(tester, fielderPlayKey('booted'));
 
       await dragToken(tester, 1, 2, originFrom: 0);
-      // Named, not generic: the scorer charges the boot, not "an error".
-      expect(find.text('On the fielding error'), findsOneWidget);
-      await tapKey(tester, safeChipKey('error-fielding-6'));
-      // How the bases divide is the second question (§13.2 v0.56): none of
-      // them earned, so both legs link to the boot.
+      // With one misplay the split is on this dialog (DIA-025): the hit,
+      // the hit and an error, or all of it on the boot. Mark: *"I need
+      // Single + error and don't have it."*
+      expect(find.text('Double'), findsOneWidget);
       expect(find.text('Single and an error'), findsOneWidget);
-      await tapKey(tester, safeChipKey('earned-0'));
+      expect(find.text('2 base error'), findsOneWidget);
+      expect(find.text('On the fielding error'), findsNothing);
+      // None of them earned, so both legs link to the boot.
+      await tapKey(tester, safeChipKey('split-0'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1419,13 +1421,13 @@ void main() {
       await tapKey(tester, fielderPlayKey('booted'));
 
       await dragToken(tester, 1, 3, originFrom: 0);
-      await tapKey(tester, safeChipKey('error-fielding-6'));
       // Mark's wording: the hit she earned, then the error that gave her
       // the rest. One base given reads "and an error"; two reads "2 base".
+      expect(find.text('Triple'), findsOneWidget);
       expect(find.text('Double and an error'), findsOneWidget);
       expect(find.text('Single, 2 base error'), findsOneWidget);
       expect(find.text('3 base error'), findsOneWidget);
-      await tapKey(tester, safeChipKey('earned-2'));
+      await tapKey(tester, safeChipKey('split-2'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
@@ -1491,6 +1493,91 @@ void main() {
       expect((legs[1].payload['from'], legs[1].payload['to']), (1, 3));
     });
 
+    testWidgets("Mark's popup, settled on first then sent to second: Double "
+        'or Single and an error, one tap, no second dialog (DIA-025)', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+      await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+      await tapKey(tester, fielderPlayKey('booted')); // Misplayed
+
+      // She earned first: settled in place, the reach answered as a hit.
+      await dragToken(tester, 1, 1, originFrom: 0);
+      await tapKey(tester, safeChipKey('hit'));
+
+      // Then second, on the RF's misplay.
+      await dragToken(tester, 1, 2);
+      expect(find.text('Double'), findsOneWidget);
+      expect(find.text('Single and an error'), findsOneWidget);
+      expect(find.text('2 base error'), findsNothing, reason: 'she earned 1B');
+      await tapKey(tester, safeChipKey('split-1'));
+      expect(find.text('How much did she earn?'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+
+      final scoring = foldOfficialScoring(await stream());
+      expect(scoring.batterOutcomes.single.scoring, 'single');
+      expect(scoring.errors.single.position, 9);
+      expect(scoring.errors.single.kind, OfficialErrorKind.fielding);
+    });
+
+    testWidgets("Mark's popup, dragged straight to second: Single and an "
+        'error is on the first dialog (DIA-025)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+      await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+      await tapKey(tester, fielderPlayKey('booted')); // Misplayed
+
+      await dragToken(tester, 1, 2, originFrom: 0);
+      expect(find.text('Double'), findsOneWidget);
+      expect(find.text('Single and an error'), findsOneWidget);
+      expect(find.text('2 base error'), findsOneWidget);
+      await tapKey(tester, safeChipKey('split-1'));
+      // The chip answered the reach too, so the ✓ has nothing left to ask.
+      await tapKey(tester, fieldCommitKey);
+      expect(find.text('Safe at 1B — how?'), findsNothing);
+
+      final scoring = foldOfficialScoring(await stream());
+      expect(scoring.batterOutcomes.single.scoring, 'single');
+      expect(scoring.errors.single.position, 9);
+    });
+
+    testWidgets('two misplays, settled on first, sent one base: the error '
+        'is named, and the one possible split is not asked (DIA-025)', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('booted'));
+      // It got by her, and the LF boots it too.
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await dragFielder(tester, 7, FieldCoord(x: -110, y: 170));
+      await tapKey(tester, fielderPlayKey('booted'));
+
+      await dragToken(tester, 1, 1, originFrom: 0);
+      await tapKey(tester, safeChipKey('hit'));
+      await dragToken(tester, 1, 2);
+      // Two misplays: the error is still named first.
+      expect(find.text("On SS's fielding error"), findsOneWidget);
+      await tapKey(tester, safeChipKey('error-fielding-7'));
+      expect(find.text('How much did she earn?'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+
+      final events = await stream();
+      final lf = events.lastWhere((e) => e.type == 'FielderTouch');
+      final legs = events.where((e) => e.type == 'RunnerAdvance').toList();
+      expect(legs.map((e) => (e.payload['from'], e.payload['to'])), [
+        (0, 1),
+        (1, 2),
+      ]);
+      expect(legs[0].payload['enabledByTouchId'], isNull);
+      expect(legs[1].payload['enabledByTouchId'], lf.id);
+    });
+
     testWidgets('the breakdown is offered after the reach is settled too, '
         'and stops at the base she stands on (§13.2 v0.56)', (tester) async {
       await pumpLoop(tester);
@@ -1510,13 +1597,12 @@ void main() {
       // been credited the single it would contradict.
       // No originFrom: she is standing on first now, not running to it.
       await dragToken(tester, 1, 3);
-      await tapKey(tester, safeChipKey('error-fielding-6'));
       expect(find.text('Double and an error'), findsOneWidget);
       expect(find.text('Single, 2 base error'), findsOneWidget);
       expect(find.text('3 base error'), findsNothing);
       expect(find.text('None of it earned'), findsNothing);
 
-      await tapKey(tester, safeChipKey('earned-2'));
+      await tapKey(tester, safeChipKey('split-2'));
       await tapKey(tester, fieldCommitKey);
 
       final events = await stream();
