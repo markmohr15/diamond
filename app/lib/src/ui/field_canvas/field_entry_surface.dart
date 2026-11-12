@@ -758,6 +758,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         : '${_hitLabels[earned]!}, $given base error';
   }
 
+  /// The id prefix of a split chip on the SAFE dialog — `split-1` is
+  /// *Single and an error* on a drag to second.
+  static const _splitPrefix = 'split-';
+
   static const _hitLabels = {
     1: 'Single',
     2: 'Double',
@@ -1049,6 +1053,23 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // none of it" is an answer that contradicts one already given, so the
     // ladder stops at the base she is standing on.
     final least = draft.reachNeedsAnswer ? 0 : from;
+    void apply(int earned) => unawaited(
+      _resolveSafe(
+        moves,
+        SafeResolution.onError,
+        earned: earned,
+        errorTouchKey: misplayKey,
+        // Nothing earned with two misplays in play leaves the reach open on
+        // purpose; the ✓ asks it by name.
+        answersReach: !(splitCharge && earned == 0),
+      ),
+    );
+    // One possible split is not a question (DIA-025): settled on first and
+    // sent one base further, she can only have a single and an error.
+    if (base - 1 == least) {
+      apply(least);
+      return;
+    }
     _centeredDialog('How much did she earn?', [
       Wrap(
         spacing: 8,
@@ -1064,17 +1085,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               label: Text(_earnedLabel(earned, base, splitCharge: splitCharge)),
               onPressed: () {
                 Navigator.pop(context);
-                unawaited(
-                  _resolveSafe(
-                    moves,
-                    SafeResolution.onError,
-                    earned: earned,
-                    errorTouchKey: misplayKey,
-                    // Nothing earned with two misplays in play leaves the
-                    // reach open on purpose; the ✓ asks it by name.
-                    answersReach: !(splitCharge && earned == 0),
-                  ),
-                );
+                apply(earned);
               },
             ),
         ],
@@ -1142,6 +1153,19 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // multi-base shapes cost one tap instead of two. The fourth field is
     // **the last base she earned**, null where the chip does not say.
     final asksReach = isBatter && draft.reachNeedsAnswer;
+    // With one misplay on the play, the batter's split between the hit and
+    // the error is offered right here (DIA-025): *Double · Single and an
+    // error · 2 base error*. Mark, 2026-11-12, dragging her to second: *"I
+    // need Single + error and don't have it"* — it was one dialog deeper,
+    // behind a chip that read as *reached on error*. With two or more the
+    // scorer names the error first, because there the split is per error.
+    final errorChoices = _errorChoices(draft);
+    final splitHere = isBatter && base > 1 && errorChoices.length == 1;
+    // An in-place SAFE (she settles where she stands) has no moves, and no
+    // split either: `splitHere` needs her past first.
+    final leastEarned = draft.reachNeedsAnswer
+        ? 0
+        : (moves.firstOrNull?.from ?? base);
     final choices = !draft.battedBall
         ? <(String, String, SafeResolution, int?)>[
             ('stolen_base', 'Stolen base', SafeResolution.stolenBase, null),
@@ -1209,8 +1233,17 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             // at: an advance that claims an error but links to nothing
             // derives as a hit, so the answer must not exist without its
             // cause.
-            for (final choice in _errorChoices(draft))
-              (choice.id, choice.label, SafeResolution.onError, null),
+            if (splitHere)
+              for (var earned = base - 1; earned >= leastEarned; earned--)
+                (
+                  '$_splitPrefix$earned',
+                  _earnedLabel(earned, base),
+                  SafeResolution.onError,
+                  earned,
+                )
+            else
+              for (final choice in errorChoices)
+                (choice.id, choice.label, SafeResolution.onError, null),
             // No fielder's choice here (v0.56). Mark: it is how the *batter*
             // reaches first when the defense elects to throw somewhere else,
             // so it is never an answer about a runner already aboard — and
@@ -1220,8 +1253,21 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     // One possible answer is not a question: tagging up on a routine fly
     // costs the gesture that moved her and nothing more.
+    // A split chip settles the batter against the play's one misplay.
+    void applySplit(int earned) => unawaited(
+      _resolveSafe(
+        moves,
+        SafeResolution.onError,
+        earned: earned,
+        errorTouchKey: errorChoices.single.touchKey,
+      ),
+    );
     if (choices.length == 1) {
       final only = choices.single;
+      if (only.$1.startsWith(_splitPrefix)) {
+        applySplit(only.$4!);
+        return;
+      }
       unawaited(
         _answerSafe(
           moves,
@@ -1245,6 +1291,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               label: Text(label),
               onPressed: () {
                 Navigator.pop(context);
+                if (id.startsWith(_splitPrefix)) {
+                  applySplit(earned!);
+                  return;
+                }
                 // How the bases divide is its own question, asked only once
                 // the scorer has named the error — seven chips in one row is
                 // a menu, not an answer (v0.56).
