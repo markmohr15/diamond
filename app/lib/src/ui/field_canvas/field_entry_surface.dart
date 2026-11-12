@@ -706,13 +706,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final misplays = draft.chargeableMisplays;
     final kinds = <OfficialErrorKind, int>{};
     for (final touch in misplays) {
-      final kind = officialErrorKindOf(touch.touchType);
+      final kind = draft.errorKindOf(touch);
       kinds[kind] = (kinds[kind] ?? 0) + 1;
     }
     return [
       for (final touch in misplays)
         () {
-          final kind = officialErrorKindOf(touch.touchType);
+          final kind = draft.errorKindOf(touch);
           final name = _errorKindLabels[kind]!;
           final who = positionAbbreviations[touch.position] ?? touch.position;
           return (
@@ -1411,11 +1411,10 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     ]);
   }
 
-  /// §15.1 v0.43's what-happened popup, options driven by the trajectory:
-  /// in the air she caught it, dropped it, flat-out missed it, or came over
-  /// and picked it up; on the ground she fielded it, booted it, or missed
-  /// it. "Missed it" records no touch at all — she never touched the ball,
-  /// so there is officially nothing to record (§13) beyond where it went.
+  /// §15.1's what-happened popup, options driven by where the ball was —
+  /// see [ballPlayChoices] for the menus and why (DIA-025, v0.64). Every
+  /// misplay on it records a touch, so every one can be charged; whether it
+  /// *is* an error stays the scorer's link to what it cost (§13.2).
   void _showFielderPlaySheet(int position, FieldCoord spot) {
     final state = nextBallState(_draft);
     final choices = <(String, String, TouchType?)>[
@@ -1454,31 +1453,26 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
   }
 
-  /// The chip for one of [ballPlayChoices]'s answers. One word per thing
-  /// (§15.1): a batted ball is *fielded*, a pitch that got away is *picked
-  /// up* — the same `TouchType`, because §13 charges on the physical fact
-  /// and the distinction is linguistic. Not "dead": that word is taken
-  /// (catcher's interference, HBP, `dead_ball_award`) and this ball is live.
-  static (String, String, TouchType?) _fielderPlayLabel(
+  /// The chip for one of [ballPlayChoices]'s answers: a stable id for the
+  /// key, and [ballPlayLabel]'s words. Not "dead" anywhere: that word is
+  /// taken (catcher's interference, HBP, `dead_ball_award`) and this ball is
+  /// live.
+  (String, String, TouchType?) _fielderPlayLabel(
     BallState state,
     TouchType? type,
-  ) => switch (type) {
-    null => ('missed', 'Missed it', null),
-    TouchType.FIELDED when state == BallState.loosePitch => (
-      'picked_up',
-      'Picked it up',
+  ) {
+    final id = switch (type) {
+      null => 'missed',
+      TouchType.FIELDED when state == BallState.loosePitch => 'picked_up',
+      _ => touchTypeValues.reverse[type]!,
+    };
+    final label = ballPlayLabel(
       type,
-    ),
-    TouchType.FIELDED => ('fielded', 'Fielded', type),
-    TouchType.CAUGHT => ('caught', 'Caught', type),
-    TouchType.DROPPED => ('dropped', 'Dropped', type),
-    TouchType.DEFLECTED => ('deflected', 'Deflected', type),
-    TouchType.BOOTED => ('booted', 'Booted', type),
-    // A muffed pickup is still chargeable (§13.2), which is why it is
-    // offered at all.
-    TouchType.BOBBLED => ('bobbled', 'Bobbled it', type),
-    _ => throw ArgumentError('not a play on the ball: $type'),
-  };
+      state: state,
+      trajectory: _draft.trajectory,
+    );
+    return (id, label, type);
+  }
 
   List<(String, String, How)> _possibleHows(
     String runnerId,

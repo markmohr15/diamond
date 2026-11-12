@@ -1,0 +1,23 @@
+{
+  "id": "play-26",
+  "title": "Popup falls in short right-center; RF misplays it; batter takes second on the error",
+  "specRef": "§13.2, §15.1 (v0.64, DIA-025)",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 2 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "popup", "landing": { "x": 40.5, "y": 115.5 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 9, "touchType": "booted", "location": { "x": 40.5, "y": 115.5 } } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 8, "touchType": "fielded", "location": { "x": 49.4, "y": 120.3 } } },
+    { "id": "e6", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "received_throw", "location": { "x": -2.9, "y": 86.2 } } },
+    { "id": "e7", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "error", "enabledByTouchId": "e3" } }
+  ],
+  "expect": {
+    "outs": 0,
+    "runs": 0,
+    "officialErrors": [ { "position": 9, "kind": "fielding" } ],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true },
+    "runnerBases": { "b1": 2 },
+    "note": "Mark's play from the simulator, 2026-11-11. The ball landed before she misplayed it (Misplayed, recorded as booted), so the reach is a hit and the extra base is the error: single + E9. The CF picking it up is a live ball, not the RF's throw, because the RF never had it."
+  }
+}

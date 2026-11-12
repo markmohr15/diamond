@@ -20,6 +20,7 @@ import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/official_scoring.dart'
     show OfficialErrorKind, misplayTouchTypes, officialErrorKindOf;
+import 'package:diamond/src/rules/received.dart';
 import 'package:flutter/foundation.dart';
 
 /// One node of the play chain. [key] is stable for the draft's lifetime —
@@ -1090,6 +1091,24 @@ class PlayDraft {
     return null;
   }
 
+  /// What the fielder of [touch] was receiving (DIA-025): a pitch, a throw,
+  /// or the ball itself. The same answer the rules engine reaches from the
+  /// stream, from the same chain.
+  Received receivedIn(TouchEntry touch) => receivedBy(
+    position: touch.position,
+    anchorIsPitch: !battedBall,
+    earlier: [
+      for (final entry in entries.takeWhile((e) => e.key != touch.key))
+        if (entry is TouchEntry)
+          (position: entry.position, touchType: entry.touchType),
+    ],
+  );
+
+  /// The kind of error [touch] would charge: the projection's mapping, fed
+  /// what she was receiving, so the chip names what the box score charges.
+  OfficialErrorKind errorKindOf(TouchEntry touch) =>
+      officialErrorKindOf(touch.touchType, received: receivedIn(touch));
+
   /// The misplays a reach or an advance can be charged to (§13.2 v0.56),
   /// one per kind-and-fielder, in chain order.
   ///
@@ -1106,7 +1125,7 @@ class PlayDraft {
       if (entry is! TouchEntry || !entry.isMisplay) continue;
       // Two boots by the same fielder are one answer, not two identical
       // chips; the later one is nearer the consequence.
-      byLabel[(officialErrorKindOf(entry.touchType), entry.position)] = entry;
+      byLabel[(errorKindOf(entry), entry.position)] = entry;
     }
     return byLabel.values.toList()..sort((a, b) => a.key.compareTo(b.key));
   }

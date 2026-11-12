@@ -292,6 +292,19 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     );
   }
 
+  /// A retype choice's words: a reception keeps the throw's vocabulary
+  /// (*Dropped*, *Missed catch*, *Missed tag*); a play on the ball reads as
+  /// the popup offered it, so a touch entered as *Misplayed* is not renamed
+  /// *Booted* here (DIA-025).
+  String _retypeLabel(TouchEntry touch, TouchType type) =>
+      throwerInto(widget.draft, touch) != null
+      ? _misplayLabels[type]!
+      : ballPlayLabel(
+          type,
+          state: ballStateAt(widget.draft, touch),
+          trajectory: widget.draft.trajectory,
+        );
+
   /// Whether this node should ask **how the throw arrived**: only a
   /// reception, which [throwerInto] decides on provenance rather than type.
   /// `dropped` describes muffing a throw *or* a ball off the bat, so
@@ -316,7 +329,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
           for (final type in retypeChoices(widget.draft, touch))
             ChoiceChip(
               key: chainChipKey(touchTypeValues.reverse[type]!),
-              label: Text(_misplayLabels[type]!),
+              label: Text(_retypeLabel(touch, type)),
               selected: touch.touchType == type,
               onSelected: (_) {
                 controller.setTouchType(touch.key, type);

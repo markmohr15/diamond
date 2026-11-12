@@ -317,27 +317,86 @@ void main() {
         expect(container.read(gameControllerProvider).value!.outs, 1);
       });
 
-      testWidgets('ground ball popup offers ground choices; "Missed it" '
-          'records no touch and the batter reaches (§13)', (tester) async {
+      testWidgets('ground ball popup offers the ground menu; Missed records '
+          'a touch, and her reach asks hit or error (DIA-025)', (tester) async {
         await pumpLoop(tester);
         await reachFieldSurface(tester);
         await tapKey(tester, trajectoryKey(Trajectory.GROUND));
 
         await dragFielder(tester, 4, FieldCoord(x: 30, y: 95));
+        for (final label in [
+          'Fielded',
+          'Bobbled',
+          'Booted',
+          'Missed',
+          'Deflected',
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
         expect(find.byKey(fielderPlayKey('caught')), findsNothing);
-        expect(find.byKey(fielderPlayKey('fielded')), findsOneWidget);
-        await tapKey(tester, fielderPlayKey('missed'));
+        await tapKey(tester, fielderPlayKey('missed_catch'));
         await tapKey(tester, fieldCommitKey);
 
+        // A misplay opened the play, so the ✓ asks what put her on.
+        expect(find.text('Safe at 1B — how?'), findsOneWidget);
+        await tapKey(tester, safeChipKey('error-fielding-4'));
+
         final events = await stream();
-        expect(events.map((e) => e.type), isNot(contains('FielderTouch')));
-        final ball = BallInPlay.fromJson(
-          events.lastWhere((e) => e.type == 'BallInPlay').payload,
+        final touch = FielderTouch.fromJson(
+          events.lastWhere((e) => e.type == 'FielderTouch').payload,
         );
-        expect(ball.landing.x, closeTo(30, 2));
-        final advance = RunnerAdvance.fromJson(events.last.payload);
-        expect(advance.runnerId, 'opp-1');
-        expect(advance.to, 1);
+        expect(touch.position, 4);
+        expect(touch.touchType, TouchType.MISSED_CATCH);
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.batterOutcomes.single.scoring, 'reached_on_error');
+        expect(scoring.errors.single.position, 4);
+        expect(scoring.errors.single.kind, OfficialErrorKind.fielding);
+      });
+
+      testWidgets('a missed grounder can still be a hit: the scorer says so '
+          'at the ✓, and nothing is charged', (tester) async {
+        await pumpLoop(tester);
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+        await dragFielder(tester, 6, FieldCoord(x: -40, y: 90));
+        await tapKey(tester, fielderPlayKey('missed_catch'));
+        await tapKey(tester, fieldCommitKey);
+        await tapKey(tester, safeChipKey('hit'));
+
+        final scoring = foldOfficialScoring(await stream());
+        expect(scoring.batterOutcomes.single.scoring, 'single');
+        expect(scoring.errors, isEmpty);
+      });
+
+      testWidgets('a ball in the air offers Caught, Missed catch, Misplayed, '
+          'Fielded — and once it is down, Fielded or Misplayed', (
+        tester,
+      ) async {
+        await pumpLoop(tester);
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+
+        await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+        for (final label in [
+          'Caught',
+          'Missed catch',
+          'Misplayed',
+          'Fielded',
+        ]) {
+          expect(find.text(label), findsOneWidget, reason: label);
+        }
+        expect(find.text('Missed'), findsNothing);
+        expect(find.text('Deflected'), findsNothing);
+        await tapKey(tester, fielderPlayKey('booted'));
+
+        // It got by her: one tap says she does not have it, and the CF
+        // coming over is playing a ball that is already down.
+        await tapWorld(tester, FieldCoord(x: 40, y: 115));
+        await dragFielder(tester, 8, FieldCoord(x: 50, y: 125));
+        expect(find.text('Caught'), findsNothing);
+        expect(find.text('Missed catch'), findsNothing);
+        expect(find.text('Fielded'), findsOneWidget);
+        expect(find.text('Misplayed'), findsOneWidget);
       });
     },
   );
@@ -463,7 +522,7 @@ void main() {
       await tapKey(tester, fieldCommitKey);
       // The drop opened the play, so the ✓ asks what it cost before it
       // commits, and the answer names the charge (§13.2 v0.56).
-      await tapKey(tester, safeChipKey('error-catching-8'));
+      await tapKey(tester, safeChipKey('error-fielding-8'));
 
       final events = await stream();
       final touches = events.where((e) => e.type == 'FielderTouch').toList();
@@ -1721,7 +1780,7 @@ void main() {
 
       // The reach is the ✓'s first question; the sacrifice follows it.
       expect(find.text('Safe at 1B — how?'), findsOneWidget);
-      await tapKey(tester, safeChipKey('error-catching-7'));
+      await tapKey(tester, safeChipKey('error-fielding-7'));
       expect(find.text('Sacrifice fly?'), findsOneWidget);
       await tapKey(tester, sacrificeAnswerKey('yes'));
 

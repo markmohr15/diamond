@@ -1,0 +1,22 @@
+{
+  "id": "play-27",
+  "title": "Grounder through the shortstop's legs, untouched; reached on error",
+  "specRef": "§13.2, §15.1 (v0.64, DIA-025)",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 0 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "ground", "landing": { "x": -40, "y": 90 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 6, "touchType": "missed_catch", "location": { "x": -40, "y": 90 } } },
+    { "id": "e4", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "error", "enabledByTouchId": "e3" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 8, "touchType": "fielded" } }
+  ],
+  "expect": {
+    "outs": 0,
+    "runs": 0,
+    "officialErrors": [ { "position": 6, "kind": "fielding" } ],
+    "batterResult": { "batterId": "b1", "scoring": "reached_on_error", "hit": false },
+    "runnerBases": { "b1": 1 },
+    "variant": "Leave e4 unlinked, the scorer saying it was a hit, and the same touches score a single with no error. Missed is an error candidate, never an error by itself.",
+    "note": "Missed on a grounder records missed_catch since v0.64; before that it recorded nothing and this error could not be charged. A missed ball off the bat is a fielding error; catching is for a throw or a pitch."
+  }
+}
