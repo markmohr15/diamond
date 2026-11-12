@@ -4,6 +4,7 @@ import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
+import 'package:diamond/src/rules/received.dart';
 
 /// The §13.2 misplay vocabulary — the only touch types an official error
 /// can ever be charged against, and the single definition the whole app
@@ -40,11 +41,6 @@ const Set<TouchType> misplayTouchTypes = {
 /// because muffing a tag on the batter-runner is a play on her rather than a
 /// failure to receive.
 const Set<TouchType> pitchReceivingTouchTypes = {TouchType.MISSED_CATCH};
-
-/// The only fielder who receives a *pitch*. Anyone else holding a
-/// `missed_catch` is receiving something somebody threw, and muffing a throw
-/// is an error like any other.
-const int _catcher = 2;
 
 /// Official-scoring category of a charged error, derived from the physical
 /// touch type — never entered by the scorer (spec §13.1).
@@ -565,15 +561,11 @@ OfficialScoring foldOfficialScoring(
     // first touch on its anchor, and a first baseman who misses one has
     // muffed a **throw**, which charges. And the catcher is the only fielder
     // who receives a pitch, so anyone else holding this touch type is
-    // receiving something somebody threw.
-    final anchor = t.anchorEventId;
-    final firstOnAnchor = !touches
-        .takeWhile((earlier) => earlier.eventId != touch.eventId)
-        .any((earlier) => earlier.payload.anchorEventId == anchor);
+    // receiving something somebody threw. All three live in [receivedBy]
+    // (DIA-025), which the error's kind reads as well.
+    final received = _receivedAt(touch, touches, pitchEventIds);
     if (pitchReceivingTouchTypes.contains(t.touchType) &&
-        t.position == _catcher &&
-        pitchEventIds.contains(anchor) &&
-        firstOnAnchor) {
+        received == Received.pitch) {
       continue;
     }
 
@@ -584,7 +576,7 @@ OfficialScoring foldOfficialScoring(
       OfficialError(
         touchEventId: touch.eventId,
         position: t.position,
-        kind: officialErrorKindOf(t.touchType),
+        kind: officialErrorKindOf(t.touchType, received: received),
         basis: basis,
       ),
     );
@@ -871,11 +863,43 @@ List<PitchGetaway> _pitchGetaways({
   ];
 }
 
+/// [receivedBy] for a touch in the stream: the touches before it on the same
+/// play, and whether that play hangs off a pitch.
+Received _receivedAt(
+  _TouchRecord touch,
+  List<_TouchRecord> touches,
+  Set<String> pitchEventIds,
+) {
+  final anchor = touch.payload.anchorEventId;
+  return receivedBy(
+    position: touch.payload.position,
+    anchorIsPitch: pitchEventIds.contains(anchor),
+    earlier: [
+      for (final earlier in touches.takeWhile(
+        (e) => e.eventId != touch.eventId,
+      ))
+        if (earlier.payload.anchorEventId == anchor)
+          (
+            position: earlier.payload.position,
+            touchType: earlier.payload.touchType,
+          ),
+    ],
+  );
+}
+
 /// Which kind of official error a misplay touch charges (§13.2). Public
 /// because the entry surface names the error the scorer is charging — "on
 /// the throwing error" — and that naming must come from the same mapping
 /// the projection charges by, never a second copy of it.
-OfficialErrorKind officialErrorKindOf(TouchType type) {
+///
+/// A dropped or missed ball is a **catching** error only when she was
+/// receiving a throw (or a pitch); on a batted or loose ball it is a
+/// **fielding** error (§13.2 v0.64). Mark, 2026-11-11, on an RF who missed
+/// a fly: *"fielding error on RF"*.
+OfficialErrorKind officialErrorKindOf(
+  TouchType type, {
+  required Received received,
+}) {
   switch (type) {
     case TouchType.BOOTED:
     case TouchType.BOBBLED:
@@ -887,7 +911,9 @@ OfficialErrorKind officialErrorKindOf(TouchType type) {
       return OfficialErrorKind.throwing;
     case TouchType.DROPPED:
     case TouchType.MISSED_CATCH:
-      return OfficialErrorKind.catching;
+      return received == Received.liveBall
+          ? OfficialErrorKind.fielding
+          : OfficialErrorKind.catching;
     // ignore: no_default_cases - the misplay set is filtered before this.
     default:
       throw ArgumentError('not a misplay touch type: $type');

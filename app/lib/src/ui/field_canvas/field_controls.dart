@@ -4,6 +4,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
+import 'package:diamond/src/play/possible_entries.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
@@ -365,7 +366,7 @@ String describeStep({
   ];
   if (added.isNotEmpty) {
     final touch = added.whereType<TouchEntry>().firstOrNull;
-    return _describe(touch ?? added.first, runnerLabels);
+    return _describe(touch ?? added.first, after, runnerLabels);
   }
   final trajectory = after.trajectory;
   if (trajectory != null && trajectory != before.trajectory) {
@@ -377,11 +378,13 @@ String describeStep({
   final afterKeys = {for (final e in after.entries) e.key};
   final removed = before.entries.where((e) => !afterKeys.contains(e.key));
   if (removed.isNotEmpty) {
-    return 'Removing ${_describe(removed.first, runnerLabels)}';
+    return 'Removing ${_describe(removed.first, before, runnerLabels)}';
   }
   final beforeByKey = {for (final e in before.entries) e.key: e};
   for (final e in after.entries) {
-    if (!identical(beforeByKey[e.key], e)) return _describe(e, runnerLabels);
+    if (!identical(beforeByKey[e.key], e)) {
+      return _describe(e, after, runnerLabels);
+    }
   }
   if (after.heldBy != before.heldBy ||
       after.looseAfterKey != before.looseAfterKey) {
@@ -396,11 +399,15 @@ bool _same(FieldCoord? a, FieldCoord? b) =>
     (a == null && b == null) ||
     (a != null && b != null && a.x == b.x && a.y == b.y);
 
-String _describe(PlayEntry entry, Map<String, String> runnerLabels) {
+String _describe(
+  PlayEntry entry,
+  PlayDraft draft,
+  Map<String, String> runnerLabels,
+) {
   return switch (entry) {
     TouchEntry(:final position, :final touchType) =>
       '${positionAbbreviations[position] ?? position} '
-          '${_touchWords[touchType] ?? 'touch'}',
+          '${_touchWords[touchType] ?? _misplayWords(entry, draft)}',
     LegEntry(:final runnerId, :final to) =>
       '${_runner(runnerId, runnerLabels)} to ${_legBase[to] ?? to}',
     OutEntry(:final runnerId, :final atBase) =>
@@ -423,19 +430,31 @@ String _callWords(CallType type) {
   return '${words[0].toUpperCase()}${words.substring(1)}';
 }
 
+/// Clean plays read as what she did. Misplays are not here: they read as
+/// the popup named them ([_misplayWords]), so Back one says *RF misplayed*
+/// for what was entered as *Misplayed*.
 const _touchWords = {
   TouchType.FIELDED: 'fielded it',
   TouchType.CAUGHT: 'catch',
   TouchType.RECEIVED_THROW: 'takes the throw',
-  TouchType.DROPPED: 'drop',
-  TouchType.BOOTED: 'boot',
-  TouchType.BOBBLED: 'bobble',
   TouchType.DEFLECTED: 'deflection',
   TouchType.WILD_THROW: 'wild throw',
-  TouchType.MISSED_CATCH: 'missed catch',
   TouchType.TAG_APPLIED: 'tag',
   TouchType.TAG_MISSED: 'missed tag',
 };
+
+String _misplayWords(TouchEntry touch, PlayDraft draft) {
+  if (throwerInto(draft, touch) != null) {
+    return touch.touchType == TouchType.DROPPED
+        ? 'dropped the throw'
+        : 'missed the throw';
+  }
+  return ballPlayLabel(
+    touch.touchType,
+    state: ballStateAt(draft, touch),
+    trajectory: draft.trajectory,
+  ).toLowerCase();
+}
 
 const _legBase = {1: '1st', 2: '2nd', 3: '3rd', 4: 'home'};
 const _outBase = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};

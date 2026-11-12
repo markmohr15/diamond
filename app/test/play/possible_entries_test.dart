@@ -37,19 +37,17 @@ void main() {
       expect(throwerInto(draft, last(draft))?.position, 6);
     });
 
-    test(
-      'a grounder fielded in the infield: booted, deflected, missed tag',
-      () {
-        final draft = batted(
-          Trajectory.GROUND,
-        ).addingTouch(6, TouchType.FIELDED);
-        expect(retypeChoices(draft, last(draft)), [
-          TouchType.BOOTED,
-          TouchType.DEFLECTED,
-          TouchType.TAG_MISSED,
-        ]);
-      },
-    );
+    test('a grounder fielded in the infield: bobbled, booted, missed, '
+        'deflected, missed tag', () {
+      final draft = batted(Trajectory.GROUND).addingTouch(6, TouchType.FIELDED);
+      expect(retypeChoices(draft, last(draft)), [
+        TouchType.BOBBLED,
+        TouchType.BOOTED,
+        TouchType.MISSED_CATCH,
+        TouchType.DEFLECTED,
+        TouchType.TAG_MISSED,
+      ]);
+    });
 
     test('an outfielder cannot deflect', () {
       final draft = batted(Trajectory.GROUND).addingTouch(8, TouchType.FIELDED);
@@ -59,11 +57,12 @@ void main() {
       );
     });
 
-    test('a fly caught in flight: dropped and missed tag, and a pop-up '
-        'never caroms', () {
+    test('a fly caught in flight: missed catch, misplayed, missed tag, and '
+        'a pop-up never caroms', () {
       final draft = batted(Trajectory.POPUP).addingTouch(6, TouchType.CAUGHT);
       expect(retypeChoices(draft, last(draft)), [
         TouchType.DROPPED,
+        TouchType.BOOTED,
         TouchType.TAG_MISSED,
       ]);
     });
@@ -91,7 +90,9 @@ void main() {
     test('the node keeps its own type on the menu once retyped', () {
       final draft = batted(Trajectory.GROUND).addingTouch(6, TouchType.BOOTED);
       expect(retypeChoices(draft, last(draft)), [
+        TouchType.BOBBLED,
         TouchType.BOOTED,
+        TouchType.MISSED_CATCH,
         TouchType.DEFLECTED,
       ]);
     });
@@ -345,5 +346,71 @@ void main() {
       [for (var p = 1; p <= 10; p++) isInfield(p)],
       [...List.filled(6, true), ...List.filled(4, false)],
     );
+  });
+
+  group('the menus and their words (DIA-025)', () {
+    List<String> menu(BallState state, Trajectory trajectory, int position) => [
+      for (final type in ballPlayChoices(
+        state,
+        position: position,
+        trajectory: trajectory,
+      ))
+        ballPlayLabel(type, state: state, trajectory: trajectory),
+    ];
+
+    test('a ball in the air: Caught, Missed catch, Misplayed, Fielded', () {
+      expect(menu(BallState.inFlight, Trajectory.POPUP, 9), [
+        'Caught',
+        'Missed catch',
+        'Misplayed',
+        'Fielded',
+      ]);
+    });
+
+    test('an infield liner adds Deflected', () {
+      expect(
+        menu(BallState.inFlight, Trajectory.LINE, 6),
+        contains('Deflected'),
+      );
+    });
+
+    test('an air ball once it is down: Fielded or Misplayed', () {
+      expect(menu(BallState.onGround, Trajectory.FLY, 8), [
+        'Fielded',
+        'Misplayed',
+      ]);
+    });
+
+    test('a ground ball: Fielded, Bobbled, Booted, Missed, Deflected', () {
+      expect(menu(BallState.onGround, Trajectory.GROUND, 6), [
+        'Fielded',
+        'Bobbled',
+        'Booted',
+        'Missed',
+        'Deflected',
+      ]);
+    });
+
+    test('only a loose pitch still has a Missed that records nothing', () {
+      for (final (state, trajectory) in [
+        (BallState.inFlight, Trajectory.FLY),
+        (BallState.onGround, Trajectory.FLY),
+        (BallState.onGround, Trajectory.GROUND),
+      ]) {
+        expect(
+          ballPlayChoices(state, position: 6, trajectory: trajectory),
+          isNot(contains(null)),
+        );
+      }
+      expect(
+        ballPlayChoices(BallState.loosePitch, position: 2, trajectory: null),
+        contains(null),
+      );
+      expect(menu(BallState.loosePitch, Trajectory.GROUND, 2), [
+        'Picked up',
+        'Bobbled',
+        'Missed',
+      ]);
+    });
   });
 }

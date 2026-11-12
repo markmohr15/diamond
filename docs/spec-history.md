@@ -3,6 +3,38 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.64
+
+**The fielder's popup splits by whether the ball had landed, every miss is a chargeable touch, and
+a dropped or missed batted ball is a fielding error (§15.1, §4.2, §13.2).** DIA-025, ruled by Mark
+on 2026-11-11.
+
+**Why.** Mark entered a popup that fell in short right-center: the RF got to it and missed it, the
+CF picked it up and threw to second, and the batter was safe there. He wanted *single and E9*. The
+popup's *Missed it* recorded no touch, so there was nothing to charge the extra base to, and the
+record could only say *single, then to second on the throw*.
+
+**The menus.** Mark: *"Missed can really be two things — either we tried to catch and just totally
+whiffed or it landed, we tried to field it and missed it."* In the air the popup is now *Caught ·
+Missed catch · Misplayed · Fielded*: `dropped` for the catch that wasn't made (glove contact
+"immaterial"), `booted` for a ball misplayed after it fell in. An air ball keeps *Fielded ·
+Misplayed* once it is down. On the ground it is *Fielded · Bobbled · Booted · Missed · Deflected*:
+`bobbled` is new on batted balls, and *Missed* records `missed_catch`. Labels lost their "it",
+including the between-pitch *Picked up* and *Missed*.
+
+**`missed_catch` widened** from "a catchable throw got past the receiver" to a throw, a pitch, or a
+ground ball; **`booted`** now includes an air ball misplayed after it landed. No new values, so no
+schema change.
+
+**Fielding vs. catching.** The engine named every `dropped` and `missed_catch` a catching error,
+so a dropped fly read *"On the catching error"*. Mark wanted a fielding error, and asked whether
+the type should then say fly or throw: *"down the road we probably will want to know the
+difference."* It is derived instead, from whether the fielder before her had the ball, with one
+function the engine and the surface share; a stored type would repeat what the chain already says
+and could disagree with it after an edit. Play #4's fixture changes from *catching* to *fielding*.
+The spec's own Play #4 never named a kind, so the fixture was recording the code's answer. Two
+fixtures are new: this popup (play 26) and a grounder through the legs (play 27).
+
 ## v0.63
 
 **The game undo names what it would take back, and Leave field between pitches means done

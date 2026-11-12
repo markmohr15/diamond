@@ -4,6 +4,7 @@ import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart' show misplayTouchTypes;
+import 'package:diamond/src/rules/received.dart';
 
 /// What the entry surface may offer — the one place that decides it
 /// (DIA-019 slice H). The what-happened popup and the chain strip's retype
@@ -63,7 +64,23 @@ BallState _stateAfter(PlayDraft draft, List<TouchEntry> touches) {
 
 /// §15.1's what-happened popup: everything a fielder at [position] could
 /// have done to the ball in [state], in the order offered. `null` is
-/// *Missed it* — she never touched the ball, so nothing is recorded.
+/// *Missed* between pitches — a loose pitch she never touched records
+/// nothing.
+///
+/// **A ball in the air** offers four (Mark, 2026-11-11): *Caught*, *Missed
+/// catch*, *Misplayed*, *Fielded*. What separates the two misplays is
+/// whether the ball had landed, which is physics the scorer saw, and it is
+/// the same fact that separates *reached on error* from *single and an
+/// error*. Whether the glove touched it does not matter: *"if you miss a
+/// flyball or popup you should catch, rather it hit your glove or not is
+/// immaterial."* An air ball keeps that menu after it lands, too —
+/// *Fielded* or *Misplayed*.
+///
+/// **A ground ball** keeps the finer split, because there it is real:
+/// *"missing a ball is different than bobbling it and both are candidates
+/// for errors, but not necessarily so for either."* *Missed* records a
+/// touch now (DIA-025), so a ball through her legs can be charged; one
+/// through the hole simply has nobody dragged to it.
 List<TouchType?> ballPlayChoices(
   BallState state, {
   required int position,
@@ -76,7 +93,9 @@ List<TouchType?> ballPlayChoices(
   BallState.loosePitch => const [TouchType.FIELDED, TouchType.BOBBLED, null],
   BallState.inFlight => [
     TouchType.CAUGHT,
-    TouchType.DROPPED,
+    TouchType.DROPPED, // Missed catch
+    TouchType.BOOTED, // Misplayed, after it landed
+    TouchType.FIELDED,
     // Only a liner caroms, and only in the infield. Mark, 2026-09-04:
     // *"outfielders can't deflect, they can only miss"* — a ball off an
     // outfielder is a play she did not make, not a carom another fielder is
@@ -84,33 +103,73 @@ List<TouchType?> ballPlayChoices(
     // catches is likewise two fielders on one ball.
     if (trajectory == Trajectory.LINE && isInfield(position))
       TouchType.DEFLECTED,
-    null,
+  ],
+  BallState.onGround when isAirborne(trajectory) => [
     TouchType.FIELDED,
+    TouchType.BOOTED, // Misplayed
+    if (isInfield(position)) TouchType.DEFLECTED,
   ],
   BallState.onGround => [
     TouchType.FIELDED,
+    TouchType.BOBBLED,
     TouchType.BOOTED,
+    TouchType.MISSED_CATCH, // Missed: got past her untouched
     // It hit her and caromed away with no play to be made: a physical fact,
     // never an error candidate (§13.2), and the ball stays loose. Infield
     // only — see the liner above.
     if (isInfield(position)) TouchType.DEFLECTED,
-    null,
   ],
 };
+
+/// The words for one of [ballPlayChoices]' answers, wherever a touch on the
+/// ball is offered or retyped — the popup and the chain strip both read
+/// this, so a touch is called the same thing in both. One `TouchType` can
+/// read two ways: `booted` is *Misplayed* on a ball that came down out of
+/// the air and *Booted* on a grounder, and `missed_catch` is *Missed* on a
+/// grounder but *Missed catch* on a pitch.
+String ballPlayLabel(
+  TouchType? type, {
+  required BallState state,
+  required Trajectory? trajectory,
+}) {
+  final airBall = state != BallState.loosePitch && isAirborne(trajectory);
+  return switch (type) {
+    null => 'Missed',
+    // One word per thing (§15.1): a batted ball is *fielded*, a pitch that
+    // got away is *picked up* — the same `TouchType`, because §13 charges
+    // on the physical fact and the distinction is linguistic.
+    TouchType.FIELDED =>
+      state == BallState.loosePitch ? 'Picked up' : 'Fielded',
+    TouchType.CAUGHT => 'Caught',
+    TouchType.DROPPED => airBall ? 'Missed catch' : 'Dropped',
+    TouchType.BOOTED => airBall ? 'Misplayed' : 'Booted',
+    TouchType.BOBBLED => 'Bobbled',
+    TouchType.MISSED_CATCH =>
+      state == BallState.onGround && !airBall ? 'Missed' : 'Missed catch',
+    TouchType.DEFLECTED => 'Deflected',
+    TouchType.WILD_THROW => 'Wild throw',
+    TouchType.TAG_MISSED => 'Missed tag',
+    TouchType.RECEIVED_THROW => 'Took the throw',
+    TouchType.TAG_APPLIED => 'Tag',
+  };
+}
 
 /// The fielder whose throw [touch] received, if it is a reception — the one
 /// a wild throw belongs to (§15.3).
 ///
-/// A reception is a receiving type *and* somebody else touched the ball
-/// first. `dropped` and `missed_catch` describe muffing a throw *or* a ball
-/// off the bat or a pitch, and the type alone cannot tell them apart; who
-/// had it before can.
+/// A reception is a receiving type on a ball somebody threw her.
+/// `dropped` and `missed_catch` describe missing a throw *or* a ball off the
+/// bat, and the type alone cannot tell them apart; [receivedBy] can, from
+/// whether the fielder before her had the ball (DIA-025). Before that it
+/// took *any* earlier fielder, so a CF playing a ball the RF let past her
+/// read as taking the RF's throw. A pickoff is a throw with no recorded
+/// thrower, so it has no node to return.
 TouchEntry? throwerInto(PlayDraft draft, TouchEntry touch) {
   if (!_receivingTypes.contains(touch.touchType)) return null;
+  if (draft.receivedIn(touch) != Received.thrownBall) return null;
   return draft.entries
       .takeWhile((entry) => entry.key != touch.key)
       .whereType<TouchEntry>()
-      .where((earlier) => earlier.position != touch.position)
       .lastOrNull;
 }
 
