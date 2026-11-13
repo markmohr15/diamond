@@ -43,6 +43,12 @@ deeper, behind a chip that read as *reached on error*. With one misplay on the p
 now offers the splits itself. A split with only one possible answer is applied without a dialog.
 Two or more misplays keep v0.56's two steps: name the error, then divide the bases.
 
+**Misplayed leaves the ball loose (§15.1).** Reviewing the same play, Mark asked whether it was clear
+that the RF had not thrown to the CF. It was not: v0.56 leaves a boot's ball at the booter's feet, so
+dragging the CF over recorded a pickup by the RF and a throw to the CF, and nothing on screen said so.
+*Misplayed* on an air ball now leaves the ball loose. A grounder's boot and a missed catch keep
+v0.56's rule, because there the misplayer is the one who usually throws it.
+
 ## v0.63
 
 **The game undo names what it would take back, and Leave field between pitches means done

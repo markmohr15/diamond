@@ -721,7 +721,20 @@ class PlayDraft {
   /// The misplay that left the ball at her feet, if that is the last thing
   /// that happened. She is shown holding it and the next tap is a throw;
   /// the pickup is minted at that moment.
-  TouchEntry? get recoverableTouch => _lastTouchIf(_recoverableTypes);
+  ///
+  /// Except **Misplayed** — `booted` on a ball that came down out of the air
+  /// (v0.64). In the outfield that ball has usually gone past her, and
+  /// guessing she has it turned the CF coming over into a throw from the RF
+  /// that nobody made, with nothing on screen to say so (Mark, 2026-11-13).
+  /// Guessing *loose* fails loudly instead: the next fielder gets a popup.
+  /// If she did recover it, dragging her again says *Fielded*.
+  TouchEntry? get recoverableTouch {
+    final touch = _lastTouchIf(_recoverableTypes);
+    if (touch?.touchType == TouchType.BOOTED && isAirborne(trajectory)) {
+      return null;
+    }
+    return touch;
+  }
 
   TouchEntry? _lastTouchIf(Set<TouchType> types) {
     for (final entry in entries.reversed) {

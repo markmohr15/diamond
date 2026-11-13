@@ -368,6 +368,50 @@ void main() {
         expect(scoring.errors, isEmpty);
       });
 
+      testWidgets('after Misplayed the CF picks it up — no throw from the RF '
+          'is invented (v0.64)', (tester) async {
+        await pumpLoop(tester);
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+        await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+        await tapKey(tester, fielderPlayKey('booted')); // Misplayed
+        await dragFielder(tester, 8, FieldCoord(x: 50, y: 128));
+        await tapKey(tester, fielderPlayKey('fielded'));
+        await tapWorld(tester, standardSpot(6)); // CF throws to second
+
+        final touches = [
+          for (final e
+              in container.read(playDraftProvider).valueOrNull!.entries)
+            if (e is TouchEntry) (e.position, e.touchType),
+        ];
+        expect(touches, [
+          (9, TouchType.BOOTED),
+          (8, TouchType.FIELDED),
+          (6, TouchType.RECEIVED_THROW),
+        ]);
+      });
+
+      testWidgets('a grounder booted in the infield still leaves the ball at '
+          'her feet: the next tap is her throw', (tester) async {
+        await pumpLoop(tester);
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+        await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+        await tapKey(tester, fielderPlayKey('booted'));
+        await tapWorld(tester, standardSpot(3));
+
+        final touches = [
+          for (final e
+              in container.read(playDraftProvider).valueOrNull!.entries)
+            if (e is TouchEntry) (e.position, e.touchType),
+        ];
+        expect(touches, [
+          (6, TouchType.BOOTED),
+          (6, TouchType.FIELDED), // her pickup, minted by the throw
+          (3, TouchType.RECEIVED_THROW),
+        ]);
+      });
+
       testWidgets('a ball in the air offers Caught, Missed catch, Misplayed, '
           'Fielded — and once it is down, Fielded or Misplayed', (
         tester,
@@ -389,9 +433,8 @@ void main() {
         expect(find.text('Deflected'), findsNothing);
         await tapKey(tester, fielderPlayKey('booted'));
 
-        // It got by her: one tap says she does not have it, and the CF
-        // coming over is playing a ball that is already down.
-        await tapWorld(tester, FieldCoord(x: 40, y: 115));
+        // Misplayed leaves the ball loose (v0.64), so the CF coming over is
+        // playing a ball that is already down — no tap on the RF needed.
         await dragFielder(tester, 8, FieldCoord(x: 50, y: 125));
         expect(find.text('Caught'), findsNothing);
         expect(find.text('Missed catch'), findsNothing);
