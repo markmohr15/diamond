@@ -3,6 +3,16 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.65
+
+**The result beside the ✓ is the play log's sentence (§15.5).** DIA-018b-2, 2026-11-13.
+
+§15.5's example was *"Pop out to short (6) · runners hold"*, a scorebook shorthand the app never
+wrote anywhere else. The built line runs the play log's own grammar over the uncommitted play and
+shows it as *SCORES AS* above the field's buttons, as on the 14A board. Mark: *"certainly no need for
+runners hold to ever appear in a log."* The example now quotes a real sentence. The line says only
+what happened, and is hidden until the play can be committed, with its space kept.
+
 ## v0.64
 
 **The fielder's popup splits by whether the ball had landed, every miss is a chargeable touch, and

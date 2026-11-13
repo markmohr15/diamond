@@ -26,6 +26,7 @@ export 'package:diamond/src/ui/field_canvas/field_controls.dart'
         fieldBackOneKey,
         fieldCommitKey,
         fieldLeaveKey,
+        fieldScoresAsKey,
         fieldStartOverKey,
         leaveDiscardKey,
         leaveKeepKey;
