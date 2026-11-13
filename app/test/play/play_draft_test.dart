@@ -36,6 +36,38 @@ void main() {
       expect(booted.ballAt?.x, -60);
     });
 
+    test('a throw moves the ball, not the roll: where it stopped off the '
+        'bat stays put (Mark, 2026-11-13)', () {
+      // Mark's popup: it falls in, the RF misplays it, the CF picks it up
+      // and throws to the SS, who throws to third.
+      final played = base
+          .copyWith(
+            landing: FieldCoord(x: 36, y: 120),
+            trajectory: Trajectory.POPUP,
+          )
+          .addingTouch(9, TouchType.BOOTED, location: FieldCoord(x: 40, y: 120))
+          .addingTouch(
+            8,
+            TouchType.FIELDED,
+            location: FieldCoord(x: 42, y: 116),
+          )
+          .addingTouch(
+            6,
+            TouchType.RECEIVED_THROW,
+            location: FieldCoord(x: -22, y: 84),
+          )
+          .addingTouch(
+            5,
+            TouchType.RECEIVED_THROW,
+            location: FieldCoord(x: -36, y: 52),
+          );
+
+      expect(played.ballAt?.x, -36, reason: 'the ball is with the 3B');
+      expect(played.rollEnd?.x, 40, reason: 'it rolled to the RF, no further');
+      expect(played.ballStopped?.x, 40);
+      expect([for (final at in played.ballRoute) at.x], [40, 40, 42, -22, -36]);
+    });
+
     test('a home run has a landing and no roll', () {
       // It does not travel after landing; it arrives. Which is also why the
       // field behind `rollEnd` is absent on every one of them.

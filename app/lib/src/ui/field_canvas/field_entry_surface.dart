@@ -259,12 +259,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     movedFielders: draft.movedFielders,
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
-                    route: [
-                      if (draft.landing != null) draft.ballAt ?? draft.landing!,
-                      for (final entry in draft.entries)
-                        if (entry is TouchEntry && entry.location != null)
-                          entry.location!,
-                    ],
+                    route: draft.ballRoute,
                   ),
                 ),
               );
