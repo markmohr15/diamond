@@ -24,6 +24,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../shown.dart';
+
 /// DIA-008a/b acceptance under §15.1 v0.43's grammar: the trajectory modal
 /// first; the ball's path drawn (two taps, streak) or implied by the live
 /// fielder drag with its what-happened popup; the batter runs on contact;
@@ -1586,6 +1588,25 @@ void main() {
       expect(scoring.batterOutcomes.single.scoring, 'single');
       expect(scoring.errors.single.position, 9);
       expect(scoring.errors.single.kind, OfficialErrorKind.fielding);
+    });
+
+    testWidgets('SCORES AS says what the ✓ would save, and says nothing '
+        'until it can save (DIA-018b-2)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+      expect(isShown(tester, fieldScoresAsKey), isFalse);
+
+      await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+      await tapKey(tester, fielderPlayKey('booted')); // Misplayed
+      await dragToken(tester, 1, 2, originFrom: 0);
+      await tapKey(tester, safeChipKey('split-1'));
+
+      expect(isShown(tester, fieldScoresAsKey), isTrue);
+      final said = tester.widget<Text>(find.byKey(fieldScoresAsKey)).data!;
+      expect(said, contains('singled to right-center'));
+      expect(said, contains('On a fielding error by the RF'));
+      expect(said, contains('advanced to second'));
     });
 
     testWidgets("Mark's popup, dragged straight to second: Single and an "
