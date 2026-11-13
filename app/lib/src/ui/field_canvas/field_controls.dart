@@ -4,6 +4,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
+import 'package:diamond/src/play/play_preview.dart';
 import 'package:diamond/src/play/possible_entries.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
@@ -26,6 +27,8 @@ const Key fieldCommitKey = Key('fieldCommit');
 const Key leaveDiscardKey = Key('leaveDiscard');
 @visibleForTesting
 const Key leaveKeepKey = Key('leaveKeep');
+@visibleForTesting
+const Key fieldScoresAsKey = Key('fieldScoresAs');
 
 /// Which pitch of its plate appearance the play hangs off — the number in
 /// *Back to pitch 4's result*.
@@ -38,6 +41,15 @@ final pitchNumberProvider = FutureProvider.family<int?, String>((
       .read(eventStoreProvider)
       .readStream(ref.read(gameSessionProvider).gameId);
   return pitchNumberInPa(visible, pitchEventId);
+});
+
+/// The game's visible stream, for saying what the open play would score as.
+/// Rebuilt whenever the fold moves.
+final _visibleStreamProvider = FutureProvider<List<GameEvent>>((ref) {
+  ref.watch(gameControllerProvider);
+  return ref
+      .read(eventStoreProvider)
+      .readStream(ref.read(gameSessionProvider).gameId);
 });
 
 /// §15.5 v0.60: the field's own bar, every control labeled with what it does.
@@ -75,6 +87,13 @@ class FieldControls extends ConsumerWidget {
         ? "the pitch's"
         : "pitch ${number.valueOrNull}'s";
 
+    // §15.5: what the ✓ would save, in the play log's own words, read
+    // before it is pressed (DIA-018b-2). Mark's last several simulator
+    // findings were all visible here first: "on the throw" where he meant an
+    // error, and a throw from the RF that nobody made.
+    final visible = ref.watch(_visibleStreamProvider).valueOrNull;
+    final scoresAs = visible == null ? null : previewPlayLine(visible, draft);
+
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: BrandMetrics.spaceLg,
@@ -85,81 +104,100 @@ class FieldControls extends ConsumerWidget {
           top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant),
         ),
       ),
-      // Four controls on a tablet in portrait: the theme's 28px button
-      // padding is tightened here, and the two labels that describe *this*
-      // play shrink with an ellipsis before anything overflows. The ✓ and
-      // Start play over never shrink.
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: _TwoLine(
-                    buttonKey: fieldLeaveKey,
-                    eyebrow: 'LEAVE FIELD',
-                    label: draft.battedBall
-                        ? 'Back to $pitch result'
-                        : _betweenPitchesLabel(entered: entered),
-                    icon: Icons.arrow_back,
-                    onPressed: () => _leave(context, ref, pitch, asks: entered),
-                  ),
-                ),
-                const SizedBox(width: BrandMetrics.spaceMd),
-                _HoldsItsPlace(
-                  shown: previous != null,
-                  child: OutlinedButton.icon(
-                    key: fieldStartOverKey,
-                    style: _compact,
-                    onPressed: previous == null ? null : play.startOver,
-                    icon: const Icon(Icons.restart_alt),
-                    label: const Text('Start play over'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: BrandMetrics.spaceXl),
-          Flexible(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: _HoldsItsPlace(
-                    shown: previous != null,
-                    child: _TwoLine(
-                      buttonKey: fieldBackOneKey,
-                      eyebrow: 'BACK ONE',
-                      label: previous == null
-                          ? 'Nothing to take back'
-                          : describeStep(
-                              before: previous,
-                              after: draft,
-                              runnerLabels: runnerLabels,
-                            ),
-                      icon: Icons.undo,
-                      onPressed: previous == null ? null : play.stepUndo,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: BrandMetrics.spaceMd),
-                _HoldsItsPlace(
-                  shown: draft.committable,
-                  child: FilledButton.icon(
-                    key: fieldCommitKey,
-                    style: _compact,
-                    onPressed: draft.committable ? onCommit : null,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Commit play'),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _ScoresAs(text: scoresAs),
+          const SizedBox(height: BrandMetrics.spaceSm),
+          _buttons(context, ref, play, previous, entered, pitch),
         ],
       ),
+    );
+  }
+
+  Widget _buttons(
+    BuildContext context,
+    WidgetRef ref,
+    PlayDraftController play,
+    PlayDraft? previous,
+    bool entered,
+    String pitch,
+  ) {
+    // Four controls on a tablet in portrait: the theme's 28px button
+    // padding is tightened here, and the two labels that describe *this*
+    // play shrink with an ellipsis before anything overflows. The ✓ and
+    // Start play over never shrink.
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: _TwoLine(
+                  buttonKey: fieldLeaveKey,
+                  eyebrow: 'LEAVE FIELD',
+                  label: draft.battedBall
+                      ? 'Back to $pitch result'
+                      : _betweenPitchesLabel(entered: entered),
+                  icon: Icons.arrow_back,
+                  onPressed: () => _leave(context, ref, pitch, asks: entered),
+                ),
+              ),
+              const SizedBox(width: BrandMetrics.spaceMd),
+              _HoldsItsPlace(
+                shown: previous != null,
+                child: OutlinedButton.icon(
+                  key: fieldStartOverKey,
+                  style: _compact,
+                  onPressed: previous == null ? null : play.startOver,
+                  icon: const Icon(Icons.restart_alt),
+                  label: const Text('Start play over'),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: BrandMetrics.spaceXl),
+        Flexible(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: _HoldsItsPlace(
+                  shown: previous != null,
+                  child: _TwoLine(
+                    buttonKey: fieldBackOneKey,
+                    eyebrow: 'BACK ONE',
+                    label: previous == null
+                        ? 'Nothing to take back'
+                        : describeStep(
+                            before: previous,
+                            after: draft,
+                            runnerLabels: runnerLabels,
+                          ),
+                    icon: Icons.undo,
+                    onPressed: previous == null ? null : play.stepUndo,
+                  ),
+                ),
+              ),
+              const SizedBox(width: BrandMetrics.spaceMd),
+              _HoldsItsPlace(
+                shown: draft.committable,
+                child: FilledButton.icon(
+                  key: fieldCommitKey,
+                  style: _compact,
+                  onPressed: draft.committable ? onCommit : null,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Commit play'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -297,6 +335,63 @@ class _HoldsItsPlace extends StatelessWidget {
     maintainState: true,
     child: child,
   );
+}
+
+/// §15.5's *SCORES AS* line over the bar (the 14A board): what the ✓ would
+/// save, in the play log's sentence. Its space is kept while there is
+/// nothing to say yet, so the buttons never jump when the play becomes
+/// committable (§23.1 v0.63).
+class _ScoresAs extends StatelessWidget {
+  const _ScoresAs({required this.text});
+
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.titleMedium!.copyWith(
+      fontWeight: FontWeight.w700,
+    );
+    // Two lines, always: a long play wraps, and a bar that grew a line as
+    // the play did would move the ✓ under the scorer's thumb.
+    final lineHeight = MediaQuery.textScalerOf(
+      context,
+    ).scale(style.fontSize! * (style.height ?? 1.2));
+    return SizedBox(
+      height: lineHeight * 2,
+      child: Visibility(
+        visible: text != null,
+        maintainSize: true,
+        maintainAnimation: true,
+        maintainState: true,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              // Sits on the sentence's first line rather than its top edge.
+              padding: EdgeInsets.only(top: lineHeight * 0.3),
+              child: Text(
+                'SCORES AS',
+                style: BrandType.eyebrow.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(width: BrandMetrics.spaceMd),
+            Expanded(
+              child: Text(
+                text ?? '',
+                key: fieldScoresAsKey,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: style,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// The theme's button with less side padding, so four fit in one bar.
