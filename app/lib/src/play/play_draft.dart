@@ -416,9 +416,8 @@ class PlayDraft {
 
   /// **Where the ball is** — the one answer, so nothing has to guess twice.
   ///
-  /// A fielder placed on a loose ball snaps here, and the painter draws the
-  /// roll segment to here, which is what stops the streak and the fielder from
-  /// disagreeing about the same fact.
+  /// A fielder placed on a loose ball snaps here. The roll is drawn to
+  /// [ballStopped] instead; the two agree until the first throw.
   ///
   /// In order: where the scorer said it ended up; else wherever the last touch
   /// left it, since a boot drops the ball at the booter's feet and the next
@@ -430,14 +429,39 @@ class PlayDraft {
     return lastTouch?.location ?? landing;
   }
 
+  /// Where the batted ball **stopped**, before anybody threw it: where the
+  /// scorer said it ended up; else where the first fielder played it; else
+  /// the landing.
+  ///
+  /// Not [ballAt], which follows the ball through every touch. The two
+  /// agree until the first throw, and the roll used to read [ballAt], so
+  /// once the ball was thrown to third the streak ran from right-center to
+  /// third base, as if the popup had rolled there (Mark, 2026-11-13).
+  FieldCoord? get ballStopped {
+    if (endedAt != null) return endedAt;
+    final firstTouch = entries.whereType<TouchEntry>().firstOrNull;
+    return firstTouch?.location ?? landing;
+  }
+
+  /// The ball's journey for the canvas's dashed route (§15.1 v0.43): where
+  /// it stopped off the bat, then every touch location in order, throws
+  /// included. It starts at [ballStopped], never at [ballAt], or the first
+  /// segment would run from wherever the ball is *now* back to the start.
+  List<FieldCoord> get ballRoute => [
+    // With a landing there is always somewhere it stopped.
+    if (landing != null) ballStopped!,
+    for (final entry in entries)
+      if (entry is TouchEntry && entry.location != null) entry.location!,
+  ];
+
   /// The roll segment's far end, or null when the ball never moved after
   /// landing — a home run, or anything fielded on the spot.
   ///
   /// Generated types carry no value equality, so this compares coordinates
-  /// rather than instances: `ballAt` falls back to `landing` and would
+  /// rather than instances: [ballStopped] falls back to `landing` and would
   /// otherwise draw a zero-length streak on every play that has one.
   FieldCoord? get rollEnd {
-    final at = ballAt;
+    final at = ballStopped;
     final from = landing;
     if (at == null || from == null) return null;
     return (at.x == from.x && at.y == from.y) ? null : at;
@@ -727,7 +751,8 @@ class PlayDraft {
   /// guessing she has it turned the CF coming over into a throw from the RF
   /// that nobody made, with nothing on screen to say so (Mark, 2026-11-13).
   /// Guessing *loose* fails loudly instead: the next fielder gets a popup.
-  /// If she did recover it, dragging her again says *Fielded*.
+  /// If she did recover it, a tap on her says *Fielded* where the ball lies;
+  /// a re-drag would move her misplay instead.
   TouchEntry? get recoverableTouch {
     final touch = _lastTouchIf(_recoverableTypes);
     if (touch?.touchType == TouchType.BOOTED && isAirborne(trajectory)) {

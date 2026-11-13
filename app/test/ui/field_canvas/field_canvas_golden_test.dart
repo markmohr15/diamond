@@ -1,6 +1,7 @@
 import 'package:alchemist/alchemist.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
+import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
@@ -30,6 +31,7 @@ void main() {
     int? holderPosition,
     FieldCoord? ballAt,
     Map<int, FieldCoord> movedFielders = const {},
+    List<FieldCoord> route = const [],
     Brightness brightness = Brightness.light,
   }) {
     final scheme = schemeFor(brightness);
@@ -56,6 +58,7 @@ void main() {
           holderPosition: holderPosition,
           ballAt: ballAt,
           movedFielders: movedFielders,
+          route: route,
         ),
       ),
     );
@@ -131,6 +134,53 @@ void main() {
               ),
             ],
           ),
+        ),
+        GoldenTestScenario(
+          name:
+              'popup falls in, RF misplays, CF fields, throws SS then 3B: the '
+              'roll stops at the RF',
+          constraints: BoxConstraints.tight(_canvasSize),
+          child: () {
+            // Built through the draft, so the roll and route are the ones
+            // the surface draws (Mark, 2026-11-13).
+            final draft = const PlayDraft(pitchEventId: 'p', batterId: 'b1')
+                .copyWith(
+                  landing: FieldCoord(x: 36, y: 120),
+                  trajectory: Trajectory.POPUP,
+                )
+                .addingTouch(
+                  9,
+                  TouchType.BOOTED,
+                  location: FieldCoord(x: 40, y: 120),
+                )
+                .addingTouch(
+                  8,
+                  TouchType.FIELDED,
+                  location: FieldCoord(x: 42, y: 116),
+                )
+                .addingTouch(
+                  6,
+                  TouchType.RECEIVED_THROW,
+                  location: FieldCoord(x: -22.5, y: 84),
+                )
+                .addingTouch(
+                  5,
+                  TouchType.RECEIVED_THROW,
+                  location: FieldCoord(x: -36, y: 52),
+                );
+            return canvas(
+              landing: draft.landing,
+              endedAt: draft.rollEnd,
+              ballAt: draft.ballAt,
+              holderPosition: 5,
+              route: draft.ballRoute,
+              movedFielders: {
+                9: FieldCoord(x: 40, y: 120),
+                8: FieldCoord(x: 42, y: 116),
+              },
+              tokens: const [RunnerToken(runnerId: 'b1', label: 'B', base: 2)],
+            );
+          }(),
         ),
         GoldenTestScenario(
           name: 'gap shot rolled to the wall; batter to second, R1 scored',

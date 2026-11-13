@@ -391,6 +391,29 @@ void main() {
         ]);
       });
 
+      testWidgets('after Misplayed, an RF who did recover it is a tap: '
+          'Fielded, where the ball lies', (tester) async {
+        await pumpLoop(tester);
+        await reachFieldSurface(tester);
+        await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+        await dragFielder(tester, 9, FieldCoord(x: 40, y: 115));
+        await tapKey(tester, fielderPlayKey('booted')); // Misplayed
+        await tapWorld(tester, FieldCoord(x: 40, y: 115)); // tap the RF
+        await tapKey(tester, fielderPlayKey('fielded'));
+        await tapWorld(tester, standardSpot(6)); // and she throws to SS
+
+        final touches = [
+          for (final e
+              in container.read(playDraftProvider).valueOrNull!.entries)
+            if (e is TouchEntry) (e.position, e.touchType),
+        ];
+        expect(touches, [
+          (9, TouchType.BOOTED),
+          (9, TouchType.FIELDED),
+          (6, TouchType.RECEIVED_THROW),
+        ]);
+      });
+
       testWidgets('a grounder booted in the infield still leaves the ball at '
           'her feet: the next tap is her throw', (tester) async {
         await pumpLoop(tester);
