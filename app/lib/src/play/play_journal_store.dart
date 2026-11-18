@@ -54,52 +54,83 @@ class PlayJournalStore {
   /// (§11.3 v0.54), so only the last few can ever be asked for.
   static const committedDepth = 10;
 
-  Future<void> pushCommitted(String gameId, PlayDraft draft) async {
+  /// Keeps [draft] with the [steps] that built it, oldest first, so a play
+  /// undone and reopened still has its Back one (§15.5, DIA-018b-1).
+  Future<void> pushCommitted(
+    String gameId,
+    PlayDraft draft, {
+    required List<PlayDraft> steps,
+  }) async {
     final kept = await _committed(gameId);
-    final next = [draft, ...kept].take(committedDepth).toList();
-    await _db
-        .into(_db.playJournals)
-        .insertOnConflictUpdate(
-          PlayJournalsCompanion.insert(
-            gameId: _committedKey(gameId),
-            draft: jsonEncode([for (final d in next) d.toJson()]),
-          ),
-        );
+    final next = [
+      (draft: draft, steps: steps),
+      ...kept,
+    ].take(committedDepth).toList();
+    await _writeCommitted(gameId, next);
   }
 
-  /// Removes and returns the newest committed play that [matches], or null
-  /// when none was kept — a play committed before this existed, or on a
-  /// store that was cleared.
-  Future<PlayDraft?> takeCommitted(
+  /// Removes and returns the newest committed play that [matches], with its
+  /// steps, or null when none was kept — a play committed before this
+  /// existed, or on a store that was cleared. A play kept before steps were
+  /// stored comes back with none.
+  Future<KeptPlay?> takeCommitted(
     String gameId,
     bool Function(PlayDraft) matches,
   ) async {
     final kept = await _committed(gameId);
-    final index = kept.indexWhere(matches);
+    final index = kept.indexWhere((play) => matches(play.draft));
     if (index < 0) return null;
     final taken = kept.removeAt(index);
-    await _db
+    await _writeCommitted(gameId, kept);
+    return taken;
+  }
+
+  Future<void> _writeCommitted(String gameId, List<KeptPlay> plays) {
+    return _db
         .into(_db.playJournals)
         .insertOnConflictUpdate(
           PlayJournalsCompanion.insert(
             gameId: _committedKey(gameId),
-            draft: jsonEncode([for (final d in kept) d.toJson()]),
+            draft: jsonEncode([
+              for (final play in plays)
+                {
+                  'kept': play.draft.toJson(),
+                  'steps': [for (final step in play.steps) step.toJson()],
+                },
+            ]),
           ),
         );
-    return taken;
   }
 
-  Future<List<PlayDraft>> _committed(String gameId) async {
+  Future<List<KeptPlay>> _committed(String gameId) async {
     final query = _db.select(_db.playJournals)
       ..where((tbl) => tbl.gameId.equals(_committedKey(gameId)));
     final row = await query.getSingleOrNull();
     if (row == null) return [];
     return [
       for (final json in jsonDecode(row.draft) as List<dynamic>)
-        PlayDraft.fromJson(json as Map<String, dynamic>),
+        _keptFromJson(json as Map<String, dynamic>),
     ];
   }
+
+  static KeptPlay _keptFromJson(Map<String, dynamic> json) {
+    // Before steps were kept, each row was the bare draft.
+    if (!json.containsKey('kept')) {
+      return (draft: PlayDraft.fromJson(json), steps: const []);
+    }
+    return (
+      draft: PlayDraft.fromJson(json['kept'] as Map<String, dynamic>),
+      steps: [
+        for (final step in json['steps'] as List<dynamic>)
+          PlayDraft.fromJson(step as Map<String, dynamic>),
+      ],
+    );
+  }
 }
+
+/// A committed play as the scorer entered it, and the drafts it passed
+/// through on the way, oldest first: what Back one walks back through.
+typedef KeptPlay = ({PlayDraft draft, List<PlayDraft> steps});
 
 final playJournalStoreProvider = Provider<PlayJournalStore>(
   (ref) => PlayJournalStore(ref.watch(appDatabaseProvider)),

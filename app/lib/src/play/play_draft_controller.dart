@@ -601,19 +601,24 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     await ref
         .read(gameControllerProvider.notifier)
         .appendAllPending(draft.toEvents());
-    await _journal.pushCommitted(_gameId, draft);
+    await _journal.pushCommitted(_gameId, draft, steps: List.of(_steps));
     await _journal.clear(_gameId);
     state = const AsyncData(null);
   }
 
   /// Puts a play back on the field after undo voided it (§15.5 v0.63): the
   /// newest kept copy anchored where [matches] says, or null when none was
-  /// kept. Its step history starts empty, so Back one has nothing to take
-  /// until the scorer changes something.
+  /// kept. Its step history comes back with it (§15.5, DIA-018b-1), so Back
+  /// one takes back the last thing entered, as it did before the ✓. A copy
+  /// kept before steps were stored has none, and Back one waits until the
+  /// scorer changes something.
   Future<PlayDraft?> reopenCommitted(bool Function(PlayDraft) matches) async {
-    final draft = await _journal.takeCommitted(_gameId, matches);
-    if (draft == null) return null;
-    _steps.clear();
+    final kept = await _journal.takeCommitted(_gameId, matches);
+    if (kept == null) return null;
+    final draft = kept.draft;
+    _steps
+      ..clear()
+      ..addAll(kept.steps);
     await _journal.save(_gameId, draft);
     state = AsyncData(draft);
     return draft;
@@ -636,9 +641,11 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// existed; a throw writes a touch *and* a leg together, which is exactly
   /// what per-node removal could not express.
   ///
-  /// Session state, not journaled: a relaunch restores the draft but not its
-  /// history. The crash journal exists so a half-entered play survives
-  /// (§15.5), not so it can be rewound afterwards.
+  /// Not journaled while the play is open: a relaunch restores the draft but
+  /// not its history, since the crash journal exists so a half-entered play
+  /// survives (§15.5), not so it can be rewound. The ✓ keeps it with the
+  /// committed copy, because undo reopening a play is exactly when
+  /// the scorer wants to take back its last part.
   final _steps = <PlayDraft>[];
 
   /// Whether [stepUndo] has anything to pop — for the field's Back one.

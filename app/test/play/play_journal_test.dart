@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/play/play_draft.dart';
@@ -66,28 +68,31 @@ void main() {
     const play = PlayDraft(pitchEventId: 'p-2', batterId: 'opp-1');
 
     test('takes the newest match and removes it', () async {
-      await store.pushCommitted('g', steal);
-      await store.pushCommitted('g', play);
+      await store.pushCommitted('g', steal, steps: const []);
+      await store.pushCommitted('g', play, steps: const []);
 
       final taken = await store.takeCommitted(
         'g',
         (d) => d.battedBall && d.pitchEventId == 'p-2',
       );
-      expect(taken?.pitchEventId, 'p-2');
+      expect(taken?.draft.pitchEventId, 'p-2');
       expect(
         await store.takeCommitted('g', (d) => d.pitchEventId == 'p-2'),
         isNull,
         reason: 'taken once',
       );
       expect(
-        (await store.takeCommitted('g', (d) => !d.battedBall))?.pitchEventId,
+        (await store.takeCommitted(
+          'g',
+          (d) => !d.battedBall,
+        ))?.draft.pitchEventId,
         'p-1',
       );
     });
 
     test('lives beside the crash journal without touching it', () async {
       await store.save('g', play);
-      await store.pushCommitted('g', steal);
+      await store.pushCommitted('g', steal, steps: const []);
       expect((await store.load('g'))?.pitchEventId, 'p-2');
       await store.clear('g');
       expect(
@@ -102,6 +107,7 @@ void main() {
         await store.pushCommitted(
           'g',
           PlayDraft(pitchEventId: 'p-$i', batterId: 'b'),
+          steps: const [],
         );
       }
       expect(
@@ -113,5 +119,37 @@ void main() {
         isNotNull,
       );
     });
+
+    test('keeps the steps that built the play, oldest first', () async {
+      final stole = steal.addingLeg(
+        'r1',
+        from: 1,
+        to: 2,
+        attribute: false,
+        reason: RunnerAdvanceReason.STOLEN_BASE,
+      );
+      final caught = stole.addingOut('r1', atBase: 3, how: How.CAUGHT_STEALING);
+      await store.pushCommitted('g', caught, steps: [steal, stole]);
+      final taken = await store.takeCommitted('g', (_) => true);
+      expect(taken!.draft.entries, hasLength(2));
+      expect(taken.steps.map((d) => d.entries.length), [0, 1]);
+    });
+
+    test(
+      'an older copy, kept without its steps, comes back with none',
+      () async {
+        await db
+            .into(db.playJournals)
+            .insertOnConflictUpdate(
+              PlayJournalsCompanion.insert(
+                gameId: 'g#committed',
+                draft: jsonEncode([steal.toJson()]),
+              ),
+            );
+        final taken = await store.takeCommitted('g', (_) => true);
+        expect(taken?.draft.pitchEventId, 'p-1');
+        expect(taken?.steps, isEmpty);
+      },
+    );
   });
 }
