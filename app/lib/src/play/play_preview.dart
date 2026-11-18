@@ -1,6 +1,8 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/play/play_draft.dart';
+import 'package:diamond/src/play/reach_at_commit.dart';
+import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/rules/play_line.dart';
 
@@ -14,15 +16,28 @@ import 'package:diamond/src/rules/play_line.dart';
 /// pitch's whole line, keeps a steal after ball two from repeating whatever
 /// that pitch already said.
 ///
-/// Null when the draft can't be committed yet, or when it would add nothing
-/// worth saying.
+/// It is what the ✓ would save **if the scorer entered nothing else**, so
+/// the ✓'s own settling is applied first: a batter left on her walk-up
+/// while a runner she pushed up is retired reads as the fielder's choice
+/// the ✓ will record, not as the hit her presumed leg alone would derive.
+/// [before] and [outs] are the fold's state ahead of the play, which the
+/// draft cannot see.
+///
+/// Null when the draft can't be committed yet, when it would add nothing
+/// worth saying, or when the ✓ would ask — "Safe at 1B — how?" or the
+/// sacrifice — because any sentence then is a guess at the answer.
 String? previewPlayLine(
   List<GameEvent> visible,
   PlayDraft draft, {
+  required BaseState before,
+  required int outs,
   PlayerLabel? label,
 }) {
   if (!draft.committable) return null;
-  final pending = draft.toEvents();
+  if (reachAtCommit(draft, before) == ReachAtCommit.ask) return null;
+  final settled = withReachSettled(draft, before);
+  if (settled.invitesSacrifice(outs: outs)) return null;
+  final pending = settled.toEvents();
   String idOf(int i) => 'preview-$i';
   final idsByKey = {
     for (var i = 0; i < pending.length; i++)
@@ -53,11 +68,10 @@ String? previewPlayLine(
     ];
   }
 
-  final before = said(visible);
-  final after = said([...visible, ...preview]);
+  final already = said(visible);
   final added = [
-    for (final sentence in after)
-      if (!before.contains(sentence)) sentence,
+    for (final sentence in said([...visible, ...preview]))
+      if (!already.contains(sentence)) sentence,
   ];
   return added.isEmpty ? null : added.join(' ');
 }
