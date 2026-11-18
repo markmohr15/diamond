@@ -1,4 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft.dart';
@@ -361,9 +362,14 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// A throw (§15.1 v0.43): the ball is held, and a tap on another fielder
   /// sends it to her — `received_throw` at her spot. A drag instead places
   /// the reception: she moves there and receives there.
+  ///
+  /// A throw caught at a base where an out is waiting for its putout claims
+  /// it ([PlayDraft.claimingOpenPutout]), so marking the out before the
+  /// throw records the same play as marking it after.
   Future<void> receiveThrow(
     int position, {
     required FieldCoord spot,
+    required FieldProfile profile,
     bool moved = false,
   }) {
     return _mutate((draft) {
@@ -393,13 +399,15 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
       next = next.recoveringLooseBall();
       // Off a loose ball she is making a play on it, not receiving a throw
       // — §15.1's rule, and what makes "the catcher never had it" honest.
-      return next.addingTouch(
-        position,
-        next.holderPosition == null
-            ? TouchType.FIELDED
-            : TouchType.RECEIVED_THROW,
-        location: spot,
-      );
+      return next
+          .addingTouch(
+            position,
+            next.holderPosition == null
+                ? TouchType.FIELDED
+                : TouchType.RECEIVED_THROW,
+            location: spot,
+          )
+          .claimingOpenPutout(profile: profile);
     });
   }
 

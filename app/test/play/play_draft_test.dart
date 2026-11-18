@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -719,6 +720,144 @@ void main() {
       final events = draft.toEvents();
       expect(events[0].payload['landingIsCaught'], isTrue);
       expect(events[2].payload['how'], 'fly_out');
+    });
+  });
+
+  group('the putout goes to whoever had the ball at the base '
+      '(§15.1 v0.66)', () {
+    final profile = FieldProfile.fastpitch12U;
+    // Mark's 5-4 from the simulator, 2026-11-18: the 3B fields it well off
+    // the bag, and the 2B takes the throw at second.
+    final atThird = FieldCoord(x: -36, y: 52);
+    final atSecond = FieldCoord(x: 0.6, y: 83);
+    final grounder = base
+        .copyWith(
+          landing: FieldCoord(x: -36, y: 52),
+          trajectory: Trajectory.GROUND,
+        )
+        .addingLeg('opp-1', from: 0, to: 1, attribute: false)
+        .copyWith(openingLegCount: 1)
+        .addingTouch(5, TouchType.FIELDED, location: atThird);
+    int keyOf(PlayDraft draft, int position) => draft.entries
+        .whereType<TouchEntry>()
+        .lastWhere((touch) => touch.position == position)
+        .key;
+
+    // The chain as a scorebook reads it, with the putout named by position.
+    int putoutBy(PlayDraft draft, OutEntry out) =>
+        (draft.entryByKey(out.putoutKey!)! as TouchEntry).position;
+    List<String> reading(PlayDraft draft) => [
+      for (final entry in draft.entries)
+        switch (entry) {
+          TouchEntry() => '${entry.position} ${entry.touchType.name}',
+          OutEntry() =>
+            'out at ${entry.atBase}, putout ${putoutBy(draft, entry)}',
+          LegEntry() => '${entry.runnerId} ${entry.from}-${entry.to}',
+          _ => entry.runtimeType.toString(),
+        },
+    ];
+
+    test('out first, then the throw: the 2B takes the putout, and the out '
+        'moves after her catch', () {
+      final outFirst = grounder.addingOut(
+        'r1',
+        atBase: 2,
+        how: How.FORCE,
+        putoutKey: keyOf(grounder, 5),
+      );
+      final thrown = outFirst
+          .addingTouch(4, TouchType.RECEIVED_THROW, location: atSecond)
+          .claimingOpenPutout(profile: profile);
+
+      final throwFirst = grounder.addingTouch(
+        4,
+        TouchType.RECEIVED_THROW,
+        location: atSecond,
+      );
+      final forced = throwFirst.addingOut(
+        'r1',
+        atBase: 2,
+        how: How.FORCE,
+        putoutKey: keyOf(throwFirst, 4),
+      );
+
+      expect(reading(thrown), [
+        'opp-1 0-1',
+        '5 FIELDED',
+        '4 RECEIVED_THROW',
+        'out at 2, putout 4',
+      ]);
+      expect(
+        reading(thrown),
+        reading(forced),
+        reason: 'one play, either order',
+      );
+    });
+
+    test('the SS who takes it to the bag herself keeps it: a throw on to '
+        'first is not a catch at second', () {
+      final ss = grounder.addingTouch(
+        6,
+        TouchType.FIELDED,
+        location: FieldCoord(x: -20, y: 63),
+      );
+      final outAtSecond = ss.addingOut(
+        'r1',
+        atBase: 2,
+        how: How.FORCE,
+        putoutKey: keyOf(ss, 6),
+      );
+      final relayed = outAtSecond
+          .addingTouch(
+            3,
+            TouchType.RECEIVED_THROW,
+            location: baseCoordinate(profile, 1),
+          )
+          .claimingOpenPutout(profile: profile);
+      final out = relayed.entries.whereType<OutEntry>().single;
+      expect(out.putoutKey, keyOf(ss, 6));
+    });
+
+    test('a putout already made at the bag is not open: the double play '
+        'relay leaves it where it is', () {
+      final throwFirst = grounder.addingTouch(
+        4,
+        TouchType.RECEIVED_THROW,
+        location: atSecond,
+      );
+      final forced = throwFirst.addingOut(
+        'r1',
+        atBase: 2,
+        how: How.FORCE,
+        putoutKey: keyOf(throwFirst, 4),
+      );
+      final relayed = forced
+          .addingTouch(
+            3,
+            TouchType.RECEIVED_THROW,
+            location: baseCoordinate(profile, 1),
+          )
+          .claimingOpenPutout(profile: profile);
+      expect(
+        relayed.entries.whereType<OutEntry>().single.putoutKey,
+        keyOf(throwFirst, 4),
+      );
+    });
+
+    test('a tag is not claimed: the tag itself says who applied it', () {
+      final tagged = grounder.addingOut(
+        'r1',
+        atBase: 2,
+        how: How.TAG,
+        putoutKey: keyOf(grounder, 5),
+      );
+      final thrown = tagged
+          .addingTouch(4, TouchType.RECEIVED_THROW, location: atSecond)
+          .claimingOpenPutout(profile: profile);
+      expect(
+        thrown.entries.whereType<OutEntry>().single.putoutKey,
+        keyOf(grounder, 5),
+      );
     });
   });
 }
