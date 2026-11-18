@@ -2264,6 +2264,37 @@ void main() {
       expect(touch.payload['position'], 3);
     });
 
+    testWidgets('dropping a runner where the walk-up put her asks nothing '
+        'when there is no error to record (Mark, 2026-11-18)', (tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+
+      // The walk-up pushed R1 to second; nobody threw and nobody erred.
+      await dragToken(tester, 2, 2, target: 'base', originFrom: 1);
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        container.read(playDraftProvider).value!.isProvisional('r1'),
+        isFalse,
+        reason: 'she stands on the bag now',
+      );
+    });
+
     testWidgets('dropping a runner where the walk-up already put her still '
         'asks what settled her (§15.1 v0.56)', (tester) async {
       await pumpLoop(tester);
@@ -2862,6 +2893,15 @@ void main() {
         );
         expect(out.how, How.LEFT_EARLY);
         expect(foldOfficialScoring(events).putoutsByPosition, {1: 1});
+      });
+
+      testWidgets('dropped back on her own base, she never moved: nothing '
+          'is asked and nothing is recorded', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 1, target: 'base', originFrom: 1);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byKey(safeChipKey('stolen_base')), findsNothing);
+        expect(container.read(playDraftProvider).value!.entries, isEmpty);
       });
 
       testWidgets('the row is for the last release only: anything else and '

@@ -623,19 +623,22 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
     if (base == null) return;
     // Dropped on the base she is already standing on: that is not a move,
-    // it is "safe right there". Settling her says so without minting a
-    // from==to leg, which §4.3 reserves for surviving a rundown — but it is
-    // still an answer, so it asks what settled her (v0.56).
+    // it is "safe right there" (§15.1). No `from == to` leg — §4.3 reserves
+    // that shape for surviving a rundown.
     //
-    // This is the third way into the same question and the last one that
-    // was silent. It matters more than it sounds: the walk-up already
-    // displays every forced runner at her next base, so *dropping her where
-    // she stands is the ordinary gesture*, not an edge case. Settling the
-    // batter this way also nulls her provisional reach, which meant the ✓
-    // then had nothing left to ask and the whole play committed unclassified.
+    // It asks only when there is an error to record (Mark, 2026-11-18:
+    // "when we click a chip that explains how someone was safe, then that's
+    // an error we need to record"). Between pitches she never moved, so
+    // there is nothing to record at all. On a batted ball the SAFE dialog
+    // and the batter's reach question each apply a lone answer without
+    // asking, so they open only when a throw or a misplay could be why she
+    // is safe — the wild throw home that scored the runner the walk-up had
+    // already put on the plate. Settling the batter silently would also
+    // null her open reach and let the ✓ commit it unclassified (v0.56).
     final standingOn = tokens.firstWhere((t) => t.runnerId == runnerId).base;
     final pill = geometry.pillAt(base, drag.current);
     if (base == standingOn && pill != BaseCall.out) {
+      if (!_draft.battedBall) return;
       if (runnerId == _draft.batterId) {
         if (_draft.reachNeedsAnswer) {
           _showReachDialog();
