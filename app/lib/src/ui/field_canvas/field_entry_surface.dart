@@ -6,6 +6,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/play/possible_entries.dart';
+import 'package:diamond/src/play/reach_at_commit.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
@@ -310,54 +311,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// not have to have gone anywhere. It can deflect off her shin guards and
   /// sit three feet away, and the claim being made is only that she is not
   /// the one holding it.
-  /// An out on a runner the batter's contact pushed — retired at the base
-  /// she started from, or one beyond it (§15.1 v0.56).
-  ///
-  /// This *is* the defense choosing her over the batter, so the reach is a
-  /// fielder's choice and nothing is asked. Mark, 2026-09-04: the deciding
-  /// factor is "did we get an out on a runner attempting to move up one
-  /// base". Two bases is a different play — a runner going first to third on
-  /// a ball through the infield is running on her own, and the batter
-  /// standing on first got there on the hit.
-  bool get _outOnPushedRunner {
-    final bases = _foldBases;
-    final origins = <String, int>{
-      if (bases.first != null) bases.first!: 1,
-      if (bases.second != null) bases.second!: 2,
-      if (bases.third != null) bases.third!: 3,
-    };
-    for (final entry in _draft.entries) {
-      if (entry is! OutEntry || entry.runnerId == _draft.batterId) continue;
-      final origin = origins[entry.runnerId];
-      if (origin != null && entry.atBase - origin <= 1) return true;
-    }
-    return false;
-  }
-
-  /// Somebody threw it, so a fielder's choice is on the table even though
-  /// nobody was retired.
-  ///
-  /// Deliberately *any* throw rather than one taken away from first. Where
-  /// the throw was going is not recorded, and marking a throw wild deletes
-  /// the reception that used to imply it — so keying on that made the answer
-  /// set depend on whether a **different** answer had eaten its own
-  /// evidence. Bases loaded, grounder to short, throw home and away: the
-  /// textbook fielder's choice, and it was offering *single* only. Mark's
-  /// test is the scorer's anyway — "a single if there really was no play to
-  /// be made, or a FC if they could have gotten an out elsewhere" — which is
-  /// a judgment, not something the record settles.
-  ///
-  /// **And somebody else was on base.** A throw alone was necessary but not
-  /// sufficient: bases empty, grounder to short, throw to first, batter safe
-  /// — and fielder's choice was offered with nobody to choose against
-  /// (DIA-019 H). An out recorded on another runner this play needs her on
-  /// base too, so this one condition covers both.
-  bool get _threwElsewhere {
-    final bases = _foldBases;
-    final someoneOn =
-        bases.first != null || bases.second != null || bases.third != null;
-    return _draft.hasThrow && someoneOn;
-  }
+  bool get _threwElsewhere => threwElsewhere(_draft, _foldBases);
 
   String get _possessionLabel {
     final holder = _draft.holderPosition;
@@ -928,17 +882,28 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// there, so the common play stays one tap.
   void _showReachDialog({bool thenCommit = false}) {
     // Determined, not asked (v0.56): retiring a runner the batter pushed up
-    // a base *is* the defense choosing her over the batter.
-    if (_outOnPushedRunner) {
-      unawaited(
-        _answerReach(
-          id: 'fc',
-          earned: true,
-          reason: RunnerAdvanceReason.FIELDERS_CHOICE,
-          thenCommit: thenCommit,
-        ),
-      );
-      return;
+    // a base *is* the defense choosing her over the batter, and one possible
+    // answer is not a question — a clean single costs the scorer nothing,
+    // which is what lets this gate run on every play. Decided in
+    // [reachAtCommit] so the result in words beside the ✓ says the same.
+    switch (reachAtCommit(_draft, _foldBases)) {
+      case ReachAtCommit.fieldersChoice:
+        unawaited(
+          _answerReach(
+            id: 'fc',
+            earned: true,
+            reason: RunnerAdvanceReason.FIELDERS_CHOICE,
+            thenCommit: thenCommit,
+          ),
+        );
+        return;
+      case ReachAtCommit.single:
+        unawaited(
+          _answerReach(id: 'hit', earned: true, thenCommit: thenCommit),
+        );
+        return;
+      case ReachAtCommit.ask || null:
+        break;
     }
     // Everything the record leaves open, and nothing it doesn't. The errors
     // lead — a misplay on a play where she is still standing on first
@@ -983,20 +948,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ),
           (id: 'hit', label: 'Single', earned: true, key: null, fc: false),
         ];
-    // One possible answer is not a question: a clean single costs the
-    // scorer nothing, which is what lets this gate run on every play.
-    if (answers.length == 1) {
-      final only = answers.single;
-      unawaited(
-        _answerReach(
-          id: only.id,
-          earned: only.earned,
-          misplayKey: only.key,
-          thenCommit: thenCommit,
-        ),
-      );
-      return;
-    }
     _centeredDialog('Safe at 1B — how?', [
       Wrap(
         spacing: 8,

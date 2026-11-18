@@ -92,7 +92,10 @@ class FieldControls extends ConsumerWidget {
     // findings were all visible here first: "on the throw" where he meant an
     // error, and a throw from the RF that nobody made.
     final visible = ref.watch(_visibleStreamProvider).valueOrNull;
-    final scoresAs = visible == null ? null : previewPlayLine(visible, draft);
+    final fold = ref.watch(gameControllerProvider).valueOrNull;
+    final scoresAs = visible == null || fold == null
+        ? null
+        : previewPlayLine(visible, draft, before: fold.bases, outs: fold.outs);
 
     return Container(
       padding: const EdgeInsets.symmetric(
