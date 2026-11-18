@@ -3,6 +3,20 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.67
+
+**Between pitches, the reasons are a chip row whose default is recorded at the release, and the bare
+tag is gone from the outs (§15.6).** DIA-018b-3, ruled by Mark on 2026-11-18.
+
+**Why.** §15.6 already asked for a chip row with *Stolen base* pre-selected (the 15B board draws
+it), but the build asked in a dialog after every steal. Now a release records the default right
+away and the row changes it.
+
+**The outs.** The list read *caught stealing, picked off, tag*. Mark: *"tag is how you're either
+caught stealing or picked off, not a separate option."* It now reads *caught stealing* (default),
+*picked off*, *left early*, *look-back*. The last two were already offered (DIA-008d) but the spec
+never named them.
+
 ## v0.66
 
 **A force or an appeal's putout goes to whoever caught the throw at the base, in whichever order the
