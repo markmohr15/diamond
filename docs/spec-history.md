@@ -3,6 +3,22 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.69
+
+**Between pitches every reason is asked, with nothing pre-selected (§15.6).** DIA-018b-3, ruled by
+Mark on 2026-11-18. It replaces v0.67's defaulted chip row, which never shipped.
+
+**Why.** Mark asked whether there was a good reason not to ask, the way the trajectory question is
+asked on every batted ball. There wasn't one beyond a saved tap. Each answer is a ruling that
+credits a different player: a stolen base the runner, a wild pitch the pitcher, a passed ball the
+catcher (and a run scored on it is unearned), and caught stealing and picked off count differently.
+In 10U and 12U, runners move on wild pitches and passed balls constantly, so *stolen base* is wrong
+often enough to matter. A default that is usually right is wrong silently the rest of the time,
+while a question costs one tap. It is the same rule as required fields over defaults.
+
+**What stays from v0.67 and v0.68.** There is no bare tag. Dropping a runner back on her own base
+between pitches records nothing. The out-first putout claim covers caught stealing and pickoffs.
+
 ## v0.68
 
 **A caught stealing or pickoff marked before the throw gets its putout from the catch at the bag

@@ -2780,51 +2780,45 @@ void main() {
       );
     });
 
-    group('the reasons are a chip row, answered at the drop (§15.6, '
-        'DIA-018b-3)', () {
+    group('between pitches every release asks, with nothing preselected '
+        '(§15.6 v0.69)', () {
       List<RunnerAdvance> advances(List<GameEvent> events) => events
           .where((e) => e.type == 'RunnerAdvance')
           .map((e) => RunnerAdvance.fromJson(e.payload))
           .toList();
-      bool selected(WidgetTester tester, Key key) =>
-          tester.widget<ChoiceChip>(find.byKey(key)).selected;
+      bool anySelected(WidgetTester tester) => tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .any((chip) => chip.selected);
 
-      testWidgets('a steal is a drag and a ✓: no dialog, Stolen base '
-          'already selected', (tester) async {
+      testWidgets('a steal asks why: the reasons, and nothing answered for '
+          'her', (tester) async {
         await runnerOnFirstThenField(tester);
         await dragToken(tester, 1, 2, target: 'base');
-        expect(find.byType(Dialog), findsNothing);
-        expect(selected(tester, safeChipKey('stolen_base')), isTrue);
-        expect(selected(tester, safeChipKey('passed_ball')), isFalse);
+        expect(find.text('Safe at 2B — how?'), findsOneWidget);
+        for (final id in [
+          'stolen_base',
+          'wild_pitch',
+          'passed_ball',
+          'defensive_indifference',
+        ]) {
+          expect(find.byKey(safeChipKey(id)), findsOneWidget, reason: id);
+        }
         expect(
           find.byKey(safeChipKey('error')),
           findsNothing,
           reason: 'no misplay to point at',
         );
-
-        await tapKey(tester, fieldCommitKey);
-        final steal = advances(await stream()).last;
-        expect((steal.from, steal.to), (1, 2));
-        expect(steal.reason, RunnerAdvanceReason.STOLEN_BASE);
-      });
-
-      testWidgets("changing her mind: Passed ball and back takes the catcher's "
-          'missed catch off again', (tester) async {
-        await runnerOnFirstThenField(tester);
-        await dragToken(tester, 1, 2, target: 'base');
-        await tapKey(tester, safeChipKey('passed_ball'));
-        expect(selected(tester, safeChipKey('passed_ball')), isTrue);
-        await tapKey(tester, safeChipKey('stolen_base'));
-        await tapKey(tester, fieldCommitKey);
-
-        final events = await stream();
         expect(
-          events.where((e) => e.type == 'FielderTouch'),
+          container.read(playDraftProvider).value!.entries,
           isEmpty,
-          reason: 'the passed ball came off with its touch',
+          reason: 'nothing recorded until she answers',
         );
-        expect(advances(events).last.reason, RunnerAdvanceReason.STOLEN_BASE);
-        expect(advances(events).last.enabledByTouchId, isNull);
+
+        await tapKey(tester, safeChipKey('wild_pitch'));
+        await tapKey(tester, fieldCommitKey);
+        final moved = advances(await stream()).last;
+        expect((moved.from, moved.to), (1, 2));
+        expect(moved.reason, RunnerAdvanceReason.WILD_PITCH);
       });
 
       testWidgets('two runners on one passed ball share one missed catch', (
@@ -2860,18 +2854,24 @@ void main() {
         });
       });
 
-      testWidgets('an out is caught stealing at once, and there is no Tag', (
+      testWidgets('an out asks how, nothing preselected, and there is no Tag', (
         tester,
       ) async {
         await runnerOnFirstThenField(tester);
         await dragToken(tester, 1, 2, target: 'out');
-        expect(find.byType(Dialog), findsNothing);
-        expect(selected(tester, outChipKey('caught_stealing')), isTrue);
+        expect(find.text('Out at 2B — how?'), findsOneWidget);
+        expect(anySelected(tester), isFalse);
         expect(find.byKey(outChipKey('tag')), findsNothing);
-        expect(find.byKey(outChipKey('picked_off')), findsOneWidget);
-        expect(find.byKey(outChipKey('left_early')), findsOneWidget);
-        expect(find.byKey(outChipKey('look_back')), findsOneWidget);
+        for (final id in [
+          'caught_stealing',
+          'picked_off',
+          'left_early',
+          'look_back',
+        ]) {
+          expect(find.byKey(outChipKey(id)), findsOneWidget, reason: id);
+        }
 
+        await tapKey(tester, outChipKey('caught_stealing'));
         await tapKey(tester, fieldCommitKey);
         final out = RunnerOut.fromJson(
           (await stream()).lastWhere((e) => e.type == 'RunnerOut').payload,
@@ -2879,9 +2879,7 @@ void main() {
         expect(out.how, How.CAUGHT_STEALING);
       });
 
-      testWidgets('Left early from the row credits the pitcher', (
-        tester,
-      ) async {
+      testWidgets('Left early credits the pitcher', (tester) async {
         await runnerOnFirstThenField(tester);
         await dragToken(tester, 1, 2, target: 'out');
         await tapKey(tester, outChipKey('left_early'));
@@ -2908,7 +2906,9 @@ void main() {
           'third before the throw, reads 2-5 (v0.68)', (tester) async {
         await runnerOnFirstThenField(tester);
         await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
         await dragToken(tester, 2, 3, target: 'out');
+        await tapKey(tester, outChipKey('caught_stealing'));
         // The throw after the out: the catcher, holding it by seed, to the
         // 3B at her spot by the bag.
         await tapWorld(
@@ -2948,18 +2948,6 @@ void main() {
         final scoring = foldOfficialScoring(events);
         expect(scoring.putoutsByPosition, {3: 1});
         expect(scoring.assistsByPosition, {2: 1});
-      });
-
-      testWidgets('the row is for the last release only: anything else and '
-          'it goes', (tester) async {
-        await runnerOnFirstThenField(tester);
-        await dragToken(tester, 1, 2, target: 'base');
-        expect(find.byKey(safeChipKey('stolen_base')), findsOneWidget);
-        await tapWorld(
-          tester,
-          standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
-        );
-        expect(find.byKey(safeChipKey('stolen_base')), findsNothing);
       });
     });
 
