@@ -216,7 +216,8 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ),
           ),
         // §15.2: the chain above the canvas, once there is a play to chain.
-        // Between pitches there is none — §15.6 is a single fact, not a chain.
+        // Between pitches it is there from the start: a between-pitch entry
+        // is a play draft with a different anchor (§15.6 v0.45).
         if (!draft.battedBall || draft.trajectory != null)
           PlayChainStrip(
             draft: draft,
@@ -595,19 +596,22 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
     if (base == null) return;
     // Dropped on the base she is already standing on: that is not a move,
-    // it is "safe right there". Settling her says so without minting a
-    // from==to leg, which §4.3 reserves for surviving a rundown — but it is
-    // still an answer, so it asks what settled her (v0.56).
+    // it is "safe right there" (§15.1). No `from == to` leg — §4.3 reserves
+    // that shape for surviving a rundown.
     //
-    // This is the third way into the same question and the last one that
-    // was silent. It matters more than it sounds: the walk-up already
-    // displays every forced runner at her next base, so *dropping her where
-    // she stands is the ordinary gesture*, not an edge case. Settling the
-    // batter this way also nulls her provisional reach, which meant the ✓
-    // then had nothing left to ask and the whole play committed unclassified.
+    // It asks only when there is an error to record (Mark, 2026-11-18:
+    // "when we click a chip that explains how someone was safe, then that's
+    // an error we need to record"). Between pitches she never moved, so
+    // there is nothing to record at all. On a batted ball the SAFE dialog
+    // and the batter's reach question each apply a lone answer without
+    // asking, so they open only when a throw or a misplay could be why she
+    // is safe — the wild throw home that scored the runner the walk-up had
+    // already put on the plate. Settling the batter silently would also
+    // null her open reach and let the ✓ commit it unclassified (v0.56).
     final standingOn = tokens.firstWhere((t) => t.runnerId == runnerId).base;
     final pill = geometry.pillAt(base, drag.current);
     if (base == standingOn && pill != BaseCall.out) {
+      if (!_draft.battedBall) return;
       if (runnerId == _draft.batterId) {
         if (_draft.reachNeedsAnswer) {
           _showReachDialog();
@@ -627,7 +631,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (pill == BaseCall.out) {
       // No OUT pill is drawn once the half is over, so a release there
       // means nothing: she springs back.
-      if (_canRecordOut) _showOutDialog(runnerId, base);
+      if (!_canRecordOut) return;
+      // Between pitches too: what put her out is a ruling with stats on
+      // both sides — caught stealing or picked off — so it is asked, never
+      // defaulted (v0.69).
+      _showOutDialog(runnerId, base);
       return;
     }
     final baseCenter = base == 4 ? geometry.plate : geometry.baseCenter(base);
@@ -637,6 +645,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         for (final token in tokens)
           (runnerId: token.runnerId, base: token.base),
       ];
+      // Between pitches the reasons are asked, not defaulted (v0.69): a
+      // stolen base, a wild pitch and a passed ball credit three different
+      // players, and in youth ball the steal is not the dominant answer.
       _showSafeDialog(
         base,
         isBatter: runnerId == _draft.batterId,
@@ -1300,7 +1311,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ChoiceChip(
               key: outChipKey(id),
               label: Text(label),
-              selected: how == inferred,
+              // Nothing preselected between pitches (v0.69): the likeliest
+              // out is a guess there, not an inference from the play.
+              selected: _draft.battedBall && how == inferred,
               onSelected: (_) {
                 controller.addOut(runnerId, atBase: base, how: how);
                 Navigator.pop(context);

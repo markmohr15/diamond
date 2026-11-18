@@ -2264,6 +2264,37 @@ void main() {
       expect(touch.payload['position'], 3);
     });
 
+    testWidgets('dropping a runner where the walk-up put her asks nothing '
+        'when there is no error to record (Mark, 2026-11-18)', (tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+
+      // The walk-up pushed R1 to second; nobody threw and nobody erred.
+      await dragToken(tester, 2, 2, target: 'base', originFrom: 1);
+      expect(find.byType(Dialog), findsNothing);
+      expect(
+        container.read(playDraftProvider).value!.isProvisional('r1'),
+        isFalse,
+        reason: 'she stands on the bag now',
+      );
+    });
+
     testWidgets('dropping a runner where the walk-up already put her still '
         'asks what settled her (§15.1 v0.56)', (tester) async {
       await pumpLoop(tester);
@@ -2777,6 +2808,177 @@ void main() {
         isEmpty,
         reason: 'the visible stream drops the voided out',
       );
+    });
+
+    group('between pitches every release asks, with nothing preselected '
+        '(§15.6 v0.69)', () {
+      List<RunnerAdvance> advances(List<GameEvent> events) => events
+          .where((e) => e.type == 'RunnerAdvance')
+          .map((e) => RunnerAdvance.fromJson(e.payload))
+          .toList();
+      bool anySelected(WidgetTester tester) => tester
+          .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+          .any((chip) => chip.selected);
+
+      testWidgets('a steal asks why: the reasons, and nothing answered for '
+          'her', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        expect(find.text('Safe at 2B — how?'), findsOneWidget);
+        for (final id in [
+          'stolen_base',
+          'wild_pitch',
+          'passed_ball',
+          'defensive_indifference',
+        ]) {
+          expect(find.byKey(safeChipKey(id)), findsOneWidget, reason: id);
+        }
+        expect(
+          find.byKey(safeChipKey('error')),
+          findsNothing,
+          reason: 'no misplay to point at',
+        );
+        expect(
+          container.read(playDraftProvider).value!.entries,
+          isEmpty,
+          reason: 'nothing recorded until she answers',
+        );
+
+        await tapKey(tester, safeChipKey('wild_pitch'));
+        await tapKey(tester, fieldCommitKey);
+        final moved = advances(await stream()).last;
+        expect((moved.from, moved.to), (1, 2));
+        expect(moved.reason, RunnerAdvanceReason.WILD_PITCH);
+      });
+
+      testWidgets('two runners on one passed ball share one missed catch', (
+        tester,
+      ) async {
+        await pumpLoop(tester);
+        // Two walks: opp-1 forced to second, opp-2 on first.
+        for (var i = 0; i < 8; i++) {
+          await tester.tap(find.text('Skip call'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Skip location'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Ball'));
+          await tester.pumpAndSettle();
+        }
+        await tapKey(tester, openIdleFieldKey);
+
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('passed_ball'));
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('passed_ball'));
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final touches = events.where((e) => e.type == 'FielderTouch').toList();
+        expect(touches, hasLength(1));
+        final moved = advances(
+          events,
+        ).where((a) => a.reason == RunnerAdvanceReason.PASSED_BALL).toList();
+        expect(moved, hasLength(2));
+        expect(moved.map((a) => a.enabledByTouchId).toSet(), {
+          touches.single.id,
+        });
+      });
+
+      testWidgets('an out asks how, nothing preselected, and there is no Tag', (
+        tester,
+      ) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'out');
+        expect(find.text('Out at 2B — how?'), findsOneWidget);
+        expect(anySelected(tester), isFalse);
+        expect(find.byKey(outChipKey('tag')), findsNothing);
+        for (final id in [
+          'caught_stealing',
+          'picked_off',
+          'left_early',
+          'look_back',
+        ]) {
+          expect(find.byKey(outChipKey(id)), findsOneWidget, reason: id);
+        }
+
+        await tapKey(tester, outChipKey('caught_stealing'));
+        await tapKey(tester, fieldCommitKey);
+        final out = RunnerOut.fromJson(
+          (await stream()).lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.CAUGHT_STEALING);
+      });
+
+      testWidgets('Left early credits the pitcher', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'out');
+        await tapKey(tester, outChipKey('left_early'));
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.LEFT_EARLY);
+        expect(foldOfficialScoring(events).putoutsByPosition, {1: 1});
+      });
+
+      testWidgets('dropped back on her own base, she never moved: nothing '
+          'is asked and nothing is recorded', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 1, target: 'base', originFrom: 1);
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byKey(safeChipKey('stolen_base')), findsNothing);
+        expect(container.read(playDraftProvider).value!.entries, isEmpty);
+      });
+
+      testWidgets("Mark's play, out first: a steal, then caught stealing at "
+          'third before the throw, reads 2-5 (v0.68)', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await dragToken(tester, 2, 3, target: 'out');
+        await tapKey(tester, outChipKey('caught_stealing'));
+        // The throw after the out: the catcher, holding it by seed, to the
+        // 3B at her spot by the bag.
+        await tapWorld(
+          tester,
+          standardFielderSpots(FieldProfile.fastpitch12U)[5]!,
+        );
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.CAUGHT_STEALING);
+        expect(out.putoutTouchId, isNotNull);
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.putoutsByPosition, {5: 1});
+        expect(scoring.assistsByPosition, {2: 1});
+      });
+
+      testWidgets('a pickoff entered before the throw over reads 2-3', (
+        tester,
+      ) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 1, target: 'out', originFrom: 1);
+        await tapKey(tester, outChipKey('picked_off'));
+        await tapWorld(
+          tester,
+          standardFielderSpots(FieldProfile.fastpitch12U)[3]!,
+        );
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.PICKED_OFF);
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.putoutsByPosition, {3: 1});
+        expect(scoring.assistsByPosition, {2: 1});
+      });
     });
 
     testWidgets('a pickoff: the throw over, and she does not get back', (

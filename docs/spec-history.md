@@ -3,6 +3,52 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.69
+
+**Between pitches every reason is asked, with nothing pre-selected (§15.6).** DIA-018b-3, ruled by
+Mark on 2026-11-18. It replaces v0.67's defaulted chip row, which never shipped.
+
+**Why.** Mark asked whether there was a good reason not to ask, the way the trajectory question is
+asked on every batted ball. There wasn't one beyond a saved tap. Each answer is a ruling that
+credits a different player: a stolen base the runner, a wild pitch the pitcher, a passed ball the
+catcher (and a run scored on it is unearned), and caught stealing and picked off count differently.
+In 10U and 12U, runners move on wild pitches and passed balls constantly, so *stolen base* is wrong
+often enough to matter. A default that is usually right is wrong silently the rest of the time,
+while a question costs one tap. It is the same rule as required fields over defaults.
+
+**What stays from v0.67 and v0.68.** There is no bare tag. Dropping a runner back on her own base
+between pitches records nothing. The out-first putout claim covers caught stealing and pickoffs.
+
+## v0.68
+
+**A caught stealing or pickoff marked before the throw gets its putout from the catch at the bag
+(§15.1).** DIA-018b-3, ruled by Mark on 2026-11-18.
+
+**Why.** Mark entered a steal of second, then caught stealing at third, marking the out before the
+throw to the 3B. The out was committed with `putoutTouchId: null`. Between pitches the catcher
+holds the ball by seed, with no touch, so there was nothing to credit, and v0.66's claim covered
+only forces and appeals. v0.67 makes the out-first order the natural one, because the OUT drop
+records caught stealing at once.
+
+**The rule.** v0.66's claim now covers caught stealing and picked off, and an out with no putout
+yet is open. Because the throw mints the catcher's pickup ahead of the reception, the claim looks
+past the thrower's own touch to find the out. Left early and look-back stay with the pitcher. A
+bare tag on a batted ball still isn't reopened.
+
+## v0.67
+
+**Between pitches, the reasons are a chip row whose default is recorded at the release, and the bare
+tag is gone from the outs (§15.6).** DIA-018b-3, ruled by Mark on 2026-11-18.
+
+**Why.** §15.6 already asked for a chip row with *Stolen base* pre-selected (the 15B board draws
+it), but the build asked in a dialog after every steal. Now a release records the default right
+away and the row changes it.
+
+**The outs.** The list read *caught stealing, picked off, tag*. Mark: *"tag is how you're either
+caught stealing or picked off, not a separate option."* It now reads *caught stealing* (default),
+*picked off*, *left early*, *look-back*. The last two were already offered (DIA-008d) but the spec
+never named them.
+
 ## v0.66
 
 **A force or an appeal's putout goes to whoever caught the throw at the base, in whichever order the
