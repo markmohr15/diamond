@@ -2904,6 +2904,52 @@ void main() {
         expect(container.read(playDraftProvider).value!.entries, isEmpty);
       });
 
+      testWidgets("Mark's play, out first: a steal, then caught stealing at "
+          'third before the throw, reads 2-5 (v0.68)', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        await dragToken(tester, 2, 3, target: 'out');
+        // The throw after the out: the catcher, holding it by seed, to the
+        // 3B at her spot by the bag.
+        await tapWorld(
+          tester,
+          standardFielderSpots(FieldProfile.fastpitch12U)[5]!,
+        );
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.CAUGHT_STEALING);
+        expect(out.putoutTouchId, isNotNull);
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.putoutsByPosition, {5: 1});
+        expect(scoring.assistsByPosition, {2: 1});
+      });
+
+      testWidgets('a pickoff entered before the throw over reads 2-3', (
+        tester,
+      ) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 1, target: 'out', originFrom: 1);
+        await tapKey(tester, outChipKey('picked_off'));
+        await tapWorld(
+          tester,
+          standardFielderSpots(FieldProfile.fastpitch12U)[3]!,
+        );
+        await tapKey(tester, fieldCommitKey);
+
+        final events = await stream();
+        final out = RunnerOut.fromJson(
+          events.lastWhere((e) => e.type == 'RunnerOut').payload,
+        );
+        expect(out.how, How.PICKED_OFF);
+        final scoring = foldOfficialScoring(events);
+        expect(scoring.putoutsByPosition, {3: 1});
+        expect(scoring.assistsByPosition, {2: 1});
+      });
+
       testWidgets('the row is for the last release only: anything else and '
           'it goes', (tester) async {
         await runnerOnFirstThenField(tester);
