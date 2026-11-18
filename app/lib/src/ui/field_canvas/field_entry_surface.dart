@@ -100,6 +100,25 @@ class FieldEntrySurface extends ConsumerStatefulWidget {
 
 /// One in-flight gesture, decided at pointer-down by what the finger landed
 /// on: a runner token, a fielder, or open field (path entry).
+/// A between-pitch release and the answer it recorded (§15.6): the drop
+/// takes the first choice at once, and the chip row under the chain strip
+/// changes it. [apply] records one choice on the draft as it stood before
+/// the release; [after] is the draft that answer produced, so the row is
+/// live only until something else happens.
+class _BetweenPitchAnswer {
+  _BetweenPitchAnswer({
+    required this.choices,
+    required this.keyOf,
+    required this.apply,
+  }) : selected = choices.first.id;
+
+  final List<({String id, String label})> choices;
+  final Key Function(String id) keyOf;
+  final Future<void> Function(String id) apply;
+  String selected;
+  PlayDraft? after;
+}
+
 class _ActiveDrag {
   _ActiveDrag({required this.start, this.runnerId, this.fielderPosition})
     : current = start;
@@ -120,6 +139,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// SAFE/OUT pair is up at the bag, waiting for the tap that resolves the
   /// force play (§15.1 v0.43).
   ({String runnerId, int base})? _pendingForcePlay;
+
+  /// The last between-pitch answer, while the chip row can still change it.
+  _BetweenPitchAnswer? _lastAnswer;
+
+  /// A chip tap is a step back and a new answer: two drafts in a row. The
+  /// row stays up through the one in between.
+  bool _rechoosing = false;
 
   @override
   void initState() {
@@ -216,12 +242,14 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             ),
           ),
         // §15.2: the chain above the canvas, once there is a play to chain.
-        // Between pitches there is none — §15.6 is a single fact, not a chain.
+        // Between pitches it is there from the start: a between-pitch entry
+        // is a play draft with a different anchor (§15.6 v0.45).
         if (!draft.battedBall || draft.trajectory != null)
           PlayChainStrip(
             draft: draft,
             runnerLabels: _runnerLabels(draft, bases),
           ),
+        if (!draft.battedBall) _reasonRow(draft),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -627,7 +655,25 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (pill == BaseCall.out) {
       // No OUT pill is drawn once the half is over, so a release there
       // means nothing: she springs back.
-      if (_canRecordOut) _showOutDialog(runnerId, base);
+      if (!_canRecordOut) return;
+      if (_draft.battedBall) {
+        _showOutDialog(runnerId, base);
+      } else {
+        final hows = _possibleHows(runnerId, base, _foldBases);
+        _answerBetweenPitches(
+          _BetweenPitchAnswer(
+            choices: [
+              for (final (id, label, _) in hows) (id: id, label: label),
+            ],
+            keyOf: outChipKey,
+            apply: (id) => controller.addOut(
+              runnerId,
+              atBase: base,
+              how: hows.firstWhere((how) => how.$1 == id).$3,
+            ),
+          ),
+        );
+      }
       return;
     }
     final baseCenter = base == 4 ? geometry.plate : geometry.baseCenter(base);
@@ -637,12 +683,123 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         for (final token in tokens)
           (runnerId: token.runnerId, base: token.base),
       ];
-      _showSafeDialog(
-        base,
-        isBatter: runnerId == _draft.batterId,
-        moves: cascadeRunnerMove(slots, movedId: runnerId, to: base),
-      );
+      final moves = cascadeRunnerMove(slots, movedId: runnerId, to: base);
+      if (_draft.battedBall) {
+        _showSafeDialog(
+          base,
+          isBatter: runnerId == _draft.batterId,
+          moves: moves,
+        );
+      } else {
+        final choices = _betweenPitchSafeChoices(_draft);
+        _answerBetweenPitches(
+          _BetweenPitchAnswer(
+            choices: [for (final c in choices) (id: c.id, label: c.label)],
+            keyOf: safeChipKey,
+            apply: (id) => controller.resolveSafe(
+              moves,
+              choices.firstWhere((c) => c.id == id).resolution,
+            ),
+          ),
+        );
+      }
     }
+  }
+
+  /// Why she moved between pitches, likeliest first (§15.6): a stolen base
+  /// unless the scorer says otherwise, and *On an error* only when there is
+  /// a misplay to point at.
+  List<({String id, String label, SafeResolution resolution})>
+  _betweenPitchSafeChoices(PlayDraft draft) => [
+    (
+      id: 'stolen_base',
+      label: 'Stolen base',
+      resolution: SafeResolution.stolenBase,
+    ),
+    (
+      id: 'wild_pitch',
+      label: 'Wild pitch',
+      resolution: SafeResolution.wildPitch,
+    ),
+    (
+      id: 'passed_ball',
+      label: 'Passed ball',
+      resolution: SafeResolution.passedBall,
+    ),
+    (
+      id: 'defensive_indifference',
+      label: 'Defensive indifference',
+      resolution: SafeResolution.defensiveIndifference,
+    ),
+    if (draft.latestMisplayTouchKey != null)
+      (id: 'error', label: 'On an error', resolution: SafeResolution.onError),
+  ];
+
+  /// §15.6: a between-pitch release records its likeliest answer at once —
+  /// a routine steal is a drag and a ✓ — and the chip row changes it.
+  Future<void> _answerBetweenPitches(_BetweenPitchAnswer answer) async {
+    await answer.apply(answer.selected);
+    if (!mounted) return;
+    setState(() {
+      answer.after = ref.read(playDraftProvider).valueOrNull;
+      _lastAnswer = answer;
+    });
+  }
+
+  /// A chip in the row: take the release's step back and record this
+  /// answer instead, so a passed ball's missed catch comes off with it when
+  /// the scorer changes her mind.
+  Future<void> _rechoose(String id) async {
+    final answer = _lastAnswer;
+    if (answer == null || id == answer.selected || _rechoosing) return;
+    final controller = ref.read(playDraftProvider.notifier);
+    setState(() => _rechoosing = true);
+    await controller.stepUndo();
+    await answer.apply(id);
+    if (!mounted) return;
+    setState(() {
+      answer
+        ..selected = id
+        ..after = ref.read(playDraftProvider).valueOrNull;
+      _rechoosing = false;
+    });
+  }
+
+  /// The reasons as a chip row under the chain strip (§15.6, 15B). Its
+  /// height is kept when there is nothing to change, so the canvas never
+  /// jumps under the scorer's finger (§23.1 v0.63).
+  Widget _reasonRow(PlayDraft draft) {
+    final answer = _lastAnswer;
+    final live =
+        answer != null && (_rechoosing || identical(answer.after, draft));
+    return Visibility(
+      visible: live,
+      maintainSize: true,
+      maintainAnimation: true,
+      maintainState: true,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: BrandMetrics.spaceLg,
+          vertical: 4,
+        ),
+        child: Row(
+          children: [
+            for (final choice
+                in answer?.choices ?? const [(id: '', label: 'Stolen base')])
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  key: live ? answer.keyOf(choice.id) : null,
+                  label: Text(choice.label),
+                  selected: live && choice.id == answer.selected,
+                  onSelected: live ? (_) => _rechoose(choice.id) : null,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   static const _baseLabels = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};

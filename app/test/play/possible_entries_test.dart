@@ -162,11 +162,13 @@ void main() {
 
     const r1OnFirst = BaseState(first: 'r1');
 
-    test('between pitches: never a force, and the two dead-ball outs', () {
+    test('between pitches: never a force, no bare tag, and the two '
+        'dead-ball outs', () {
+      // A tag is how she was caught stealing or picked off, not a third way
+      // out (Mark, 2026-11-18).
       expect(hows(betweenPitches, 'r1', 2, r1OnFirst), [
         How.CAUGHT_STEALING,
         How.PICKED_OFF,
-        How.TAG,
         How.LEFT_EARLY,
         How.LOOK_BACK_RULE,
       ]);

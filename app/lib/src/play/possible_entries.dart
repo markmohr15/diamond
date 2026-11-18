@@ -279,7 +279,10 @@ List<(String, String, How)> possibleHows(
   //
   // §15.6: between pitches she was running on her own, so the play's
   // vocabulary does not apply — no force without a batter, no fly out
-  // without a batted ball.
+  // without a batted ball. No *Tag* either (Mark, 2026-11-18): between
+  // pitches a tag is *how* she was caught stealing or picked off, not a
+  // third way out, so offering it beside them asked the scorer to pick a
+  // mechanism over a ruling.
   //
   // Leaving early and the look-back rule are rules at every level (Mark,
   // 2026-09-03), so no `RuleSet` gates them — whether a crew calls them
@@ -290,7 +293,6 @@ List<(String, String, How)> possibleHows(
     return const [
       ('caught_stealing', 'Caught stealing', How.CAUGHT_STEALING),
       ('picked_off', 'Picked off', How.PICKED_OFF),
-      ('tag', 'Tag', How.TAG),
       ('left_early', 'Left early', How.LEFT_EARLY),
       ('look_back', 'Look-back', How.LOOK_BACK_RULE),
     ];
