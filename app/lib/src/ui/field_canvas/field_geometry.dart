@@ -207,13 +207,5 @@ class FieldGeometry {
     return nearest;
   }
 
-  FieldCoord baseCoord(int base) {
-    final half = profile.basePath * math.sin(math.pi / 4);
-    return switch (base) {
-      1 => FieldCoord(x: half, y: half),
-      2 => FieldCoord(x: 0, y: 2 * half),
-      3 => FieldCoord(x: -half, y: half),
-      _ => FieldCoord(x: 0, y: 0), // 0 and 4: the plate
-    };
-  }
+  FieldCoord baseCoord(int base) => baseCoordinate(profile, base);
 }

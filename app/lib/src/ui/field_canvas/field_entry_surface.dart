@@ -537,7 +537,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // question, asked where it happened.
       if (holder != null && position != holder) {
         final forcePlay = _canRecordOut ? _forcePlayFor(spot, geometry) : null;
-        controller.receiveThrow(position, spot: spot, moved: moved);
+        controller.receiveThrow(
+          position,
+          spot: spot,
+          profile: geometry.profile,
+          moved: moved,
+        );
         if (forcePlay != null) {
           setState(() => _pendingForcePlay = forcePlay);
         }
@@ -552,6 +557,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             controller.receiveThrow(
               receiver,
               spot: _currentFielderSpot(receiver, geometry),
+              profile: geometry.profile,
             );
             return;
           }
@@ -1312,13 +1318,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     FieldCoord spot,
     FieldGeometry geometry,
   ) {
-    const coverRadiusFt = 15.0;
     final draft = _draft;
     for (final base in const [1, 2, 3, 4]) {
-      final center = geometry.baseCoord(base);
-      final dx = spot.x - center.x;
-      final dy = spot.y - center.y;
-      if (dx * dx + dy * dy > coverRadiusFt * coverRadiusFt) continue;
+      if (!coversBase(geometry.profile, spot, base)) continue;
       for (final entry in draft.entries.reversed) {
         if (entry is LegEntry &&
             entry.to == base &&

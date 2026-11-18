@@ -17,6 +17,7 @@ library;
 
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
+import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/official_scoring.dart'
     show OfficialErrorKind, misplayTouchTypes, officialErrorKindOf;
@@ -1416,6 +1417,60 @@ class PlayDraft {
     );
   }
 
+  /// The putout an out-first entry left open, taken by the throw that closed
+  /// it (§15.1 v0.66). Call it with the reception just appended.
+  ///
+  /// Entry order is the scorer's, not the play's. Marking the runner out at
+  /// second while the 3B still holds the ball credits the putout to the 3B,
+  /// who fielded it 45 feet away; dragging the 2B to the bag afterwards
+  /// then reads as a throw caught *after* the out. A force or an appeal is
+  /// made by whoever has the ball **at the base**, and every touch says
+  /// where it happened, so the chain can say who that was in whichever
+  /// order it was told.
+  ///
+  /// The out is open when its putout touch was made away from the base. The
+  /// reception claims it when it is the next touch after the out, by a
+  /// different fielder, caught at that base: she takes the putout, and the
+  /// out moves to just after her catch, which is where it happened. That
+  /// leaves the throw's fielder an assist. An out nobody claims keeps its
+  /// putout: the SS who fields it and runs to the bag herself has no
+  /// reception to claim it, and she did make it unassisted.
+  PlayDraft claimingOpenPutout({required FieldProfile profile}) {
+    final receipt = entries.lastOrNull;
+    if (receipt is! TouchEntry ||
+        receipt.touchType != TouchType.RECEIVED_THROW ||
+        receipt.location == null) {
+      return this;
+    }
+    // The touch just before the reception, skipping outs and legs: the out
+    // must sit between the throw and its catch, with nothing touched since.
+    OutEntry? open;
+    for (final entry in entries.reversed.skip(1)) {
+      if (entry is TouchEntry) break;
+      if (entry is! OutEntry || !_madeAtTheBase.contains(entry.how)) continue;
+      final putout = entry.putoutKey == null
+          ? null
+          : entryByKey(entry.putoutKey!);
+      if (putout is! TouchEntry || putout.position == receipt.position) {
+        continue;
+      }
+      final where = putout.location ?? movedFielders[putout.position];
+      if (where != null && coversBase(profile, where, entry.atBase)) continue;
+      if (!coversBase(profile, receipt.location!, entry.atBase)) continue;
+      open = entry;
+      break;
+    }
+    final claimed = open;
+    if (claimed == null) return this;
+    return copyWith(
+      entries: [
+        for (final entry in entries)
+          if (entry.key != claimed.key) entry,
+        claimed.copyWith(putoutKey: receipt.key),
+      ],
+    );
+  }
+
   /// Appends a bare ⚖ at the chain's end. Used only by the test suite —
   /// production ⚖ entry goes through [attachingRuleCall], which inserts
   /// before the consequence it explains.
@@ -1603,5 +1658,9 @@ class PlayDraft {
     };
   }
 }
+
+/// Outs credited to whoever holds the ball at the base (§4.3): the ones a
+/// throw to the bag can complete.
+const Set<How> _madeAtTheBase = {How.FORCE, How.APPEAL};
 
 const _unset = Object();

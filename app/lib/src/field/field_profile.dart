@@ -134,3 +134,29 @@ Map<int, FieldCoord> standardFielderSpots(FieldProfile profile) {
     9: at(28, outfield(28)),
   };
 }
+
+/// Where [base] sits in absolute field feet (§3.2): 1–3 the bags, 0 and 4
+/// the plate.
+FieldCoord baseCoordinate(FieldProfile profile, int base) {
+  final half = profile.basePath * math.sin(math.pi / 4);
+  return switch (base) {
+    1 => FieldCoord(x: half, y: half),
+    2 => FieldCoord(x: 0, y: 2 * half),
+    3 => FieldCoord(x: -half, y: half),
+    _ => FieldCoord(x: 0, y: 0),
+  };
+}
+
+/// How near a base a fielder must be to be covering it, in feet: a throw
+/// caught this close to the bag was a throw *to* the bag. The force-play
+/// prompt and the putout an out-first entry leaves open (§15.1 v0.66) read
+/// the same radius, so the two orders of entry agree on who was there.
+const double baseCoverRadiusFt = 15;
+
+/// Whether [spot] is close enough to [base] to be covering it.
+bool coversBase(FieldProfile profile, FieldCoord spot, int base) {
+  final center = baseCoordinate(profile, base);
+  final dx = spot.x - center.x;
+  final dy = spot.y - center.y;
+  return dx * dx + dy * dy <= baseCoverRadiusFt * baseCoverRadiusFt;
+}

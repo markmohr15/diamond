@@ -3,6 +3,26 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.66
+
+**A force or an appeal's putout goes to whoever caught the throw at the base, in whichever order the
+scorer entered the out and the throw (§15.1).** DIA-026, ruled by Mark on 2026-11-18.
+
+**Why.** Mark entered a 5-4 fielder's choice by marking the runner out at second while the 3B still
+held the ball, then dragging the 2B to the bag. The out took its putout from the holder at the
+moment it was marked, so the 3B was credited unassisted 45 feet from second, and the 2B's catch was
+recorded after the out it made. Entering the throw first already worked: the force prompt asks at
+the bag. Mark: *"we have this dynamic where the user can enter where the ball is and where the
+runners go but the timing of them may or may not be in order."*
+
+**The rule.** Location settles it, not tap order. An out whose putout touch was made more than
+15 feet from the base is open. The next touch, a throw caught at that base by another fielder,
+claims it: she takes the putout and the out moves after her catch, leaving the thrower an assist.
+Unclaimed, it stays with the holder, which is right for the SS taking it to the bag herself. Tags
+are out of scope: the minted `tag_applied` names who tagged.
+
+**Where.** The draft (`PlayDraft.claimingOpenPutout`), called by the throw. Fixing it in the
+scoring fold alone would leave the stream and the chain strip in the wrong order.
 ## v0.65
 
 **The result beside the ✓ is the play log's sentence (§15.5).** DIA-018b-2, 2026-11-13.
