@@ -2749,6 +2749,36 @@ void main() {
       );
     });
 
+    testWidgets("undo reopens the entry with its steps: Mark's steal, then "
+        'caught stealing at third, and Back one takes back the out', (
+      tester,
+    ) async {
+      await runnerOnFirstThenField(tester);
+      await dragToken(tester, 1, 2, target: 'base');
+      await tapKey(tester, safeChipKey('stolen_base'));
+      await dragToken(tester, 2, 3, target: 'out');
+      await tapKey(tester, outChipKey('caught_stealing'));
+      await tapKey(tester, fieldCommitKey);
+      expect(container.read(playDraftProvider).valueOrNull, isNull);
+
+      await tapKey(tester, countHudUndoKey);
+      final reopened = container.read(playDraftProvider).valueOrNull;
+      expect(reopened?.entries, hasLength(2), reason: 'back as entered');
+      expect(isShown(tester, fieldBackOneKey), isTrue);
+      expect(isShown(tester, fieldStartOverKey), isTrue);
+
+      await tapKey(tester, fieldBackOneKey);
+      final back = container.read(playDraftProvider).valueOrNull!;
+      expect(back.entries.single, isA<LegEntry>(), reason: 'the steal stays');
+      await tapKey(tester, fieldCommitKey);
+      final events = await stream();
+      expect(
+        events.where((e) => e.type == 'RunnerOut'),
+        isEmpty,
+        reason: 'the visible stream drops the voided out',
+      );
+    });
+
     testWidgets('a pickoff: the throw over, and she does not get back', (
       tester,
     ) async {
