@@ -3,6 +3,22 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.68
+
+**A caught stealing or pickoff marked before the throw gets its putout from the catch at the bag
+(§15.1).** DIA-018b-3, ruled by Mark on 2026-11-18.
+
+**Why.** Mark entered a steal of second, then caught stealing at third, marking the out before the
+throw to the 3B. The out was committed with `putoutTouchId: null`. Between pitches the catcher
+holds the ball by seed, with no touch, so there was nothing to credit, and v0.66's claim covered
+only forces and appeals. v0.67 makes the out-first order the natural one, because the OUT drop
+records caught stealing at once.
+
+**The rule.** v0.66's claim now covers caught stealing and picked off, and an out with no putout
+yet is open. Because the throw mints the catcher's pickup ahead of the reception, the claim looks
+past the thrower's own touch to find the out. Left early and look-back stay with the pitcher. A
+bare tag on a batted ball still isn't reopened.
+
 ## v0.67
 
 **Between pitches, the reasons are a chip row whose default is recorded at the release, and the bare

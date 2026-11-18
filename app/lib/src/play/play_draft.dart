@@ -1428,9 +1428,12 @@ class PlayDraft {
   /// where it happened, so the chain can say who that was in whichever
   /// order it was told.
   ///
-  /// The out is open when its putout touch was made away from the base. The
-  /// reception claims it when it is the next touch after the out, by a
-  /// different fielder, caught at that base: she takes the putout, and the
+  /// The out is open when it has no putout yet — between pitches the
+  /// catcher holds the ball by seed, with no touch to credit — or when its
+  /// putout touch was made away from the base. The reception claims it when
+  /// it is the next touch after the out (or after the thrower's pickup, if
+  /// the throw minted it), by a different fielder, caught at that base: she
+  /// takes the putout, and the
   /// out moves to just after her catch, which is where it happened. That
   /// leaves the throw's fielder an assist. An out nobody claims keeps its
   /// putout: the SS who fields it and runs to the bag herself has no
@@ -1442,21 +1445,35 @@ class PlayDraft {
         receipt.location == null) {
       return this;
     }
-    // The touch just before the reception, skipping outs and legs: the out
-    // must sit between the throw and its catch, with nothing touched since.
+    // Back from the reception, skipping legs: the out sits between the
+    // throw and its catch, or just before the thrower's own touch when that
+    // touch was minted by the throw — the catcher's pickup between pitches,
+    // recorded only once a throw proved she had it. Past the thrower's
+    // touch, any other touch ends the search: the out belongs to an earlier
+    // part of the play.
     OutEntry? open;
+    var passedThrower = false;
     for (final entry in entries.reversed.skip(1)) {
-      if (entry is TouchEntry) break;
-      if (entry is! OutEntry || !_madeAtTheBase.contains(entry.how)) continue;
-      final putout = entry.putoutKey == null
-          ? null
-          : entryByKey(entry.putoutKey!);
-      if (putout is! TouchEntry || putout.position == receipt.position) {
+      if (entry is TouchEntry) {
+        if (passedThrower || entry.position == receipt.position) break;
+        passedThrower = true;
         continue;
       }
-      final where = putout.location ?? movedFielders[putout.position];
-      if (where != null && coversBase(profile, where, entry.atBase)) continue;
+      if (entry is! OutEntry || !_madeAtTheBase.contains(entry.how)) continue;
       if (!coversBase(profile, receipt.location!, entry.atBase)) continue;
+      final putoutKey = entry.putoutKey;
+      if (putoutKey != null) {
+        // A putout already made at the bag is not open, and nor is one by
+        // the fielder now catching the throw.
+        final putout = entryByKey(putoutKey);
+        if (putout is! TouchEntry || putout.position == receipt.position) {
+          continue;
+        }
+        final where = putout.location ?? movedFielders[putout.position];
+        if (where != null && coversBase(profile, where, entry.atBase)) {
+          continue;
+        }
+      }
       open = entry;
       break;
     }
@@ -1660,7 +1677,14 @@ class PlayDraft {
 }
 
 /// Outs credited to whoever holds the ball at the base (§4.3): the ones a
-/// throw to the bag can complete.
-const Set<How> _madeAtTheBase = {How.FORCE, How.APPEAL};
+/// throw to the bag can complete. Caught stealing and the pickoff are
+/// between-pitch tags at the bag (v0.68); leaving early and the look-back
+/// rule are the pitcher's, and a bare tag names its own tagger.
+const Set<How> _madeAtTheBase = {
+  How.FORCE,
+  How.APPEAL,
+  How.CAUGHT_STEALING,
+  How.PICKED_OFF,
+};
 
 const _unset = Object();
