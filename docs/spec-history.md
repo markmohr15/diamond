@@ -3,6 +3,29 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.70
+
+**One action, one batch: undo voids a whole entry, and Back one only goes backward (§6, §15.5).**
+DIA-027, ruled by Mark on 2026-11-18.
+
+**Why.** Mark entered a steal of second and a wild pitch to third with one ✓ and pressed undo. Only
+the wild pitch was voided. The undo walk still treated each between-pitch advance as its own
+action, as it was before v0.45 made a between-pitch entry a chain. The record had no way to say
+which events one ✓ had saved. The reopened copy held both legs, so committing it again would have
+saved the steal twice. Two runners on one passed ball had the same bug. Mark: *"we need to be able
+to discard it all. And then if we hit undo, we still need the option to get rid of all of it at
+once. And if we get rid of the most recent part of what was entered, we then need the option to
+remove the second most recent part."* He also found Back one offering a redo: after a removal, its
+next step put the removed part back.
+
+**The envelope.** `batchId` (optional), stamped by every atomic append with its first event's id.
+The Drift `events` table gains the column (schema v3 → v4). A batch holding an action root is the
+whole undo unit. A batch of consequences only (a D3K ending) still rides its pitch. The kept copy
+records its batch, so undo reopens exactly what it voided. Events from before v0.70 undo as before.
+
+**Back one.** A chain-strip removal is applied to the saved steps as well, and a step left with
+nothing of its own drops out. Discarding a reopened entry is Start play over, then Leave field.
+
 ## v0.69
 
 **Between pitches every reason is asked, with nothing pre-selected (§15.6).** DIA-018b-3, ruled by

@@ -72,6 +72,11 @@ String voidEventToJson(VoidEvent data) => json.encode(data.toJson());
 ///seq).
 class GameEvent {
     
+    ///shared by every event one scorer action appended atomically — a committed play, a
+    ///between-pitch entry (§6). Undo voids the whole batch. Absent on single appends and on
+    ///events written before v0.70.
+    final String? batchId;
+    
     ///id of the event this supersedes (§6)
     final String? corrects;
     
@@ -97,6 +102,7 @@ class GameEvent {
     final DateTime wallClock;
 
     GameEvent({
+        this.batchId,
         this.corrects,
         required this.createdBy,
         required this.deviceId,
@@ -110,6 +116,7 @@ class GameEvent {
     });
 
     factory GameEvent.fromJson(Map<String, dynamic> json) => GameEvent(
+        batchId: json["batchId"],
         corrects: json["corrects"],
         createdBy: json["createdBy"],
         deviceId: json["deviceId"],
@@ -123,6 +130,7 @@ class GameEvent {
     );
 
     Map<String, dynamic> toJson() => {
+        "batchId": batchId,
         "corrects": corrects,
         "createdBy": createdBy,
         "deviceId": deviceId,

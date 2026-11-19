@@ -2808,6 +2808,143 @@ void main() {
         isEmpty,
         reason: 'the visible stream drops the voided out',
       );
+      // v0.70: undo voided the steal with the out, so committing again
+      // saves it once — before, the steal stood and was saved twice.
+      expect(
+        events.where(
+          (e) =>
+              e.type == 'RunnerAdvance' && e.payload['reason'] == 'stolen_base',
+        ),
+        hasLength(1),
+      );
+    });
+
+    group('undo takes the whole entry, and Back one only goes back '
+        '(§6, §15.5 v0.70)', () {
+      Iterable<GameEvent> betweenPitchLegs(List<GameEvent> events) =>
+          events.where(
+            (e) => e.type == 'RunnerAdvance' && e.payload['reason'] != 'walk',
+          );
+
+      /// Two walks: opp-1 forced to second, opp-2 on first.
+      Future<void> twoRunnersThenField(WidgetTester tester) async {
+        await pumpLoop(tester);
+        for (var i = 0; i < 8; i++) {
+          await tester.tap(find.text('Skip call'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Skip location'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Ball'));
+          await tester.pumpAndSettle();
+        }
+        await tapKey(tester, openIdleFieldKey);
+      }
+
+      testWidgets("Mark's entry: a steal and a wild pitch, one ✓, one undo "
+          'takes both and reopens both', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('wild_pitch'));
+        await tapKey(tester, fieldCommitKey);
+        expect(betweenPitchLegs(await stream()), hasLength(2));
+
+        await tapKey(tester, countHudUndoKey);
+        expect(betweenPitchLegs(await stream()), isEmpty);
+        expect(
+          container.read(playDraftProvider).valueOrNull?.entries,
+          hasLength(2),
+          reason: 'what was voided is what comes back',
+        );
+      });
+
+      testWidgets('two runners on one passed ball: one undo takes the touch '
+          'and both advances', (tester) async {
+        await twoRunnersThenField(tester);
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('passed_ball'));
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('passed_ball'));
+        await tapKey(tester, fieldCommitKey);
+
+        await tapKey(tester, countHudUndoKey);
+        final events = await stream();
+        expect(betweenPitchLegs(events), isEmpty);
+        expect(events.where((e) => e.type == 'FielderTouch'), isEmpty);
+      });
+
+      testWidgets('two entries off the same pitch undo one at a time, and '
+          'each reopens as itself', (tester) async {
+        await twoRunnersThenField(tester);
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await tapKey(tester, fieldCommitKey);
+        await tapKey(tester, openIdleFieldKey);
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await tapKey(tester, fieldCommitKey);
+
+        await tapKey(tester, countHudUndoKey);
+        final legs = betweenPitchLegs(await stream()).toList();
+        expect(legs, hasLength(1), reason: 'the first entry stands');
+        expect(legs.single.payload['to'], 3);
+        final reopened = container.read(playDraftProvider).valueOrNull!;
+        final leg = reopened.entries.whereType<LegEntry>().single;
+        expect(
+          (leg.from, leg.to),
+          (1, 2),
+          reason: 'the second entry, not the first',
+        );
+      });
+
+      testWidgets('after undo, Start play over and Leave field leave nothing '
+          'saved', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('wild_pitch'));
+        await tapKey(tester, fieldCommitKey);
+
+        await tapKey(tester, countHudUndoKey);
+        await tapKey(tester, fieldStartOverKey);
+        expect(container.read(playDraftProvider).valueOrNull?.entries, isEmpty);
+        await tapKey(tester, fieldLeaveKey);
+        expect(container.read(playDraftProvider).valueOrNull, isNull);
+        expect(betweenPitchLegs(await stream()), isEmpty);
+      });
+
+      testWidgets('removing the last part, Back one takes the part before it '
+          'and never puts the removed one back', (tester) async {
+        await runnerOnFirstThenField(tester);
+        await dragToken(tester, 1, 2, target: 'base');
+        await tapKey(tester, safeChipKey('stolen_base'));
+        await dragToken(tester, 2, 3, target: 'base');
+        await tapKey(tester, safeChipKey('wild_pitch'));
+        final wildPitch = container
+            .read(playDraftProvider)
+            .valueOrNull!
+            .entries
+            .last
+            .key;
+
+        await tapKey(tester, chainNodeKey(wildPitch));
+        await tapKey(tester, chainRemoveKey);
+        expect(
+          container.read(playDraftProvider).valueOrNull!.entries,
+          hasLength(1),
+        );
+        expect(isShown(tester, fieldBackOneKey), isTrue);
+        expect(find.textContaining('Removing'), findsNothing);
+
+        await tapKey(tester, fieldBackOneKey);
+        expect(
+          container.read(playDraftProvider).valueOrNull!.entries,
+          isEmpty,
+          reason: 'the steal went; the wild pitch did not come back',
+        );
+      });
     });
 
     group('between pitches every release asks, with nothing preselected '

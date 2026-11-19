@@ -38,6 +38,7 @@ class EventStore {
             payload: jsonEncode(event.payload),
             corrects: Value(event.corrects),
             effectiveAfter: Value(event.effectiveAfter),
+            batchId: Value(event.batchId),
           ),
         );
   }
@@ -76,5 +77,6 @@ class EventStore {
     payload: jsonDecode(row.payload) as Map<String, dynamic>,
     corrects: row.corrects,
     effectiveAfter: row.effectiveAfter,
+    batchId: row.batchId,
   );
 }

@@ -154,7 +154,10 @@ class GameController extends AsyncNotifier<GameState> {
   /// (ids, seqs) are built here, as everywhere, and intra-batch references
   /// (`{"$local": key}` payload values, §4.2–4.3's event-id links) resolve
   /// against the batch's real ids once they exist.
-  Future<void> appendAllPending(List<PendingEvent> entries) async {
+  /// Returns the batch id the events were stamped with (§6 v0.70), so a
+  /// caller keeping a copy of the entry can name exactly what it saved.
+  Future<String?> appendAllPending(List<PendingEvent> entries) async {
+    if (entries.isEmpty) return null;
     final events = [
       for (final entry in entries)
         _buildEvent(type: entry.type, payload: entry.payload),
@@ -175,10 +178,15 @@ class GameController extends AsyncNotifier<GameState> {
           type: event.type,
           payload: resolveLocalRefs(event.payload, idsByKey),
           corrects: event.corrects,
+          // One scorer action, one batch (§6 v0.70): undo voids it whole.
+          // The first event's id names it — unique already, so nothing new
+          // has to be minted.
+          batchId: events.first.id,
         ),
     ];
     await _store.appendAll(resolved);
     state = AsyncData(await _projector.project(_session.gameId));
+    return events.first.id;
   }
 
   /// Top-level undo (§6), **action-scoped** (§11.3 v0.41): one tap reverses
@@ -301,6 +309,22 @@ class GameController extends AsyncNotifier<GameState> {
     var rooted = false;
     for (final event in visible.reversed) {
       if (!_undoableTypes.contains(event.type)) break;
+      // v0.70: an atomic append says what it was. Every event of the batch
+      // goes together — a between-pitch entry's steal *and* its wild pitch,
+      // two runners on one passed ball. A batch holding a scorer's root is
+      // the whole action, so nothing before it goes: never the entry before
+      // it hanging off the same pitch. A batch of consequences only (a D3K
+      // ending) keeps walking back to the pitch it belongs to, as it always
+      // did. Events without a batch (single appends, and rows written
+      // before v0.70) walk as below.
+      final batch = event.batchId;
+      if (batch != null && !rooted) {
+        if (unit.any((e) => e.batchId == batch)) continue;
+        final members = visible.reversed.where((e) => e.batchId == batch);
+        unit.addAll(members);
+        if (members.any(_isActionRoot)) break;
+        continue;
+      }
       // A between-pitch entry is a small batch, and its root is the last
       // event in it — the advance or the out the chips committed. The
       // touches that earned the assist come *before* it, so the walk keeps
