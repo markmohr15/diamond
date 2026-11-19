@@ -1,0 +1,27 @@
+{
+  "id": "play-28",
+  "title": "Double; R2 scores; batter thrown out stretching at third 8-4-5",
+  "specRef": "§13 (v0.71 out stretching), §14",
+  "setup": { "outs": 0, "count": { "balls": 2, "strikes": 0 }, "runners": { "2": "r2" } },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.2 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "fly", "landing": { "x": 47, "y": 173 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 8, "touchType": "fielded", "location": { "x": 45, "y": 171 } } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 4, "touchType": "received_throw", "location": { "x": 22, "y": 109 } } },
+    { "id": "e6", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "received_throw", "location": { "x": -36, "y": 52 } } },
+    { "id": "e7", "type": "RunnerAdvance", "payload": { "runnerId": "r2", "from": 2, "to": 4, "reason": "batted_ball" } },
+    { "id": "e8", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "tag_applied" } },
+    { "id": "e9", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 3, "how": "tag", "putoutTouchId": "e8" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 1,
+    "officialErrors": [],
+    "batterResult": { "batterId": "b1", "scoring": "double", "hit": true, "rbi": 1, "atBat": true },
+    "putouts": { "5": 1 },
+    "assists": { "8": 1, "4": 1 },
+    "line": "b1 doubled to right-center, b1 out advancing to third CF to 2B to 3B, r2 scored.",
+    "note": "Mark, 2026-11-19, from the simulator, entered exactly so: the batter to first, then straight out at third. To be tagged going into third she had passed second, so second counts toward the hit — physics the record leaves unsaid, not a ruling. Play #3 is the same shape one base shorter, and stays a single."
+  }
+}

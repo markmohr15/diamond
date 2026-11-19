@@ -1,0 +1,26 @@
+{
+  "id": "play-29",
+  "title": "Single; batter takes second on the throw, then is thrown out at third",
+  "specRef": "§13 (v0.43 hit rank, v0.71 out stretching), §14",
+  "setup": { "outs": 0, "count": { "balls": 0, "strikes": 0 }, "runners": {} },
+  "events": [
+    { "id": "e1", "type": "PitchThrown", "payload": { "pitcherId": "p1", "batterId": "b1", "batterSide": "R", "actualLocation": { "x": 0.1, "y": 0.2 }, "outcome": "in_play" } },
+    { "id": "e2", "type": "BallInPlay", "payload": { "pitchEventId": "e1", "fair": true, "trajectory": "line", "landing": { "x": 110, "y": 160 }, "landingIsCaught": false } },
+    { "id": "e3", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 0, "to": 1, "reason": "batted_ball" } },
+    { "id": "e4", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 9, "touchType": "fielded" } },
+    { "id": "e5", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 4, "touchType": "received_throw" } },
+    { "id": "e6", "type": "RunnerAdvance", "payload": { "runnerId": "b1", "from": 1, "to": 2, "reason": "batted_ball", "enabledByTouchId": "e4" } },
+    { "id": "e7", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "received_throw" } },
+    { "id": "e8", "type": "FielderTouch", "payload": { "anchorEventId": "e2", "position": 5, "touchType": "tag_applied" } },
+    { "id": "e9", "type": "RunnerOut", "payload": { "runnerId": "b1", "atBase": 3, "how": "tag", "putoutTouchId": "e8" } }
+  ],
+  "expect": {
+    "outs": 1,
+    "runs": 0,
+    "officialErrors": [],
+    "batterResult": { "batterId": "b1", "scoring": "single", "hit": true, "rbi": 0, "atBat": true },
+    "putouts": { "5": 1 },
+    "line": "b1 singled to right, b1 advanced to second on the throw, b1 out advancing to third RF to 2B to 3B.",
+    "note": "Play #28's variant. Here the scorer said how she reached second — on the throw — so that leg caps the hit (v0.43), and the out at third infers nothing: the inference fills in a base only when no leg of hers reaches it."
+  }
+}

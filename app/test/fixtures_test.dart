@@ -141,6 +141,7 @@ void _assertExpectations(
     'pitcherStrikeouts',
     'pitchGetaways',
     'putouts',
+    'assists',
     'line',
     'note',
     'variant',
@@ -237,6 +238,16 @@ void _assertExpectations(
           },
           value,
           reason: '$id: putouts',
+        );
+      case 'assists':
+        expect(
+          {
+            for (final MapEntry(:key, :value)
+                in scoring.assistsByPosition.entries)
+              '$key': value,
+          },
+          value,
+          reason: '$id: assists',
         );
       case 'earnedRunFlags':
         for (final MapEntry(key: runnerId, value: flag)

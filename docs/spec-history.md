@@ -3,6 +3,35 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.71
+
+**Out stretching counts the base she passed; the putout chain restarts at a misplay; a lone OUT
+answer is not asked (§13, §15.6).** DIA-028, ruled by Mark on 2026-11-19.
+
+**Why.** From the simulator: a fly fell in in right-center, the runner from second scored, and the
+batter was thrown out at third, CF to 2B to 3B. Mark entered the batter safe at first and then out at
+third. The OUT dialog asked how she was out with Tag as its only answer. The hit derived as a single,
+since nothing recorded her at second. The play line read "2B to 3B", naming only the last throw.
+
+**Out stretching.** Tagged out going into a base, she was safe at the one before it. That is physics
+the record leaves unsaid, so it counts toward the hit unless a leg of hers already reaches that base.
+"Took second on the throw", then out at third, stays a single (v0.43's cap). Tags only.
+
+**The putout chain.** One ordered list for the play line and the assists. A misplay restarts it: in
+fixture play-20 the shortstop who threw the ball away had been credited an assist on the out the
+right fielder later made, and no longer is. The play line names at most two throws (Mark: *"that
+would just be too long to read every throw"*); the box credits every fielder in the chain.
+
+**Past the hit.** The play line dropped every leg of the batter's once her verb was a hit, so
+"took second on the throw" went unsaid and play-29 read as out at third on a single. Mark: *"we
+should not omit how she got to second. otherwise, it's confusing how she's out at third on a
+single."* A leg past her hit is now said right after it, with *on the throw* when a clean throw
+enabled it. Only the batter's: for a runner, *on the throw* is the same answer as *on the play*
+(v0.56).
+
+**OUT.** §15.6's "when exactly one answer is possible the surface does not ask" now covers the OUT
+pill as well as SAFE.
+
 ## v0.70
 
 **One action, one batch: undo voids a whole entry, and Back one only goes backward (§6, §15.5).**

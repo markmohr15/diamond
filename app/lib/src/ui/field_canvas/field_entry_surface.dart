@@ -1300,6 +1300,13 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   void _showOutDialog(String runnerId, int base) {
     final controller = ref.read(playDraftProvider.notifier);
     final hows = _possibleHows(runnerId, base, _foldBases);
+    // One way to be out is no question (§15.6 v0.71, as SAFE already did):
+    // a batter tagged going into third on a ball that fell in could be out
+    // no other way.
+    if (hows.length == 1) {
+      controller.addOut(runnerId, atBase: base, how: hows.single.$3);
+      return;
+    }
     final inferred = hows.first.$3;
     _centeredDialog('Out at ${_baseLabels[base]} — how?', [
       Wrap(

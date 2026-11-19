@@ -1042,7 +1042,7 @@ void main() {
     });
 
     testWidgets('play 03 — single, R3 scores, batter out stretching 9-6: '
-        '8 field gestures', (tester) async {
+        '7 field gestures', (tester) async {
       await pumpLoop(tester);
       // Setup: a runner on third (the play found her there).
       await container
@@ -1060,18 +1060,18 @@ void main() {
       await reachFieldSurface(tester);
       final spot = FieldCoord(x: 110, y: 180);
 
-      // Eight, not nine: with fielder's choice off the runner menu (v0.56 —
-      // it is how the *batter* reaches first, never a runner's answer),
-      // scoring R3 on a clean single has one possible answer and costs no
-      // tap.
-      await runGestures(8, [
+      // Seven: with fielder's choice off the runner menu (v0.56 — it is how
+      // the *batter* reaches first, never a runner's answer), scoring R3 on
+      // a clean single has one possible answer and costs no tap; and a tag
+      // is the only way she can be out at second, so that costs none either
+      // (v0.71).
+      await runGestures(7, [
         () => tapKey(tester, trajectoryKey(Trajectory.LINE)),
         () => dragFielder(tester, 9, spot),
         () => tapKey(tester, fielderPlayKey('fielded')),
         () => dragToken(tester, 3, 4, target: 'base'), // R3 home
         () => dragBall(tester, spot, standardSpot(6)), // the 9-6 throw
         () => dragToken(tester, 1, 2, target: 'out', originFrom: 0),
-        () => tapKey(tester, outChipKey('tag')),
         () => tapKey(tester, fieldCommitKey),
       ]);
 
@@ -1137,9 +1137,9 @@ void main() {
       await tapWorld(tester, FieldCoord(x: 60, y: 150));
       await dragToken(tester, 2, 4, target: 'out');
 
+      // No force, so a tag is the only answer and nothing is asked.
       expect(find.text('Force'), findsNothing);
-      expect(find.text('Tag'), findsOneWidget);
-      await tapKey(tester, outChipKey('tag'));
+      expect(find.text('Out at home — how?'), findsNothing);
       await tapKey(tester, fieldCommitKey);
 
       final out = (await stream()).lastWhere((e) => e.type == 'RunnerOut');
@@ -1196,9 +1196,30 @@ void main() {
       await tapKey(tester, fielderPlayKey('dropped')); // she can still run
 
       await dragToken(tester, 1, 2, target: 'out', originFrom: 0);
-      expect(find.text('Fly out'), findsNothing, reason: 'nothing was caught');
-      expect(find.text('Force'), findsNothing, reason: 'second is not next');
-      expect(find.text('Tag'), findsOneWidget);
+      // Nothing was caught, and second is not next: a tag is the only way
+      // she can be out, so it is applied without asking (v0.71).
+      expect(find.text('Out at 2B — how?'), findsNothing);
+      expect(find.text('Fly out'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+      final out = (await stream()).lastWhere((e) => e.type == 'RunnerOut');
+      expect(out.payload['how'], 'tag');
+      expect(out.payload['atBase'], 2);
+    });
+
+    testWidgets('a batter tagged out stretching to third on a ball that '
+        'fell in is not asked how (v0.71)', (tester) async {
+      // Mark, 2026-11-19: "it asked me how she was out when there was only
+      // one option - tag."
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.FLY));
+      await tapWorld(tester, FieldCoord(x: 47, y: 173));
+      await dragToken(tester, 1, 3, target: 'out', originFrom: 0);
+      expect(find.text('Out at 3B — how?'), findsNothing);
+      await tapKey(tester, fieldCommitKey);
+      final out = (await stream()).lastWhere((e) => e.type == 'RunnerOut');
+      expect(out.payload['how'], 'tag');
+      expect(out.payload['atBase'], 3);
     });
   });
 
@@ -1330,7 +1351,8 @@ void main() {
       await tapWorld(tester, FieldCoord(x: -50, y: 95));
       await dragToken(tester, 1, 2, target: 'out', originFrom: 0);
       expect(find.text("Didn't tag up"), findsNothing);
-      expect(find.text('Tag'), findsOneWidget);
+      // Tag was the lone answer, so there was no dialog to offer it in.
+      expect(find.text('Out at 2B — how?'), findsNothing);
     });
   });
 
@@ -2656,7 +2678,6 @@ void main() {
       await tapWorld(tester, FieldCoord(x: -50, y: 95));
       await dragToken(tester, 1, 2, target: 'out', originFrom: 0);
       expect(find.text('Interference'), findsNothing);
-      await tapKey(tester, outChipKey('tag'));
 
       await tapKey(tester, chainNodeKey(1)); // the out just recorded
       await tapKey(tester, chainChipKey('interference_runner'));
