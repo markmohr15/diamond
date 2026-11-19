@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/game/game_controller.dart';
@@ -588,8 +590,31 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   }
 
   /// Remove a chain node; links to it orphan to null, never retarget.
-  Future<void> removeEntry(int key) {
-    return _mutate((draft) => draft.removingEntry(key));
+  ///
+  /// A removal is a step **backward**, so it never becomes something Back
+  /// one puts back (§15.5 v0.70). Mark: after taking off the most recent
+  /// part, the next option should be the part before it, not a redo of what
+  /// was just removed. So the node comes out of the saved history too:
+  /// every step loses it, and a step that only ever added it is now no
+  /// step at all and drops out. Back one then carries on backward from
+  /// whatever is left.
+  Future<void> removeEntry(int key) async {
+    final draft = state.valueOrNull;
+    if (draft == null) return;
+    final next = draft.removingEntry(key).withInfieldFlyPutout();
+    final history = [
+      for (final step in _steps) step.removingEntry(key).withInfieldFlyPutout(),
+    ];
+    // What the scorer could see change, so the key counter (which only
+    // ever climbs) does not make a now-empty step look like a step.
+    String said(PlayDraft d) => jsonEncode(d.toJson()..remove('nextKey'));
+    _steps.clear();
+    for (var i = 0; i < history.length; i++) {
+      final following = i + 1 < history.length ? history[i + 1] : next;
+      if (said(history[i]) != said(following)) _steps.add(history[i]);
+    }
+    await _journal.save(_gameId, next);
+    state = AsyncData(next);
   }
 
   /// The ✓ (§15.5): the whole sequence in one atomic append, then the
@@ -598,10 +623,15 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   Future<void> commit() async {
     final draft = state.valueOrNull;
     if (draft == null || !draft.committable) return;
-    await ref
+    final batchId = await ref
         .read(gameControllerProvider.notifier)
         .appendAllPending(draft.toEvents());
-    await _journal.pushCommitted(_gameId, draft, steps: List.of(_steps));
+    await _journal.pushCommitted(
+      _gameId,
+      draft,
+      steps: List.of(_steps),
+      batchId: batchId,
+    );
     await _journal.clear(_gameId);
     state = const AsyncData(null);
   }
@@ -612,7 +642,7 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// one takes back the last thing entered, as it did before the ✓. A copy
   /// kept before steps were stored has none, and Back one waits until the
   /// scorer changes something.
-  Future<PlayDraft?> reopenCommitted(bool Function(PlayDraft) matches) async {
+  Future<PlayDraft?> reopenCommitted(bool Function(KeptPlay) matches) async {
     final kept = await _journal.takeCommitted(_gameId, matches);
     if (kept == null) return null;
     final draft = kept.draft;

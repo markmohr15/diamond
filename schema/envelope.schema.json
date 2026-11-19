@@ -14,6 +14,7 @@
     "type":      { "type": "string", "description": "discriminant; matches an events/*.schema.json title" },
     "payload":   { "type": "object" },
     "corrects":  { "type": "string", "description": "id of the event this supersedes (§6)" },
+    "batchId":   { "type": "string", "description": "shared by every event one scorer action appended atomically — a committed play, a between-pitch entry (§6). Undo voids the whole batch. Absent on single appends and on events written before v0.70." },
     "effectiveAfter": { "type": "string", "description": "id of the event this logically follows, when recorded later than it happened (§6 insert) — e.g. a stolen base noticed two pitches late. Projections fold in this logical order, not recording order." }
   },
   "required": ["id", "gameId", "seq", "deviceId", "createdBy", "wallClock", "type", "payload"],

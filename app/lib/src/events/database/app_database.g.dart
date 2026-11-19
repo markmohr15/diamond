@@ -110,6 +110,17 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _batchIdMeta = const VerificationMeta(
+    'batchId',
+  );
+  @override
+  late final GeneratedColumn<String> batchId = GeneratedColumn<String>(
+    'batch_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -122,6 +133,7 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
     payload,
     corrects,
     effectiveAfter,
+    batchId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -211,6 +223,12 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         ),
       );
     }
+    if (data.containsKey('batch_id')) {
+      context.handle(
+        _batchIdMeta,
+        batchId.isAcceptableOrUnknown(data['batch_id']!, _batchIdMeta),
+      );
+    }
     return context;
   }
 
@@ -260,6 +278,10 @@ class $EventsTable extends Events with TableInfo<$EventsTable, Event> {
         DriftSqlType.string,
         data['${effectivePrefix}effective_after'],
       ),
+      batchId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_id'],
+      ),
     );
   }
 
@@ -280,6 +302,11 @@ class Event extends DataClass implements Insertable<Event> {
   final String payload;
   final String? corrects;
   final String? effectiveAfter;
+
+  /// v0.70: shared by every event one scorer action appended atomically, so
+  /// undo can void the whole batch (§6). Null on single appends and on rows
+  /// written before it existed.
+  final String? batchId;
   const Event({
     required this.id,
     required this.gameId,
@@ -291,6 +318,7 @@ class Event extends DataClass implements Insertable<Event> {
     required this.payload,
     this.corrects,
     this.effectiveAfter,
+    this.batchId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -308,6 +336,9 @@ class Event extends DataClass implements Insertable<Event> {
     }
     if (!nullToAbsent || effectiveAfter != null) {
       map['effective_after'] = Variable<String>(effectiveAfter);
+    }
+    if (!nullToAbsent || batchId != null) {
+      map['batch_id'] = Variable<String>(batchId);
     }
     return map;
   }
@@ -328,6 +359,9 @@ class Event extends DataClass implements Insertable<Event> {
       effectiveAfter: effectiveAfter == null && nullToAbsent
           ? const Value.absent()
           : Value(effectiveAfter),
+      batchId: batchId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(batchId),
     );
   }
 
@@ -347,6 +381,7 @@ class Event extends DataClass implements Insertable<Event> {
       payload: serializer.fromJson<String>(json['payload']),
       corrects: serializer.fromJson<String?>(json['corrects']),
       effectiveAfter: serializer.fromJson<String?>(json['effectiveAfter']),
+      batchId: serializer.fromJson<String?>(json['batchId']),
     );
   }
   @override
@@ -363,6 +398,7 @@ class Event extends DataClass implements Insertable<Event> {
       'payload': serializer.toJson<String>(payload),
       'corrects': serializer.toJson<String?>(corrects),
       'effectiveAfter': serializer.toJson<String?>(effectiveAfter),
+      'batchId': serializer.toJson<String?>(batchId),
     };
   }
 
@@ -377,6 +413,7 @@ class Event extends DataClass implements Insertable<Event> {
     String? payload,
     Value<String?> corrects = const Value.absent(),
     Value<String?> effectiveAfter = const Value.absent(),
+    Value<String?> batchId = const Value.absent(),
   }) => Event(
     id: id ?? this.id,
     gameId: gameId ?? this.gameId,
@@ -390,6 +427,7 @@ class Event extends DataClass implements Insertable<Event> {
     effectiveAfter: effectiveAfter.present
         ? effectiveAfter.value
         : this.effectiveAfter,
+    batchId: batchId.present ? batchId.value : this.batchId,
   );
   Event copyWithCompanion(EventsCompanion data) {
     return Event(
@@ -405,6 +443,7 @@ class Event extends DataClass implements Insertable<Event> {
       effectiveAfter: data.effectiveAfter.present
           ? data.effectiveAfter.value
           : this.effectiveAfter,
+      batchId: data.batchId.present ? data.batchId.value : this.batchId,
     );
   }
 
@@ -420,7 +459,8 @@ class Event extends DataClass implements Insertable<Event> {
           ..write('type: $type, ')
           ..write('payload: $payload, ')
           ..write('corrects: $corrects, ')
-          ..write('effectiveAfter: $effectiveAfter')
+          ..write('effectiveAfter: $effectiveAfter, ')
+          ..write('batchId: $batchId')
           ..write(')'))
         .toString();
   }
@@ -437,6 +477,7 @@ class Event extends DataClass implements Insertable<Event> {
     payload,
     corrects,
     effectiveAfter,
+    batchId,
   );
   @override
   bool operator ==(Object other) =>
@@ -451,7 +492,8 @@ class Event extends DataClass implements Insertable<Event> {
           other.type == this.type &&
           other.payload == this.payload &&
           other.corrects == this.corrects &&
-          other.effectiveAfter == this.effectiveAfter);
+          other.effectiveAfter == this.effectiveAfter &&
+          other.batchId == this.batchId);
 }
 
 class EventsCompanion extends UpdateCompanion<Event> {
@@ -465,6 +507,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
   final Value<String> payload;
   final Value<String?> corrects;
   final Value<String?> effectiveAfter;
+  final Value<String?> batchId;
   final Value<int> rowid;
   const EventsCompanion({
     this.id = const Value.absent(),
@@ -477,6 +520,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     this.payload = const Value.absent(),
     this.corrects = const Value.absent(),
     this.effectiveAfter = const Value.absent(),
+    this.batchId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   EventsCompanion.insert({
@@ -490,6 +534,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     required String payload,
     this.corrects = const Value.absent(),
     this.effectiveAfter = const Value.absent(),
+    this.batchId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        gameId = Value(gameId),
@@ -510,6 +555,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Expression<String>? payload,
     Expression<String>? corrects,
     Expression<String>? effectiveAfter,
+    Expression<String>? batchId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -523,6 +569,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       if (payload != null) 'payload': payload,
       if (corrects != null) 'corrects': corrects,
       if (effectiveAfter != null) 'effective_after': effectiveAfter,
+      if (batchId != null) 'batch_id': batchId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -538,6 +585,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
     Value<String>? payload,
     Value<String?>? corrects,
     Value<String?>? effectiveAfter,
+    Value<String?>? batchId,
     Value<int>? rowid,
   }) {
     return EventsCompanion(
@@ -551,6 +599,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
       payload: payload ?? this.payload,
       corrects: corrects ?? this.corrects,
       effectiveAfter: effectiveAfter ?? this.effectiveAfter,
+      batchId: batchId ?? this.batchId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -588,6 +637,9 @@ class EventsCompanion extends UpdateCompanion<Event> {
     if (effectiveAfter.present) {
       map['effective_after'] = Variable<String>(effectiveAfter.value);
     }
+    if (batchId.present) {
+      map['batch_id'] = Variable<String>(batchId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -607,6 +659,7 @@ class EventsCompanion extends UpdateCompanion<Event> {
           ..write('payload: $payload, ')
           ..write('corrects: $corrects, ')
           ..write('effectiveAfter: $effectiveAfter, ')
+          ..write('batchId: $batchId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1058,6 +1111,7 @@ typedef $$EventsTableCreateCompanionBuilder =
       required String payload,
       Value<String?> corrects,
       Value<String?> effectiveAfter,
+      Value<String?> batchId,
       Value<int> rowid,
     });
 typedef $$EventsTableUpdateCompanionBuilder =
@@ -1072,6 +1126,7 @@ typedef $$EventsTableUpdateCompanionBuilder =
       Value<String> payload,
       Value<String?> corrects,
       Value<String?> effectiveAfter,
+      Value<String?> batchId,
       Value<int> rowid,
     });
 
@@ -1131,6 +1186,11 @@ class $$EventsTableFilterComposer
 
   ColumnFilters<String> get effectiveAfter => $composableBuilder(
     column: $table.effectiveAfter,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchId => $composableBuilder(
+    column: $table.batchId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1193,6 +1253,11 @@ class $$EventsTableOrderingComposer
     column: $table.effectiveAfter,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get batchId => $composableBuilder(
+    column: $table.batchId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$EventsTableAnnotationComposer
@@ -1235,6 +1300,9 @@ class $$EventsTableAnnotationComposer
     column: $table.effectiveAfter,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get batchId =>
+      $composableBuilder(column: $table.batchId, builder: (column) => column);
 }
 
 class $$EventsTableTableManager
@@ -1275,6 +1343,7 @@ class $$EventsTableTableManager
                 Value<String> payload = const Value.absent(),
                 Value<String?> corrects = const Value.absent(),
                 Value<String?> effectiveAfter = const Value.absent(),
+                Value<String?> batchId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventsCompanion(
                 id: id,
@@ -1287,6 +1356,7 @@ class $$EventsTableTableManager
                 payload: payload,
                 corrects: corrects,
                 effectiveAfter: effectiveAfter,
+                batchId: batchId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1301,6 +1371,7 @@ class $$EventsTableTableManager
                 required String payload,
                 Value<String?> corrects = const Value.absent(),
                 Value<String?> effectiveAfter = const Value.absent(),
+                Value<String?> batchId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => EventsCompanion.insert(
                 id: id,
@@ -1313,6 +1384,7 @@ class $$EventsTableTableManager
                 payload: payload,
                 corrects: corrects,
                 effectiveAfter: effectiveAfter,
+                batchId: batchId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

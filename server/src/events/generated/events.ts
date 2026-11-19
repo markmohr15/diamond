@@ -28,6 +28,12 @@
  */
 export interface GameEvent {
     /**
+     * shared by every event one scorer action appended atomically — a committed play, a
+     * between-pitch entry (§6). Undo voids the whole batch. Absent on single appends and on
+     * events written before v0.70.
+     */
+    batchId?: string;
+    /**
      * id of the event this supersedes (§6)
      */
     corrects?: string;
@@ -666,6 +672,7 @@ function r(name: string) {
 
 const typeMap: any = {
     "GameEvent": o([
+        { json: "batchId", js: "batchId", typ: u(undefined, "") },
         { json: "corrects", js: "corrects", typ: u(undefined, "") },
         { json: "createdBy", js: "createdBy", typ: "" },
         { json: "deviceId", js: "deviceId", typ: "" },

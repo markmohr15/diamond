@@ -55,15 +55,18 @@ class PlayJournalStore {
   static const committedDepth = 10;
 
   /// Keeps [draft] with the [steps] that built it, oldest first, so a play
-  /// undone and reopened still has its Back one (§15.5, DIA-018b-1).
+  /// undone and reopened still has its Back one (§15.5, DIA-018b-1), and
+  /// with the [batchId] its events were saved under, so undo reopens the
+  /// very entry it voided (§6 v0.70).
   Future<void> pushCommitted(
     String gameId,
     PlayDraft draft, {
     required List<PlayDraft> steps,
+    required String? batchId,
   }) async {
     final kept = await _committed(gameId);
     final next = [
-      (draft: draft, steps: steps),
+      (draft: draft, steps: steps, batchId: batchId),
       ...kept,
     ].take(committedDepth).toList();
     await _writeCommitted(gameId, next);
@@ -75,10 +78,10 @@ class PlayJournalStore {
   /// stored comes back with none.
   Future<KeptPlay?> takeCommitted(
     String gameId,
-    bool Function(PlayDraft) matches,
+    bool Function(KeptPlay) matches,
   ) async {
     final kept = await _committed(gameId);
-    final index = kept.indexWhere((play) => matches(play.draft));
+    final index = kept.indexWhere(matches);
     if (index < 0) return null;
     final taken = kept.removeAt(index);
     await _writeCommitted(gameId, kept);
@@ -96,6 +99,7 @@ class PlayJournalStore {
                 {
                   'kept': play.draft.toJson(),
                   'steps': [for (final step in play.steps) step.toJson()],
+                  if (play.batchId != null) 'batchId': play.batchId,
                 },
             ]),
           ),
@@ -116,7 +120,7 @@ class PlayJournalStore {
   static KeptPlay _keptFromJson(Map<String, dynamic> json) {
     // Before steps were kept, each row was the bare draft.
     if (!json.containsKey('kept')) {
-      return (draft: PlayDraft.fromJson(json), steps: const []);
+      return (draft: PlayDraft.fromJson(json), steps: const [], batchId: null);
     }
     return (
       draft: PlayDraft.fromJson(json['kept'] as Map<String, dynamic>),
@@ -124,13 +128,16 @@ class PlayJournalStore {
         for (final step in json['steps'] as List<dynamic>)
           PlayDraft.fromJson(step as Map<String, dynamic>),
       ],
+      batchId: json['batchId'] as String?,
     );
   }
 }
 
 /// A committed play as the scorer entered it, and the drafts it passed
-/// through on the way, oldest first: what Back one walks back through.
-typedef KeptPlay = ({PlayDraft draft, List<PlayDraft> steps});
+/// through on the way, oldest first: what Back one walks back through. The
+/// batch id names the events it was saved as; null for a copy kept before
+/// v0.70.
+typedef KeptPlay = ({PlayDraft draft, List<PlayDraft> steps, String? batchId});
 
 final playJournalStoreProvider = Provider<PlayJournalStore>(
   (ref) => PlayJournalStore(ref.watch(appDatabaseProvider)),

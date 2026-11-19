@@ -21,6 +21,11 @@ class Events extends Table {
   TextColumn get corrects => text().nullable()();
   TextColumn get effectiveAfter => text().nullable()();
 
+  /// v0.70: shared by every event one scorer action appended atomically, so
+  /// undo can void the whole batch (§6). Null on single appends and on rows
+  /// written before it existed.
+  TextColumn get batchId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -56,7 +61,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? _openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -66,6 +71,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.createTable(appSettings);
+      }
+      if (from < 4) {
+        await m.addColumn(events, events.batchId);
       }
     },
   );

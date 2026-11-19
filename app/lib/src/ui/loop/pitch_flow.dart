@@ -2,7 +2,9 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/events/pending_event.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
+import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
+import 'package:diamond/src/play/play_journal_store.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/logical_order.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
@@ -1070,7 +1072,9 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     if (root.type == 'BallInPlay') {
       final pitchId = BallInPlay.fromJson(root.payload).pitchEventId;
       final kept = await play.reopenCommitted(
-        (draft) => draft.battedBall && draft.pitchEventId == pitchId,
+        (kept) => _isTheUndone(kept, root, (draft) {
+          return draft.battedBall && draft.pitchEventId == pitchId;
+        }),
       );
       if (kept != null) return;
       final pitch = before.where((e) => e.id == pitchId).firstOrNull;
@@ -1092,8 +1096,25 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     }
     if (anchor == null) return;
     await play.reopenCommitted(
-      (draft) => !draft.battedBall && draft.pitchEventId == anchor,
+      (kept) => _isTheUndone(kept, root, (draft) {
+        return !draft.battedBall && draft.pitchEventId == anchor;
+      }),
     );
+  }
+
+  /// Whether [kept] is the copy of the entry undo just voided. Since v0.70
+  /// the batch says so exactly: two between-pitch entries hanging off the
+  /// same pitch are told apart by it, where the anchor alone took the
+  /// newer one's copy for either. Copies and events from before v0.70 have
+  /// no batch, and fall back to [byAnchor].
+  bool _isTheUndone(
+    KeptPlay kept,
+    GameEvent root,
+    bool Function(PlayDraft) byAnchor,
+  ) {
+    final batch = root.batchId;
+    if (batch != null && kept.batchId != null) return kept.batchId == batch;
+    return byAnchor(kept.draft);
   }
 
   Future<List<GameEvent>> _visibleStream() => ref

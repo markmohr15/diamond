@@ -68,23 +68,23 @@ void main() {
     const play = PlayDraft(pitchEventId: 'p-2', batterId: 'opp-1');
 
     test('takes the newest match and removes it', () async {
-      await store.pushCommitted('g', steal, steps: const []);
-      await store.pushCommitted('g', play, steps: const []);
+      await store.pushCommitted('g', steal, steps: const [], batchId: null);
+      await store.pushCommitted('g', play, steps: const [], batchId: null);
 
       final taken = await store.takeCommitted(
         'g',
-        (d) => d.battedBall && d.pitchEventId == 'p-2',
+        (k) => k.draft.battedBall && k.draft.pitchEventId == 'p-2',
       );
       expect(taken?.draft.pitchEventId, 'p-2');
       expect(
-        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-2'),
+        await store.takeCommitted('g', (k) => k.draft.pitchEventId == 'p-2'),
         isNull,
         reason: 'taken once',
       );
       expect(
         (await store.takeCommitted(
           'g',
-          (d) => !d.battedBall,
+          (k) => !k.draft.battedBall,
         ))?.draft.pitchEventId,
         'p-1',
       );
@@ -92,7 +92,7 @@ void main() {
 
     test('lives beside the crash journal without touching it', () async {
       await store.save('g', play);
-      await store.pushCommitted('g', steal, steps: const []);
+      await store.pushCommitted('g', steal, steps: const [], batchId: null);
       expect((await store.load('g'))?.pitchEventId, 'p-2');
       await store.clear('g');
       expect(
@@ -108,14 +108,15 @@ void main() {
           'g',
           PlayDraft(pitchEventId: 'p-$i', batterId: 'b'),
           steps: const [],
+          batchId: null,
         );
       }
       expect(
-        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-0'),
+        await store.takeCommitted('g', (k) => k.draft.pitchEventId == 'p-0'),
         isNull,
       );
       expect(
-        await store.takeCommitted('g', (d) => d.pitchEventId == 'p-12'),
+        await store.takeCommitted('g', (k) => k.draft.pitchEventId == 'p-12'),
         isNotNull,
       );
     });
@@ -129,10 +130,16 @@ void main() {
         reason: RunnerAdvanceReason.STOLEN_BASE,
       );
       final caught = stole.addingOut('r1', atBase: 3, how: How.CAUGHT_STEALING);
-      await store.pushCommitted('g', caught, steps: [steal, stole]);
+      await store.pushCommitted(
+        'g',
+        caught,
+        steps: [steal, stole],
+        batchId: 'b-1',
+      );
       final taken = await store.takeCommitted('g', (_) => true);
       expect(taken!.draft.entries, hasLength(2));
       expect(taken.steps.map((d) => d.entries.length), [0, 1]);
+      expect(taken.batchId, 'b-1');
     });
 
     test(
