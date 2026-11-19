@@ -1377,7 +1377,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// §15.1 v0.43: the batted-ball type, the surface's first question.
   void _showTrajectoryDialog() {
     final controller = ref.read(playDraftProvider.notifier);
-    _centeredDialog('How did it come off the bat?', [
+    _centeredDialog('How was it hit?', [
       TrajectoryRow(
         selected: _draft.trajectory,
         bunted: _draft.bunted,

@@ -920,7 +920,7 @@ void main() {
         findsOneWidget,
       );
       await tapKey(tester, fieldBackOneKey);
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
       await tester.tapAt(const Offset(20, 20)); // wave the modal off
       await tester.pumpAndSettle();
 
@@ -942,7 +942,7 @@ void main() {
       final draft = container.read(playDraftProvider).valueOrNull;
       expect(draft, isNotNull, reason: 'still on the field');
       expect(draft!.trajectory, isNull, reason: 'and back at the start');
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
       final events = await stream();
       expect(events.where((e) => e.type == 'PitchThrown'), hasLength(1));
     });

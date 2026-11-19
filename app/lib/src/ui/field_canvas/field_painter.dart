@@ -127,12 +127,14 @@ class FieldPainter extends CustomPainter {
   /// the next (§15.1 v0.43).
   final List<FieldCoord> route;
 
-  static const double _tokenRadiusPx = 20;
+  /// Runner tokens, 46 across as 14A draws them (DIA-018b-4): the target
+  /// is a tablet (§21.1 v0.62), and 40 was sized for a phone.
+  static const double _tokenRadiusPx = 23;
 
-  /// Fielder tokens, and the holder's one size up (§15.1 v0.62): the step
-  /// 14A draws as 64 against 54, applied to the surface's own size.
-  static const double _fielderRadiusPx = 15;
-  static const double _holderRadiusPx = 18;
+  /// Fielder tokens, 54 across as 14A draws them, and the holder's one size
+  /// up (§15.1 v0.62): the step 14A draws as 64 against 54.
+  static const double _fielderRadiusPx = 27;
+  static const double _holderRadiusPx = 32;
 
   /// The ball glyph, and the dashed ground ring a loose ball sits in.
   static const double _ballRadiusPx = 6.5;
@@ -355,7 +357,7 @@ class FieldPainter extends CustomPainter {
         positionAbbreviations[position] ?? '$position',
         px,
         ink.withValues(alpha: 0.55),
-        fontSize: 11,
+        fontSize: 15,
       );
     }
   }
@@ -380,7 +382,7 @@ class FieldPainter extends CustomPainter {
           ..strokeWidth = 3
           ..color = ink,
       );
-    _paintLabel(canvas, label, px, onAccent, fontSize: 12, bold: true);
+    _paintLabel(canvas, label, px, onAccent, fontSize: 17, bold: true);
     const rim = _holderRadiusPx * math.sqrt1_2;
     _paintBall(canvas, px + const Offset(rim, -rim), ring: ink);
     _paintTag(canvas, 'HAS BALL', _below(px, _holderRadiusPx), solid: true);
@@ -604,7 +606,7 @@ class FieldPainter extends CustomPainter {
         // On the accent while she is in hand, so its on-color; `surface` is
         // dark after dark and vanished against the fill.
         dragging ? onAccent : surface,
-        fontSize: 14,
+        fontSize: 17,
         bold: true,
       );
     }
@@ -612,7 +614,7 @@ class FieldPainter extends CustomPainter {
 
   /// The sizes callers pass here are **canvas geometry, not type scale**
   /// (§23.5 keeps the scale to prose and codes in widgets). Each is chosen to
-  /// fit inside a shape this painter draws — an 82x40 pill, a 20px-radius
+  /// fit inside a shape this painter draws — an 82x40 pill, a 23px-radius
   /// token — so moving them onto a scale step would overflow the shape rather
   /// than restyle the text. §23's preamble is explicit that a design pass does
   /// not relitigate a derived value.
