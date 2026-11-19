@@ -338,6 +338,150 @@ void main() {
     );
   });
 
+  test('a leg past her hit is said, on the throw when one enabled it '
+      '(v0.71)', () {
+    // "singled" says first and no more, so second needs its own clause.
+    final b = EventBuilder();
+    expect(
+      linesFor([
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.ballInPlay(
+          id: 'bip',
+          pitchEventId: 'p',
+          trajectory: Trajectory.LINE,
+          landing: FieldCoord(x: 110, y: 160),
+        ),
+        b.runnerAdvance(
+          id: 'a1',
+          runnerId: 'b1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+        ),
+        b.fielderTouch(
+          id: 'rf',
+          anchorEventId: 'bip',
+          position: 9,
+          touchType: TouchType.FIELDED,
+        ),
+        b.fielderTouch(
+          id: 'c',
+          anchorEventId: 'bip',
+          position: 2,
+          touchType: TouchType.RECEIVED_THROW,
+        ),
+        b.runnerAdvance(
+          id: 'a2',
+          runnerId: 'b1',
+          from: 1,
+          to: 2,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+          enabledByTouchId: 'rf',
+        ),
+      ]),
+      ['Jones singled to right, Jones advanced to second on the throw.'],
+    );
+  });
+
+  group('the putout chain (v0.71)', () {
+    // A rundown, 6-5-6-5: Simmons, caught between second and third.
+    List<GameEvent> rundown({bool dropped = false}) {
+      final b = EventBuilder();
+      return [
+        b.pitch(
+          id: 'p',
+          batterId: 'b1',
+          pitcherId: 'pit',
+          outcome: Outcome.IN_PLAY,
+        ),
+        b.ballInPlay(
+          id: 'bip',
+          pitchEventId: 'p',
+          landing: FieldCoord(x: -40, y: 95),
+        ),
+        b.fielderTouch(
+          id: 't1',
+          anchorEventId: 'bip',
+          position: 6,
+          touchType: TouchType.FIELDED,
+        ),
+        b.fielderTouch(
+          id: 't2',
+          anchorEventId: 'bip',
+          position: 5,
+          touchType: dropped ? TouchType.DROPPED : TouchType.RECEIVED_THROW,
+        ),
+        if (dropped)
+          b.fielderTouch(
+            id: 't2b',
+            anchorEventId: 'bip',
+            position: 5,
+            touchType: TouchType.FIELDED,
+          ),
+        b.fielderTouch(
+          id: 't3',
+          anchorEventId: 'bip',
+          position: 6,
+          touchType: TouchType.RECEIVED_THROW,
+        ),
+        b.fielderTouch(
+          id: 't4',
+          anchorEventId: 'bip',
+          position: 5,
+          touchType: TouchType.RECEIVED_THROW,
+        ),
+        b.fielderTouch(
+          id: 't5',
+          anchorEventId: 'bip',
+          position: 5,
+          touchType: TouchType.TAG_APPLIED,
+        ),
+        b.runnerOut(
+          id: 'o',
+          runnerId: 'r1',
+          atBase: 3,
+          how: How.TAG,
+          putoutTouchId: 't5',
+        ),
+      ];
+    }
+
+    test('names two throws at most, the last ones; the box credits all', () {
+      // Mark, 2026-11-19: "We don't want more than two throws showing up."
+      final events = rundown();
+      expect(linesFor(events).single, contains('3B to SS to 3B'));
+      expect(linesFor(events).single, isNot(contains('SS to 3B to SS')));
+      final scoring = foldOfficialScoring(events);
+      expect(scoring.assistsByPosition, {6: 1});
+      expect(scoring.putoutsByPosition, {5: 1});
+    });
+
+    test('a misplay restarts it: nothing before the drop assists', () {
+      // The third baseman drops the first throw, picks it up, and the
+      // rundown goes on from her: 5-6-5, and the shortstop's first throw
+      // earns nothing.
+      final events = rundown(dropped: true);
+      expect(linesFor(events).single, contains('3B to SS to 3B'));
+      expect(foldOfficialScoring(events).assistsByPosition, {6: 1});
+    });
+
+    test('putoutChain is the ordered handlers, repeats in a row merged', () {
+      final events = rundown();
+      final touches = [
+        for (final e in events)
+          if (e.type == 'FielderTouch')
+            (eventId: e.id, payload: FielderTouch.fromJson(e.payload)),
+      ];
+      expect(putoutChain(touches, 't5'), [6, 5, 6, 5]);
+      expect(putoutChain(touches, 'nope'), isEmpty);
+    });
+  });
+
   test('an error is its own sentence, led by the charge', () {
     // "Jones doubled to left, Simmons advanced to third.
     //  On a fielding error by LF, Simmons scored and Jones advanced to third."

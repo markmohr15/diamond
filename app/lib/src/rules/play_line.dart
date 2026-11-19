@@ -7,6 +7,8 @@
 /// `diamond.sqlite` and folding the stream by hand.
 library;
 
+import 'dart:math';
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/field/spray_sector.dart';
@@ -156,6 +158,10 @@ List<String> _sentences(
 /// The hit when it was one, the trajectory when it was not — and the hit
 /// verb already says where she ended up, which is why only the second kind
 /// needs a destination clause at the end.
+/// The base each hit gives her, so the line can tell a leg the verb
+/// already says from one past it.
+const _hitBases = {'single': 1, 'double': 2, 'triple': 3, 'home_run': 4};
+
 const _hitVerbs = {
   'single': 'singled',
   'double': 'doubled',
@@ -275,6 +281,29 @@ String _battedBall(
     else
       '$batter $verb to $place',
   ];
+  // Past her hit, said right after it (v0.71): the verb covers the bases
+  // the hit gave her and no more, so a single who took second on the throw
+  // and was then thrown out at third would otherwise read as out at third
+  // on a single (Mark, 2026-11-19: "otherwise, it's confusing how she's
+  // out at third on a single").
+  final hitBase = _hitBases[outcome?.scoring];
+  if (hitVerb != null && hitBase != null) {
+    final beyond = _finalLegs(
+      plain.where((a) => a.payload.runnerId == play.batterId).toList(),
+    ).where((a) => a.payload.to > hitBase).firstOrNull;
+    if (beyond != null) {
+      final enabler = play.touches
+          .where((t) => t.eventId == beyond.payload.enabledByTouchId)
+          .firstOrNull;
+      final onTheThrow =
+          enabler != null &&
+          !misplayTouchTypes.contains(enabler.payload.touchType);
+      clauses.add(
+        '${_advanceClause(beyond.payload, label)}'
+        '${onTheThrow ? ' on the throw' : ''}',
+      );
+    }
+  }
   for (final out in outs) {
     // Her own out is already in the verb when the catch or the sacrifice
     // said it; repeating it as "out at first" is the clause Mark cut.
@@ -424,30 +453,28 @@ String _advanceClause(RunnerAdvance a, PlayerLabel label) {
 }
 
 /// Who threw and who caught it, when a throw is what made the out — the
-/// spoken form of a 6-3. Abbreviations throughout, because brevity is the
-/// point (Mark, 2026-10-13); the base goes unsaid, as it does in "6-3".
+/// spoken form of an 8-4-5. Abbreviations throughout, because brevity is
+/// the point (Mark, 2026-10-13); the base goes unsaid, as it does in "6-3".
+///
+/// Two throws at most, so three names (Mark, 2026-11-19: *"that would just
+/// be too long to read every throw"*): the last ones, which made the out.
+/// The box still credits every fielder in [putoutChain].
 ///
 /// Null when nobody threw: an unassisted putout has no chain, and naming
 /// the base is what carries the information there instead.
 String? _putoutChain(RunnerOut out, PlayRecord play) {
-  final putout = play.touches
-      .where((t) => t.eventId == out.putoutTouchId)
-      .firstOrNull;
-  if (putout == null) return null;
-  final index = play.touches.indexWhere((t) => t.eventId == putout.eventId);
-  final thrower = play.touches
-      .take(index)
-      .where((t) => t.payload.position != putout.payload.position)
-      .lastOrNull;
-  if (thrower == null) return null;
-  final from =
-      positionAbbreviations[thrower.payload.position] ??
-      '${thrower.payload.position}';
-  final to =
-      positionAbbreviations[putout.payload.position] ??
-      '${putout.payload.position}';
-  return '$from to $to';
+  final id = out.putoutTouchId;
+  if (id == null) return null;
+  final chain = putoutChain(play.touches, id);
+  if (chain.length < 2) return null;
+  return chain
+      .skip(max(0, chain.length - _maxNamesInChain))
+      .map((p) => positionAbbreviations[p] ?? '$p')
+      .join(' to ');
 }
+
+/// Two throws: the thrower, the relay, and the fielder who made the out.
+const _maxNamesInChain = 3;
 
 /// Whether she was *trying for an extra base*, which is the only thing
 /// "advancing" should say (Mark, 2026-10-13).

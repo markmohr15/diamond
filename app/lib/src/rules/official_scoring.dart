@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
@@ -678,15 +680,10 @@ OfficialScoring foldOfficialScoring(
     // 2026-10-23). A throw the scorer entered stays in the record; it just
     // earns nothing on this out.
     if (_putoutOnlyHows.contains(out.payload.how)) continue;
-    final credited = <int>{};
-    for (final t in touches) {
-      if (t.eventId == out.payload.putoutTouchId) break;
-      final p = t.payload;
-      if (p.anchorEventId != putoutTouch.anchorEventId) continue;
-      if (p.position == putoutTouch.position) continue;
-      if (misplayTouchTypes.contains(p.touchType)) continue;
-      credited.add(p.position);
-    }
+    final chain = putoutChain([
+      for (final t in touches) (eventId: t.eventId, payload: t.payload),
+    ], out.payload.putoutTouchId!);
+    final credited = {...chain}..remove(putoutTouch.position);
     for (final position in credited) {
       assists.update(position, (v) => v + 1, ifAbsent: () => 1);
     }
@@ -964,6 +961,41 @@ int closestInfielder(FieldCoord landing) {
   ].reduce((a, b) => distance(b) < distance(a) ? b : a);
 }
 
+/// The fielders who handled the ball on the way to the putout touch
+/// [putoutTouchId], in order and ending with the putout's own: the 8-4-5
+/// of a scorebook. One list for both readers, so the play line and the box
+/// score cannot disagree about who handled it. The box credits an assist to
+/// everyone here but the putout's fielder.
+///
+/// Only touches on the putout's own ball count, and a fielder's touches in
+/// a row merge: fielding a throw and tagging with it is one name. A
+/// misplay restarts the chain (v0.71): a throw that sailed is not what put
+/// her out, so neither it nor anything before it assists. The fielder who
+/// booted it and recovered starts the new chain with the recovery. Empty
+/// when the putout touch is not among [touches].
+List<int> putoutChain(
+  Iterable<({String eventId, FielderTouch payload})> touches,
+  String putoutTouchId,
+) {
+  final putout = touches.where((t) => t.eventId == putoutTouchId).firstOrNull;
+  if (putout == null) return const [];
+  final chain = <int>[];
+  for (final t in touches) {
+    final p = t.payload;
+    final isPutout = t.eventId == putoutTouchId;
+    if (!isPutout) {
+      if (p.anchorEventId != putout.payload.anchorEventId) continue;
+      if (misplayTouchTypes.contains(p.touchType)) {
+        chain.clear();
+        continue;
+      }
+    }
+    if (chain.lastOrNull != p.position) chain.add(p.position);
+    if (isPutout) break;
+  }
+  return chain;
+}
+
 /// Outs that credit the putout alone (DIA-019 H): leaving early and the
 /// look-back rule are dead-ball rulings, so no fielder assisted them.
 const _putoutOnlyHows = {How.LEFT_EARLY, How.LOOK_BACK_RULE};
@@ -1172,6 +1204,20 @@ BatterOutcome _batterOutcome(
     if (a.payload.enabledByTouchId != null) continue;
     if (a.payload.reason != RunnerAdvanceReason.BATTED_BALL) continue;
     if (a.payload.to > base) base = a.payload.to;
+  }
+  // Out stretching (v0.71): tagged out going into a base, she was safe at
+  // the one before it — to be tagged at third she had passed second. That
+  // is physics the record leaves unsaid, not a ruling, so it counts toward
+  // the hit, unless a leg of hers already reaches that base: then the leg
+  // says how she got there, and "took second on the throw" still caps the
+  // hit as above. A tag only — an appeal or interference out says nothing
+  // about which bases she passed.
+  final farthest = own.fold(0, (held, a) => max(held, a.payload.to));
+  for (final out in pa.outs) {
+    if (out.payload.runnerId != batterId) continue;
+    if (out.payload.how != How.TAG) continue;
+    final passed = out.payload.atBase - 1;
+    if (passed > farthest && passed > base) base = passed;
   }
   return BatterOutcome(
     batterId: batterId,
