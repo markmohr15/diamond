@@ -603,6 +603,14 @@ class PlayDraft {
   /// she repositions and her play's location follows — one play, adjusted,
   /// never a second touch. When the landing was assumed from that touch,
   /// it moves with her.
+  /// She is standing at [spot] now, with nothing she touched moved: the
+  /// fielder with the ball who ran to a bag and made the out there
+  /// herself (DIA-018d). Where she *played* the ball stays where it was —
+  /// that location is what official scoring and the spray chart read —
+  /// but a throw she makes next starts from the bag.
+  PlayDraft standingAt(int position, FieldCoord spot) =>
+      copyWith(movedFielders: {...movedFielders, position: spot});
+
   PlayDraft adjustingFielderPlay(int position, {required FieldCoord spot}) {
     final touch = latestTouchBy(position);
     if (touch == null) return this;

@@ -4,6 +4,7 @@ import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// One runner as the canvas shows them: who, what to print on the token,
@@ -62,6 +63,9 @@ class FieldPainter extends CustomPainter {
     this.route = const [],
     this.forcePlayBase,
     this.canRecordOut = true,
+    this.holderDragBase,
+    this.outPillDetail,
+    this.hiddenPills = const {},
   });
 
   final FieldGeometry geometry;
@@ -116,6 +120,20 @@ class FieldPainter extends CustomPainter {
   /// base until the scorer taps one (§15.1 v0.43 — the throw arrived, the
   /// question is asked where it happened).
   final int? forcePlayBase;
+
+  /// The base whose SAFE/OUT pair is up for the fielder with the ball,
+  /// dragged toward a base a runner can be put out at (DIA-018d). Null
+  /// when she is not in hand, or there is nobody there to retire.
+  final int? holderDragBase;
+
+  /// What the lit OUT pill will record when the holder is dropped on it,
+  /// as 14B spells it (*UNASSISTED · SS*), under *OUT AT 2B*. Null leaves
+  /// the bare OUT.
+  final String? outPillDetail;
+
+  /// Pills held on until they hid (DIA-018d): not drawn, and not a target.
+  /// The hold itself draws nothing — the pill just goes (Mark, 2026-11-19).
+  final Set<(int, BaseCall)> hiddenPills;
 
   /// False once the half is over (§4.4's three outs): the pills lose their
   /// OUT half, because there is no fourth out to record.
@@ -214,40 +232,54 @@ class FieldPainter extends CustomPainter {
     final drag = dragPosition;
     final base =
         forcePlayBase ??
+        holderDragBase ??
         (dragTokenId != null && drag != null
             ? geometry.nearestBaseWithin(drag, approachRadiusPx)
             : null);
     if (base == null) return;
-    // Whichever pill the runner is over lights up — the same one the
+    // Whichever pill the finger is over lights up — the same one the
     // release resolves to, so the canvas never shows one answer and
-    // commits another.
-    final hot = dragTokenId != null && drag != null
-        ? geometry.pillAt(base, drag)
-        : null;
-    _paintPill(
-      canvas,
-      'SAFE',
-      geometry.safeAffordanceCenter(base),
-      lit: hot == BaseCall.safe,
-    );
-    if (canRecordOut) {
+    // commits another. A hidden pill is no target, so it never lights.
+    final dragging = dragTokenId != null || holderDragBase != null;
+    final over = dragging && drag != null ? geometry.pillAt(base, drag) : null;
+    final hot = hiddenPills.contains((base, over)) ? null : over;
+    if (!hiddenPills.contains((base, BaseCall.safe))) {
       _paintPill(
         canvas,
-        'OUT',
+        'SAFE',
+        geometry.safeAffordanceCenter(base),
+        lit: hot == BaseCall.safe,
+      );
+    }
+    if (canRecordOut && !hiddenPills.contains((base, BaseCall.out))) {
+      final detail = hot == BaseCall.out ? outPillDetail : null;
+      _paintPill(
+        canvas,
+        detail == null ? 'OUT' : 'OUT AT ${_baseCodes[base]}',
         geometry.outAffordanceCenter(base),
         lit: hot == BaseCall.out,
+        detail: detail,
       );
     }
   }
+
+  static const _baseCodes = {1: '1B', 2: '2B', 3: '3B', 4: 'HOME'};
 
   void _paintPill(
     Canvas canvas,
     String text,
     Offset center, {
     bool lit = false,
+    String? detail,
   }) {
+    // Wider and two lines when it spells out what it records (14B state
+    // 3); the stack's spacing is unchanged, so it grows sideways only.
     final rect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: center, width: 82, height: 40),
+      Rect.fromCenter(
+        center: center,
+        width: detail == null ? 82 : 156,
+        height: detail == null ? 40 : 48,
+      ),
       const Radius.circular(20),
     );
     canvas
@@ -259,13 +291,31 @@ class FieldPainter extends CustomPainter {
           ..strokeWidth = lit ? 3 : 2
           ..color = lit ? accent : ink.withValues(alpha: 0.75),
       );
+    if (detail == null) {
+      _paintLabel(
+        canvas,
+        text,
+        center,
+        lit ? onAccent : ink,
+        fontSize: 15,
+        bold: true,
+      );
+      return;
+    }
     _paintLabel(
       canvas,
       text,
-      center,
+      center - const Offset(0, 9),
       lit ? onAccent : ink,
-      fontSize: 15,
+      fontSize: 14,
       bold: true,
+    );
+    _paintLabel(
+      canvas,
+      detail,
+      center + const Offset(0, 10),
+      lit ? onAccent : ink,
+      fontSize: 11,
     );
   }
 
@@ -670,6 +720,9 @@ class FieldPainter extends CustomPainter {
         oldDelegate.route != route ||
         oldDelegate.forcePlayBase != forcePlayBase ||
         oldDelegate.canRecordOut != canRecordOut ||
+        oldDelegate.holderDragBase != holderDragBase ||
+        oldDelegate.outPillDetail != outPillDetail ||
+        !setEquals(oldDelegate.hiddenPills, hiddenPills) ||
         oldDelegate.ink != ink ||
         oldDelegate.accent != accent ||
         oldDelegate.geometry.size != geometry.size;

@@ -417,16 +417,25 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
   /// `how`; a tag auto-emits the `tag_applied` touch first and credits it
   /// with the putout, per fixture 03's pattern. [interference] is the
   /// out-flavored ⚖ (v0.43): the call inserts ahead of the out and the
-  /// `how` becomes `interference`.
+  /// `how` becomes `interference`. [holderAt] is where the fielder with the
+  /// ball now stands, when she was dragged onto the pill herself (DIA-018d).
   Future<void> addOut(
     String runnerId, {
     required int atBase,
     required How how,
     bool interference = false,
     int? againstPosition,
+    FieldCoord? holderAt,
   }) {
     return _mutate((draft) {
       var next = draft;
+      // The fielder with the ball, dragged onto the OUT pill, ran to the bag
+      // and made it herself (DIA-018d): she stands there now. One step with
+      // the out, so Back one never leaves her at the bag without it.
+      final holder = next.securedTouch?.position;
+      if (holderAt != null && holder != null) {
+        next = next.standingAt(holder, holderAt);
+      }
       // The pitcher is credited with the putout (Mark, 2026-10-23), and she
       // does have the ball: both calls are made with it in the circle. The
       // touch is what a putout points at. Nothing else here is a defensive

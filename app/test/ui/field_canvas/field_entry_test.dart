@@ -2611,6 +2611,261 @@ void main() {
     });
   });
 
+  group('the drag says what it means (DIA-018d)', () {
+    /// A runner on first and a grounder fielded by the shortstop: she has
+    /// the ball, r1 is running to second, the batter to first.
+    Future<void> shortstopHasIt(WidgetTester tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r1',
+              from: 0,
+              to: 1,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, standardSpot(6));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+    }
+
+    Future<List<String>> outShape() async {
+      final events = await stream();
+      final touches = {
+        for (final e in events)
+          if (e.type == 'FielderTouch') e.id: FielderTouch.fromJson(e.payload),
+      };
+      return [
+        for (final e
+            in events.reversed
+                .takeWhile((e) => e.type != 'BallInPlay')
+                .toList()
+                .reversed)
+          if (e.type == 'FielderTouch')
+            'touch ${touches[e.id]!.position} '
+                '${touchTypeValues.reverse[touches[e.id]!.touchType]}'
+          else if (e.type == 'RunnerOut')
+            () {
+              final out = RunnerOut.fromJson(e.payload);
+              final by = touches[out.putoutTouchId]?.position;
+              return 'out ${out.runnerId} at ${out.atBase} '
+                  '${howValues.reverse[out.how]} by $by';
+            }(),
+      ];
+    }
+
+    const forceAtSecond = ['touch 6 fielded', 'out r1 at 2 force by 6'];
+
+    testWidgets('the holder dragged onto OUT records the force herself', (
+      tester,
+    ) async {
+      await shortstopHasIt(tester);
+      final geometry = canvasGeometry(tester);
+      await drag(
+        tester,
+        worldPx(tester, standardSpot(6)),
+        canvasTopLeft(tester) + geometry.outAffordanceCenter(2),
+      );
+      expect(find.text('Out at 2B — how?'), findsOneWidget);
+      await tapKey(tester, outChipKey('force'));
+      // She ran to the bag: a throw she makes next starts from there.
+      final draft = container.read(playDraftProvider).valueOrNull!;
+      expect(
+        coversBase(FieldProfile.fastpitch12U, draft.movedFielders[6]!, 2),
+        isTrue,
+      );
+      await tapKey(tester, fieldCommitKey);
+      expect(await outShape(), forceAtSecond);
+    });
+
+    testWidgets('dragging the runner onto OUT records the same events', (
+      tester,
+    ) async {
+      await shortstopHasIt(tester);
+      await dragToken(tester, 2, 2, target: 'out', originFrom: 1);
+      await tapKey(tester, outChipKey('force'));
+      await tapKey(tester, fieldCommitKey);
+      expect(await outShape(), forceAtSecond);
+    });
+
+    testWidgets('no runner near the base, no OUT for the fielder', (
+      tester,
+    ) async {
+      await shortstopHasIt(tester);
+      final geometry = canvasGeometry(tester);
+      // Nobody is on third or running there.
+      await drag(
+        tester,
+        worldPx(tester, standardSpot(6)),
+        canvasTopLeft(tester) + geometry.outAffordanceCenter(3),
+      );
+      expect(find.text('Out at 3B — how?'), findsNothing);
+      final draft = container.read(playDraftProvider).valueOrNull!;
+      expect(draft.entries.whereType<OutEntry>(), isEmpty);
+    });
+
+    testWidgets('a drag onto OUT keeps the ball with her', (tester) async {
+      await shortstopHasIt(tester);
+      final geometry = canvasGeometry(tester);
+      await drag(
+        tester,
+        worldPx(tester, standardSpot(6)),
+        canvasTopLeft(tester) + geometry.outAffordanceCenter(2),
+      );
+      await tapKey(tester, outChipKey('force'));
+      expect(container.read(playDraftProvider).valueOrNull!.holderPosition, 6);
+    });
+
+    testWidgets('a pull under the touch slop is a tap: it gives up the ball '
+        'and records no out (DIA-018, 2026-09-04)', (tester) async {
+      // Only a tap may give up the ball. A pull this short never shows the
+      // pills, so it cannot be mistaken for an out either way.
+      await shortstopHasIt(tester);
+      final from = worldPx(tester, standardSpot(6));
+      await drag(tester, from, from + const Offset(8, 0));
+      final draft = container.read(playDraftProvider).valueOrNull!;
+      expect(draft.entries.whereType<OutEntry>(), isEmpty);
+      expect(draft.holderPosition, isNull);
+    });
+
+    /// The shortstop, ball in hand, pressed and pulled onto 2B's OUT pill.
+    Future<TestGesture> holdShortstopOnOut(WidgetTester tester) async {
+      final geometry = canvasGeometry(tester);
+      final gesture = await tester.startGesture(
+        worldPx(tester, standardSpot(6)),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(
+        canvasTopLeft(tester) + geometry.outAffordanceCenter(2),
+      );
+      return gesture;
+    }
+
+    testWidgets('held two seconds, the pill hides and the release is not '
+        'an out', (tester) async {
+      await shortstopHasIt(tester);
+      final gesture = await holdShortstopOnOut(tester);
+      await tester.pump(const Duration(milliseconds: 2100));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsNothing);
+      final draft = container.read(playDraftProvider).valueOrNull!;
+      expect(draft.entries.whereType<OutEntry>(), isEmpty);
+      // Her play is where she was dropped, the space the pill gave up.
+      final touch = draft.entries.whereType<TouchEntry>().single;
+      expect(touch.location, isNot(standardSpot(6)));
+    });
+
+    testWidgets('let go before the hold completes, and the pill is '
+        'recorded', (tester) async {
+      await shortstopHasIt(tester);
+      final gesture = await holdShortstopOnOut(tester);
+      await tester.pump(const Duration(milliseconds: 1500));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsOneWidget);
+    });
+
+    testWidgets('dragging away from the base brings a hidden pill back', (
+      tester,
+    ) async {
+      await shortstopHasIt(tester);
+      final geometry = canvasGeometry(tester);
+      final out = canvasTopLeft(tester) + geometry.outAffordanceCenter(2);
+      final gesture = await holdShortstopOnOut(tester);
+      await tester.pump(const Duration(milliseconds: 2100)); // hidden
+      await gesture.moveTo(canvasTopLeft(tester) + geometry.plate);
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(out);
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsOneWidget);
+    });
+
+    testWidgets("a runner's pills never hide: held three seconds on OUT, "
+        'she is still out (Mark, 2026-11-19)', (tester) async {
+      await shortstopHasIt(tester);
+      final geometry = canvasGeometry(tester);
+      final gesture = await tester.startGesture(
+        canvasTopLeft(tester) +
+            geometry.runnerTokenCenter(base: 2, origin: 1, inMotion: true),
+      );
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(
+        canvasTopLeft(tester) + geometry.outAffordanceCenter(2),
+      );
+      await tester.pump(const Duration(seconds: 3));
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsOneWidget);
+    });
+  });
+
+  group('a tap on the receiver asks how the throw arrived (§15.1 v0.72)', () {
+    /// Bases empty, a grounder to short, and her throw to second — where
+    /// nobody is running, so no force play comes up.
+    Future<void> secondBasemanHasTheThrow(WidgetTester tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(4)); // the throw
+    }
+
+    PlayDraft draft() => container.read(playDraftProvider).valueOrNull!;
+
+    testWidgets('her menu opens, and the ball stays with her', (tester) async {
+      await secondBasemanHasTheThrow(tester);
+      expect(draft().holderPosition, 4);
+      await tapWorld(tester, standardSpot(4));
+      expect(find.text('2B — what happened?'), findsOneWidget);
+      expect(find.byKey(chainChipKey('throw_was_wild')), findsOneWidget);
+      expect(draft().holderPosition, 4);
+    });
+
+    testWidgets('Dropped leaves it at her feet: the next tap is her throw', (
+      tester,
+    ) async {
+      await secondBasemanHasTheThrow(tester);
+      await tapWorld(tester, standardSpot(4));
+      await tapKey(tester, chainChipKey('dropped'));
+      expect(draft().holderPosition, 4);
+      await tapWorld(tester, standardSpot(5));
+      expect(find.byKey(fielderPlayKey('fielded')), findsNothing);
+      expect(draft().holderPosition, 5);
+    });
+
+    testWidgets('Missed catch makes it loose: the next fielder plays the '
+        'ball', (tester) async {
+      await secondBasemanHasTheThrow(tester);
+      await tapWorld(tester, standardSpot(4));
+      await tapKey(tester, chainChipKey('missed_catch'));
+      expect(draft().holderPosition, isNull);
+      await tapWorld(tester, standardSpot(8));
+      expect(find.byKey(fielderPlayKey('fielded')), findsOneWidget);
+    });
+
+    testWidgets('a fielder who fielded it herself still gives it up on a '
+        'tap', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      expect(find.text('SS — what happened?'), findsNothing);
+      expect(draft().holderPosition, isNull);
+    });
+  });
+
   group("infield fly, on the ball's landing node (§15.3, DIA-019 H2)", () {
     Future<void> runnersOnFirstAndSecond(WidgetTester tester) async {
       await pumpLoop(tester);

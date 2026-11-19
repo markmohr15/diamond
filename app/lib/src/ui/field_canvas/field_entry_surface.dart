@@ -121,6 +121,30 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// force play (§15.1 v0.43).
   ({String runnerId, int base})? _pendingForcePlay;
 
+  /// Hold to hide (DIA-018d): a pill the fielder with the ball is held on
+  /// for [_holdToHide] gets out of the way, because the space it owns is
+  /// what the scorer wants — to drop her where she really played the ball. It
+  /// completes or it never happened (DIA-018, 2026-11-05): let go sooner
+  /// and the lit pill is recorded, so aiming slowly at OUT still records
+  /// the out.
+  ///
+  /// Only her drag (Mark, 2026-11-19): a runner dropped on a pill always
+  /// means the call, so a runner's pills never hide. And it hides silently
+  /// — no countdown on the pill.
+  static const _holdToHide = Duration(seconds: 2);
+
+  /// The pills hidden this drag. Leaving the base brings them back.
+  final Set<(int, BaseCall)> _hiddenPills = {};
+  int? _engagedBase;
+  (int, BaseCall)? _heldPill;
+  Timer? _holdTimer;
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -230,14 +254,21 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                 profile: FieldProfile.fastpitch12U,
                 size: constraints.biggest,
               );
+              final holderTarget = _drag == null
+                  ? null
+                  : _holderTarget(_drag!, geometry, tokens);
               return GestureDetector(
                 onPanDown: (details) =>
                     _onDown(details.localPosition, geometry, tokens),
                 onPanUpdate: (details) => setState(() {
                   _drag?.current = details.localPosition;
+                  _trackHold(geometry, tokens);
                 }),
                 onPanEnd: (_) => _onUp(geometry, controller, tokens),
-                onPanCancel: () => setState(() => _drag = null),
+                onPanCancel: () => setState(() {
+                  _drag = null;
+                  _endHold();
+                }),
                 child: CustomPaint(
                   key: fieldCanvasKey,
                   size: constraints.biggest,
@@ -263,6 +294,11 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     forcePlayBase: _pendingForcePlay?.base,
                     canRecordOut: _canRecordOut,
                     route: draft.ballRoute,
+                    holderDragBase: holderTarget?.base,
+                    outPillDetail: holderTarget == null
+                        ? null
+                        : _outPillDetail(_drag!.fielderPosition!),
+                    hiddenPills: {..._hiddenPills},
                   ),
                 ),
               );
@@ -483,8 +519,18 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   ) {
     final drag = _drag;
     if (drag == null) return;
-    setState(() => _drag = null);
+    final hidden = {..._hiddenPills};
+    setState(() {
+      _drag = null;
+      _endHold();
+    });
     final moved = (drag.current - drag.start).distance > kTouchSlop;
+    // What the release lands on: the lit pill, or nothing when that pill
+    // was held until it hid.
+    BaseCall? visiblePill(int base) {
+      final over = geometry.pillAt(base, drag.current);
+      return hidden.contains((base, over)) ? null : over;
+    }
 
     if (drag.isPath) {
       // The drawn path, two taps (§15.1 v0.43): first tap = first bounce,
@@ -514,17 +560,44 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
     if (drag.fielderPosition != null) {
       final position = drag.fielderPosition!;
+      // The fielder with the ball, dropped on a pill (DIA-018d): the same
+      // events dragging the runner there records — both gestures are kept
+      // (DIA-018, 2026-11-05). On OUT she ran to the bag and made it
+      // herself, so she stands there now.
+      final target = _holderTarget(drag, geometry, tokens);
+      final pill = target == null ? null : visiblePill(target.base);
+      if (target != null && pill != null) {
+        _resolveDrop(
+          target.runnerId,
+          target.base,
+          pill,
+          onBase: double.infinity,
+          tokens: tokens,
+          controller: controller,
+          holderAt: baseCoordinate(geometry.profile, target.base),
+        );
+        return;
+      }
       // Seed included: between pitches the catcher holds it without a
       // touch to prove it (§15.6), and a tap on the holder says she never
       // had it — the pitch got past her. Since v0.56 the same tap works
       // when possession came from a *touch* too: Diamond states its belief
       // about who has the ball and takes one tap to be told otherwise,
       // rather than asking after every play.
+      //
+      // Except a throw she caught (v0.72): that ball cannot carom away, so
+      // the tap is about how it arrived — her node's menu, where *Dropped*,
+      // *Missed catch* or *The throw was wild* is what makes it loose.
       final holder = _draft.holderPosition;
       final spot = moved
           ? geometry.toField(drag.current)
           : _currentFielderSpot(position, geometry);
       if (position == holder && !moved) {
+        final caught = _draft.securedTouch;
+        if (caught != null && throwerInto(_draft, caught) != null) {
+          showTouchSheet(context, ref, _draft, caught);
+          return;
+        }
         unawaited(controller.releaseBall());
         return;
       }
@@ -595,6 +668,30 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       FieldPainter.approachRadiusPx,
     );
     if (base == null) return;
+    final baseCenter = base == 4 ? geometry.plate : geometry.baseCenter(base);
+    _resolveDrop(
+      runnerId,
+      base,
+      geometry.pillAt(base, drag.current),
+      onBase: (drag.current - baseCenter).distance,
+      tokens: tokens,
+      controller: controller,
+    );
+  }
+
+  /// Where a drop at [base] resolves, from either gesture: the runner
+  /// dragged there, or the fielder with the ball dragged onto its pill
+  /// (DIA-018d). [pill] is the one released on, null for neither; [onBase]
+  /// is how far from the bag a pill-less release landed.
+  void _resolveDrop(
+    String runnerId,
+    int base,
+    BaseCall? pill, {
+    required double onBase,
+    required List<RunnerToken> tokens,
+    required PlayDraftController controller,
+    FieldCoord? holderAt,
+  }) {
     // Dropped on the base she is already standing on: that is not a move,
     // it is "safe right there" (§15.1). No `from == to` leg — §4.3 reserves
     // that shape for surviving a rundown.
@@ -609,7 +706,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     // already put on the plate. Settling the batter silently would also
     // null her open reach and let the ✓ commit it unclassified (v0.56).
     final standingOn = tokens.firstWhere((t) => t.runnerId == runnerId).base;
-    final pill = geometry.pillAt(base, drag.current);
     if (base == standingOn && pill != BaseCall.out) {
       if (!_draft.battedBall) return;
       if (runnerId == _draft.batterId) {
@@ -635,11 +731,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // Between pitches too: what put her out is a ruling with stats on
       // both sides — caught stealing or picked off — so it is asked, never
       // defaulted (v0.69).
-      _showOutDialog(runnerId, base);
+      _showOutDialog(runnerId, base, holderAt: holderAt);
       return;
     }
-    final baseCenter = base == 4 ? geometry.plate : geometry.baseCenter(base);
-    final onBase = (drag.current - baseCenter).distance;
     if (pill == BaseCall.safe || onBase <= _snapRadiusPx) {
       final slots = [
         for (final token in tokens)
@@ -654,6 +748,99 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         moves: cascadeRunnerMove(slots, movedId: runnerId, to: base),
       );
     }
+  }
+
+  /// DIA-018d: the base the fielder with the ball is being dragged toward,
+  /// and the runner she could put out there — headed for it, or standing on
+  /// it. Null when she is not the one in hand, has not moved, the half is
+  /// over, or nobody is there to retire: no runner, no pills (Mark,
+  /// 2026-11-19: *"makes sense to not have out available to a fielder
+  /// unless there is a runner near"*).
+  ///
+  /// The holder by *touch* only: between pitches the catcher holds the ball
+  /// by seed, with no touch a putout could point at (§15.6 v0.68), so the
+  /// gesture is not offered there and a pickoff stays a throw.
+  ({int base, String runnerId})? _holderTarget(
+    _ActiveDrag drag,
+    FieldGeometry geometry,
+    List<RunnerToken> tokens,
+  ) {
+    final holder = _draft.securedTouch?.position;
+    if (holder == null || drag.fielderPosition != holder) return null;
+    if (drag.current == drag.start) return null;
+    if (!_canRecordOut || _pendingForcePlay != null) return null;
+    final base = geometry.nearestBaseWithin(
+      drag.current,
+      FieldPainter.approachRadiusPx,
+    );
+    if (base == null) return null;
+    final there = [
+      for (final token in tokens)
+        if (token.base == base &&
+            !_draft.isOut(token.runnerId) &&
+            // A runner who has scored is done, not near anything.
+            (base != 4 || token.inMotion))
+          token,
+    ];
+    if (there.isEmpty) return null;
+    final runner = there.firstWhere(
+      (token) => token.inMotion,
+      orElse: () => there.first,
+    );
+    return (base: base, runnerId: runner.runnerId);
+  }
+
+  /// What the lit OUT pill will record when the holder is dropped on it
+  /// (14B state 3): *UNASSISTED · SS* when nobody else has handled the
+  /// ball cleanly on this play, *PUTOUT · 2B* otherwise.
+  String _outPillDetail(int holder) {
+    final handled = {
+      for (final entry in _draft.entries)
+        if (entry is TouchEntry && !entry.isMisplay) entry.position,
+    };
+    final who = positionAbbreviations[holder] ?? '$holder';
+    return handled.every((p) => p == holder)
+        ? 'UNASSISTED · $who'
+        : 'PUTOUT · $who';
+  }
+
+  /// Follows the holder's finger for hold to hide: a new pill under it
+  /// restarts the hold, leaving the base brings its hidden pills back.
+  void _trackHold(FieldGeometry geometry, List<RunnerToken> tokens) {
+    final drag = _drag;
+    if (drag == null) return;
+    final base = _holderTarget(drag, geometry, tokens)?.base;
+    if (base != _engagedBase) {
+      _hiddenPills.clear();
+      _engagedBase = base;
+    }
+    final over = base == null ? null : geometry.pillAt(base, drag.current);
+    final pill = over == null || _hiddenPills.contains((base!, over))
+        ? null
+        : (base, over);
+    if (pill == _heldPill) return;
+    _stopHold();
+    if (pill == null) return;
+    _heldPill = pill;
+    _holdTimer = Timer(_holdToHide, () {
+      if (!mounted) return;
+      setState(() {
+        _hiddenPills.add(_heldPill!);
+        _stopHold();
+      });
+    });
+  }
+
+  void _stopHold() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+    _heldPill = null;
+  }
+
+  void _endHold() {
+    _stopHold();
+    _hiddenPills.clear();
+    _engagedBase = null;
   }
 
   static const _baseLabels = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};
@@ -1297,14 +1484,19 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// The OUT confirmation (§15.1 v0.43): the inferred `how` leads, the
   /// alternatives follow, and interference — the out-flavored ⚖ — closes
   /// the list. Obstruction never appears here.
-  void _showOutDialog(String runnerId, int base) {
+  void _showOutDialog(String runnerId, int base, {FieldCoord? holderAt}) {
     final controller = ref.read(playDraftProvider.notifier);
     final hows = _possibleHows(runnerId, base, _foldBases);
     // One way to be out is no question (§15.6 v0.71, as SAFE already did):
     // a batter tagged going into third on a ball that fell in could be out
     // no other way.
     if (hows.length == 1) {
-      controller.addOut(runnerId, atBase: base, how: hows.single.$3);
+      controller.addOut(
+        runnerId,
+        atBase: base,
+        how: hows.single.$3,
+        holderAt: holderAt,
+      );
       return;
     }
     final inferred = hows.first.$3;
@@ -1322,7 +1514,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
               // out is a guess there, not an inference from the play.
               selected: _draft.battedBall && how == inferred,
               onSelected: (_) {
-                controller.addOut(runnerId, atBase: base, how: how);
+                controller.addOut(
+                  runnerId,
+                  atBase: base,
+                  how: how,
+                  holderAt: holderAt,
+                );
                 Navigator.pop(context);
               },
             ),
