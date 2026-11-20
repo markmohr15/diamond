@@ -84,11 +84,13 @@ class _TrajectoryRowState extends State<TrajectoryRow> {
               // Sheet said bunt: nothing to go back to — changing that
               // answer is the outcome sheet's job, through undo.
               if (!widget.bunted)
-                IconButton(
+                // Labeled, not a tooltip: a tablet has no hover to show
+                // one (14B draws the words beside the arrow).
+                TextButton.icon(
                   key: trajectoryBackKey,
-                  tooltip: 'Not a bunt',
                   onPressed: () => setState(() => _bunt = false),
                   icon: const Icon(Icons.arrow_back),
+                  label: const Text('Not a bunt'),
                 ),
               for (final entry in _buntLabels.entries)
                 chip(trajectoryKey(entry.key), entry.value, entry.key),
