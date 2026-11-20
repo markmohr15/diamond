@@ -195,7 +195,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
             context,
             scheme,
             key: chainAddKey(head.key),
-            label: _offersArrivalQuality(head)
+            label: _offersArrivalQuality(widget.draft, head)
                 ? 'arrival · misplay'
                 : 'misplay',
             onTap: () => _showTouchSheet(context, head),
