@@ -13,6 +13,23 @@ void main() {
     size: const Size(800, 900),
   );
 
+  test('a runner nothing moved stands a sixth of the way to the next base, '
+      'short of a running one (§15.1 v0.73)', () {
+    for (final base in [1, 2, 3]) {
+      final lead = geometry.runnerTokenCenter(base: base, leading: true);
+      final expected = Offset.lerp(
+        geometry.tokenCenter(base),
+        geometry.tokenCenter(base + 1),
+        FieldGeometry.leadFraction,
+      )!;
+      expect((lead - expected).distance, closeTo(0, 1e-9));
+    }
+    expect(
+      FieldGeometry.leadFraction,
+      lessThan(FieldGeometry.inMotionFraction),
+    );
+  });
+
   group('FieldGeometry (§16.3): world ↔ screen', () {
     test('round-trips coordinates', () {
       final original = FieldCoord(x: -87.5, y: 143.25);

@@ -11,6 +11,7 @@ import 'package:diamond/src/rules/play_line.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
+import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
@@ -171,6 +172,14 @@ void main() {
       'safe' => geometry.safeAffordanceCenter(toBase),
       _ => toBase == 4 ? geometry.plate : geometry.baseCenter(toBase),
     };
+    // A runner a batted ball found on base and nothing has moved stands
+    // off her bag (§15.1 v0.73); nobody's leg ends where she stands.
+    final draft = container.read(playDraftProvider).valueOrNull;
+    final leading =
+        (originFrom == null || originFrom == fromBase) &&
+        draft != null &&
+        draft.battedBall &&
+        !draft.entries.any((e) => e is LegEntry && e.to == fromBase);
     await drag(
       tester,
       canvasTopLeft(tester) +
@@ -178,6 +187,7 @@ void main() {
             base: fromBase,
             origin: originFrom,
             inMotion: originFrom != null,
+            leading: leading,
           ),
       canvasTopLeft(tester) + release,
     );
@@ -2863,6 +2873,260 @@ void main() {
       await tapWorld(tester, FieldCoord(x: -50, y: 95));
       expect(find.text('SS — what happened?'), findsNothing);
       expect(draft().holderPosition, isNull);
+    });
+  });
+
+  group('a throw asks about the runner behind the base (§15.1 v0.73)', () {
+    /// Puts r2 on second, then a grounder fielded by the shortstop: nothing
+    /// forces r2, so no leg is presumed for her.
+    Future<void> grounderWithRunnerOnSecond(WidgetTester tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r2',
+              from: 0,
+              to: 2,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('fielded'));
+    }
+
+    PlayDraft draft() => container.read(playDraftProvider).valueOrNull!;
+
+    testWidgets("Mark's play: short to third raises SAFE/OUT for the runner "
+        'from second, and OUT is a tag with no question', (tester) async {
+      await grounderWithRunnerOnSecond(tester);
+      expect(draft().hasLeg('r2'), isFalse);
+      await tapWorld(tester, standardSpot(5)); // the throw, by the bag
+      await tapPill(tester, 3, out: true);
+      expect(find.text('Out at 3B — how?'), findsNothing);
+      final out = draft().entries.whereType<OutEntry>().single;
+      expect((out.runnerId, out.atBase, out.how), ('r2', 3, How.TAG));
+    });
+
+    testWidgets('SAFE is the drag to third: her leg, and why', (tester) async {
+      await grounderWithRunnerOnSecond(tester);
+      await tapWorld(tester, standardSpot(5));
+      await tapPill(tester, 3);
+      expect(find.text('Safe at 3B — how?'), findsOneWidget);
+      await tapKey(tester, safeChipKey('hit'));
+      final leg = draft().entries.whereType<LegEntry>().singleWhere(
+        (l) => l.runnerId == 'r2',
+      );
+      expect((leg.from, leg.to), (2, 3));
+    });
+
+    testWidgets('left alone, the runner nothing forced commits where she '
+        'stood', (tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r2',
+              from: 0,
+              to: 2,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.LINE));
+      await tapWorld(tester, FieldCoord(x: -45, y: 120));
+      await tapKey(tester, fieldCommitKey);
+      final advances = (await stream())
+          .where((e) => e.type == 'RunnerAdvance')
+          .map((e) => RunnerAdvance.fromJson(e.payload))
+          .where((a) => a.runnerId == 'r2' && a.from == 2);
+      expect(advances, isEmpty);
+      expect(container.read(gameControllerProvider).value!.bases.second, 'r2');
+    });
+
+    testWidgets('between pitches the same throw asks the ruling: nothing '
+        'is preselected (v0.69)', (tester) async {
+      await pumpLoop(tester);
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text('Skip call'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Skip location'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Ball'));
+        await tester.pumpAndSettle();
+      }
+      await tapKey(tester, openIdleFieldKey);
+      // The catcher, holding it by seed, throws to the shortstop at second.
+      await dragFielder(
+        tester,
+        6,
+        baseCoordinate(FieldProfile.fastpitch12U, 2),
+      );
+      await tapPill(tester, 2, out: true);
+      expect(find.text('Out at 2B — how?'), findsOneWidget);
+      expect(find.byKey(outChipKey('caught_stealing')), findsOneWidget);
+      expect(draft().entries.whereType<OutEntry>(), isEmpty);
+    });
+  });
+
+  group('the holder and a runner off her bag make a tag (DIA-029)', () {
+    /// r2 on second, a grounder fielded by the shortstop: r2 is not forced,
+    /// so she leads off her bag.
+    Future<void> shortstopHasItRunnerOnSecond(WidgetTester tester) async {
+      await pumpLoop(tester);
+      await container
+          .read(gameControllerProvider.notifier)
+          .append(
+            type: 'RunnerAdvance',
+            payload: RunnerAdvance(
+              runnerId: 'r2',
+              from: 0,
+              to: 2,
+              reason: RunnerAdvanceReason.BATTED_BALL,
+            ).toJson(),
+          );
+      await tester.pumpAndSettle();
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await dragFielder(tester, 6, FieldCoord(x: -50, y: 95));
+      await tapKey(tester, fielderPlayKey('fielded'));
+    }
+
+    PlayDraft draft() => container.read(playDraftProvider).valueOrNull!;
+
+    FieldPainter painter(WidgetTester tester) =>
+        tester.widget<CustomPaint>(find.byKey(fieldCanvasKey)).painter!
+            as FieldPainter;
+
+    Offset r2At(WidgetTester tester) =>
+        canvasTopLeft(tester) +
+        canvasGeometry(
+          tester,
+        ).runnerTokenCenter(base: 2, origin: 2, leading: true);
+
+    Offset shortstopAt(WidgetTester tester) =>
+        worldPx(tester, draft().movedFielders[6] ?? standardSpot(6));
+
+    /// Starts a drag at [from] and holds it over [to].
+    Future<TestGesture> hold(
+      WidgetTester tester,
+      Offset from,
+      Offset to,
+    ) async {
+      final gesture = await tester.startGesture(from);
+      await tester.pump(const Duration(milliseconds: 50));
+      await gesture.moveTo(to);
+      await tester.pump();
+      return gesture;
+    }
+
+    Future<List<String>> outs() async => [
+      for (final e in await stream())
+        if (e.type == 'RunnerOut')
+          () {
+            final out = RunnerOut.fromJson(e.payload);
+            return '${out.runnerId} at ${out.atBase} '
+                '${howValues.reverse[out.how]}';
+          }(),
+    ];
+
+    testWidgets('the shortstop over the runner turns her into OUT, and the '
+        'release tags her: the putout is hers', (tester) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      final gesture = await hold(tester, shortstopAt(tester), r2At(tester));
+      final target = painter(tester).tagTarget;
+      expect(target?.coversRunnerId, 'r2');
+      expect(target?.base, 2);
+      // The runner beats the base: no base pills while she is the target.
+      expect(painter(tester).holderDragBase, isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsNothing);
+      // She stands where she made the tag.
+      expect(draft().movedFielders[6], isNotNull);
+      await tapKey(tester, fieldCommitKey);
+      expect(await outs(), ['r2 at 2 tag']);
+      expect(foldOfficialScoring(await stream()).putoutsByPosition, {6: 1});
+    });
+
+    testWidgets('the runner dragged onto the shortstop records the same tag', (
+      tester,
+    ) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      final gesture = await hold(tester, r2At(tester), shortstopAt(tester));
+      final target = painter(tester).tagTarget;
+      expect(target, isNotNull);
+      expect(target!.coversRunnerId, isNull); // it stands in for her
+      await gesture.up();
+      await tester.pumpAndSettle();
+      await tapKey(tester, fieldCommitKey);
+      expect(await outs(), ['r2 at 2 tag']);
+      expect(foldOfficialScoring(await stream()).putoutsByPosition, {6: 1});
+    });
+
+    testWidgets('held two seconds over the runner, the shortstop is just '
+        'moved: no out', (tester) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      final gesture = await hold(tester, shortstopAt(tester), r2At(tester));
+      await tester.pump(const Duration(milliseconds: 2100));
+      expect(painter(tester).tagTarget, isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.text('Out at 2B — how?'), findsNothing);
+      expect(draft().entries.whereType<OutEntry>(), isEmpty);
+    });
+
+    testWidgets('held two seconds on the shortstop, the runner is an '
+        'ordinary drop: away from a base she springs back', (tester) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      final gesture = await hold(tester, r2At(tester), shortstopAt(tester));
+      await tester.pump(const Duration(milliseconds: 2100));
+      expect(painter(tester).tagTarget, isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(draft().entries.whereType<OutEntry>(), isEmpty);
+      expect(draft().hasLeg('r2'), isFalse);
+    });
+
+    testWidgets('leaving the runner and coming back brings the target back', (
+      tester,
+    ) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      final gesture = await hold(tester, shortstopAt(tester), r2At(tester));
+      await tester.pump(const Duration(milliseconds: 2100));
+      await gesture.moveTo(
+        canvasTopLeft(tester) + canvasGeometry(tester).plate,
+      );
+      await tester.pump();
+      await gesture.moveTo(r2At(tester));
+      await tester.pump();
+      expect(painter(tester).tagTarget?.coversRunnerId, 'r2');
+      await gesture.up();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('a runner standing on her bag is no target', (tester) async {
+      await shortstopHasItRunnerOnSecond(tester);
+      // The scorer settles her at third: now she stands on that bag.
+      // Nobody threw, so *On the play* is the lone answer and applies.
+      await dragToken(tester, 2, 3, target: 'base');
+      expect(draft().hasLeg('r2'), isTrue);
+      final geometry = canvasGeometry(tester);
+      final gesture = await hold(
+        tester,
+        shortstopAt(tester),
+        canvasTopLeft(tester) + geometry.runnerTokenCenter(base: 3),
+      );
+      expect(painter(tester).tagTarget, isNull);
+      await gesture.up();
+      await tester.pumpAndSettle();
     });
   });
 

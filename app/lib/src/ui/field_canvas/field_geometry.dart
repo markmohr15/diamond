@@ -116,15 +116,31 @@ class FieldGeometry {
   /// nobody mistakes it for having arrived.
   static const double inMotionFraction = 1 / 3;
 
+  /// How far off her bag a runner the play has not moved renders, toward
+  /// the next base (§15.1 v0.73): far enough that she and the base are two
+  /// things, short of [inMotionFraction] so *off the bag* never reads as
+  /// *running*.
+  static const double leadFraction = 1 / 6;
+
   /// Where a runner token sits. A runner the play has only *presumed* into
   /// motion — the walk-up on contact — renders a third of the way from
   /// where the play found her toward the base she's headed for; a runner
-  /// the scorer has resolved stands on her base.
+  /// the scorer has resolved stands on her base. A [leading] runner — on a
+  /// batted ball, not forced and not yet moved — stands a sixth of the way
+  /// toward the next base.
   Offset runnerTokenCenter({
     required int base,
     int? origin,
     bool inMotion = false,
+    bool leading = false,
   }) {
+    if (leading && base >= 1 && base <= 3) {
+      return Offset.lerp(
+        tokenCenter(base),
+        tokenCenter(base + 1),
+        leadFraction,
+      )!;
+    }
     if (!inMotion || origin == null || origin == base) return tokenCenter(base);
     return Offset.lerp(
       tokenCenter(origin),

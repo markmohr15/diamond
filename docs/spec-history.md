@@ -3,6 +3,43 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.74
+
+**The holder and a runner off her bag, one dropped on the other, make a tag (§15.1).** DIA-029,
+ruled by Mark on 2026-11-19.
+
+**Why.** A tag between bases — the runner caught off, the batter run down — had no direct gesture.
+The scorer dragged the runner to a base's OUT pill, which says where the out counts but not that
+the fielder with the ball made it. Mark: *"if a fielder with the ball holds over a runner, let's have
+the runner turn into an out box that would then record if the user lets go. if the user continues
+the hold for > 2 sec, then get rid of the out box and we'll just assume the user wants to put the
+fielder there without an out being recorded."* And the reverse: *"allow a user to drag a runner into
+a fielder that has the ball and do the same exact thing."*
+
+**What changed.** Whichever token is under the finger draws as the lit OUT pill, spelled out with its
+putout. The release records the out at the runner's token base: where she was heading, or the bag
+she was leading off. The *how* is asked as a drag asks it. The runner beats any base's pills, and
+still does once her pill hid. Only runners off their bags are targets; since v0.73 a runner on her
+bag is one the scorer settled. Not between pitches: the seeded catcher has no touch for a putout.
+
+## v0.73
+
+**A runner nothing forced stands off her bag; a throw asks about the runner on the base before it
+(§15.1).** DIA-029, ruled by Mark on 2026-11-19.
+
+**Why.** The SAFE/OUT pair came up only for a runner the walk-up had presumed into motion. With a
+runner on second and a grounder to short thrown to third, the scorer had to drag her toward third
+before the throw could ask anything. And a runner standing on her bag drew on top of it, so base and
+runner were hard to tell apart.
+
+**What changed.** A throw caught at a base also raises the pair for a runner standing on the base
+before it. With no leg to absorb, each pill is the drag to that base: SAFE records the leg and asks
+why, and OUT asks how — a lone answer applies, and a between-pitch ruling is asked (v0.69). On a batted
+ball, a runner nothing forced renders a sixth of the way toward the next base, short of the third a
+forced runner runs, so *off the bag* never reads as *running*. Nothing is presumed for her: left
+alone she commits where she stood. Mark: *"On a force, we imply that they move up a base. With no
+force, we leave them where they are if the user doesn't move them."*
+
 ## v0.72
 
 **A tap on the receiver of a throw opens her menu (§15.1).** DIA-018d, ruled by Mark on 2026-11-19.

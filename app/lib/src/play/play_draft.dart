@@ -665,6 +665,11 @@ class PlayDraft {
     return false;
   }
 
+  /// Whether the draft moves [runnerId] at all — presumed or answered. A
+  /// runner with no leg is where the play found her.
+  bool hasLeg(String runnerId) =>
+      entries.any((e) => e is LegEntry && e.runnerId == runnerId);
+
   /// Whether [runnerId] has been retired in this draft.
   bool isOut(String runnerId) =>
       entries.any((e) => e is OutEntry && e.runnerId == runnerId);
