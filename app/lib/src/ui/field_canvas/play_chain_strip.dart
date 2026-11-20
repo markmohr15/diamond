@@ -23,6 +23,11 @@ Key chainChipKey(String id) => Key('chainChip-$id');
 const Key chainRemoveKey = Key('chainRemove');
 @visibleForTesting
 const Key chainBallNodeKey = Key('chainBall');
+
+/// The dashed *+* chip under (or beside) a chain node, which opens the same
+/// menu the node does (13C). Null names the ⚾ node's.
+@visibleForTesting
+Key chainAddKey(int? entryKey) => Key('chainAdd-${entryKey ?? 'ball'}');
 @visibleForTesting
 const Key chainReattributeKey = Key('chainReattribute');
 
@@ -164,7 +169,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     final head = headKey == null ? null : draft.entryByKey(headKey);
     return Column(
       children: [
-        if (head == null)
+        if (head == null) ...[
           _node(
             context,
             scheme,
@@ -173,10 +178,30 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
             onTap: _offersInfieldFly(draft)
                 ? () => _showBallNodeSheet(context)
                 : null,
-          )
-        else if (head is TouchEntry)
-          _touchNode(context, head, semantics, scheme)
-        else
+          ),
+          // Hidden, not disabled (§23.1): the ⚾ offers only the infield
+          // fly, and only when one is legal.
+          if (_offersInfieldFly(draft))
+            _addChip(
+              context,
+              scheme,
+              key: chainAddKey(null),
+              label: 'infield fly',
+              onTap: () => _showBallNodeSheet(context),
+            ),
+        ] else if (head is TouchEntry) ...[
+          _touchNode(context, head, semantics, scheme),
+          _addChip(
+            context,
+            scheme,
+            key: chainAddKey(head.key),
+            label: _offersArrivalQuality(widget.draft, head)
+                ? 'arrival · misplay'
+                : 'misplay',
+            onTap: () => _showTouchSheet(context, head),
+          ),
+        ] else
+          // A rule call offers only its removal, so it has no extra.
           _node(
             context,
             scheme,
@@ -187,7 +212,24 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
         for (final consequence in consequences)
           Padding(
             padding: const EdgeInsets.only(top: 4),
-            child: _consequenceChip(context, consequence, scheme),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _consequenceChip(context, consequence, scheme),
+                const SizedBox(width: 4),
+                _addChip(
+                  context,
+                  scheme,
+                  key: chainAddKey(consequence.key),
+                  label: consequence is LegEntry ? 'call · re-link' : 'call',
+                  onTap: () => switch (consequence) {
+                    LegEntry() => _showLegSheet(context, consequence),
+                    OutEntry() => _showOutSheet(context, consequence),
+                    _ => null,
+                  },
+                ),
+              ],
+            ),
           ),
       ],
     );
@@ -254,6 +296,39 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
             if (underline)
               Container(width: 14, height: 2, color: scheme.onSurface),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 13C's rule, which is 11D's: solid is required, dashed is optional and
+  /// never asks. Each chip names what its node's menu would add, so the
+  /// scorer can see what she could enter without being asked to.
+  Widget _addChip(
+    BuildContext context,
+    ColorScheme scheme, {
+    required Key key,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    const radius = 10.0;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: InkWell(
+        key: key,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(radius),
+        child: CustomPaint(
+          painter: _DashedOutline(color: scheme.outline, radius: radius),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Text(
+              '+ $label',
+              style: Theme.of(
+                context,
+              ).textTheme.labelSmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+          ),
         ),
       ),
     );
@@ -547,4 +622,35 @@ void showTouchSheet(
     ],
     _removeTile(context, ref, touch.key),
   ]);
+}
+
+/// A dashed rounded-rect outline, for [_PlayChainStripState._addChip].
+class _DashedOutline extends CustomPainter {
+  const _DashedOutline({required this.color, required this.radius});
+
+  final Color color;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outline = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
+      );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    const dash = 4.0;
+    const gap = 3.0;
+    for (final metric in outline.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += dash + gap) {
+        canvas.drawPath(metric.extractPath(d, d + dash), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedOutline old) =>
+      old.color != color || old.radius != radius;
 }

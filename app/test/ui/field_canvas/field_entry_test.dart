@@ -224,22 +224,22 @@ void main() {
         'touches bring it back until answered (§15.1 v0.43)', (tester) async {
       await pumpLoop(tester);
       await reachFieldSurface(tester);
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
 
       // Wave it away; the canvas just re-asks.
       await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
-      expect(find.text('How did it come off the bat?'), findsNothing);
+      expect(find.text('How was it hit?'), findsNothing);
       expect(
         tester.widget<FilledButton>(find.byKey(fieldCommitKey)).onPressed,
         isNull,
       );
 
       await tapWorld(tester, FieldCoord(x: -45, y: 120));
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
 
       await tapKey(tester, trajectoryKey(Trajectory.LINE));
-      expect(find.text('How did it come off the bat?'), findsNothing);
+      expect(find.text('How was it hit?'), findsNothing);
       await tapWorld(tester, FieldCoord(x: -45, y: 120));
       expect(find.text('128 ft'), findsOneWidget);
     });
@@ -2128,6 +2128,40 @@ void main() {
       await tapKey(tester, trajectoryBackKey);
       expect(find.byKey(trajectoryKey(Trajectory.GROUND)), findsOneWidget);
     });
+
+    testWidgets('the way back is labeled, since a tablet shows no tooltip '
+        '(DIA-018b-4)', (tester) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryBuntKey);
+      expect(find.text('Not a bunt'), findsOneWidget);
+    });
+  });
+
+  group('dashed optional targets (13C, DIA-018b-4)', () {
+    testWidgets('each node names what it could add, and opens its menu', (
+      tester,
+    ) async {
+      await pumpLoop(tester);
+      await reachFieldSurface(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.GROUND));
+      await tapWorld(tester, FieldCoord(x: -50, y: 95));
+      await tapWorld(tester, standardSpot(6));
+      await tapKey(tester, fielderPlayKey('fielded'));
+      await tapWorld(tester, standardSpot(3)); // the throw
+
+      // A play on the ball, then a reception, then the batter's run.
+      expect(find.text('+ misplay'), findsOneWidget);
+      expect(find.text('+ arrival · misplay'), findsOneWidget);
+      expect(find.text('+ call · re-link'), findsOneWidget);
+      // Nothing to add on the ⚾ with nobody on: no infield fly is legal,
+      // so its chip is hidden rather than disabled (§23.1).
+      expect(find.byKey(chainAddKey(null)), findsNothing);
+
+      await tester.tap(find.text('+ misplay'));
+      await tester.pumpAndSettle();
+      expect(find.text('SS — what happened?'), findsOneWidget);
+    });
   });
 
   group('the locked path and the reset (§15.1 v0.43)', () {
@@ -2150,7 +2184,7 @@ void main() {
       // Start play over wipes the play — trajectory question and all — and
       // the path draws fresh (§15.5 v0.60).
       await tapKey(tester, fieldStartOverKey);
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
       await tapKey(tester, trajectoryKey(Trajectory.FLY));
       await tapWorld(tester, FieldCoord(x: 30, y: 160));
       expect(find.text('163 ft'), findsOneWidget); // √(30²+160²)
@@ -3185,6 +3219,17 @@ void main() {
       await tester.tap(find.byKey(chainBallNodeKey));
       await tester.pumpAndSettle();
       expect(find.text('Ball in play'), findsNothing);
+      expect(find.byKey(chainAddKey(null)), findsNothing);
+    });
+
+    testWidgets('when one is legal, the ⚾ says so with a dashed chip '
+        '(13C)', (tester) async {
+      await runnersOnFirstAndSecond(tester);
+      await tapKey(tester, trajectoryKey(Trajectory.POPUP));
+      await tapWorld(tester, FieldCoord(x: -25, y: 95));
+      expect(find.text('+ infield fly'), findsOneWidget);
+      await tapKey(tester, chainAddKey(null));
+      expect(find.text('Ball in play'), findsOneWidget);
     });
   });
 
@@ -3232,7 +3277,7 @@ void main() {
       await tapKey(tester, fieldStartOverKey);
 
       expect(find.byKey(fieldCanvasKey), findsOneWidget, reason: 'still here');
-      expect(find.text('How did it come off the bat?'), findsOneWidget);
+      expect(find.text('How was it hit?'), findsOneWidget);
       final types = (await stream()).map((e) => e.type).toList();
       expect(types, contains('PitchThrown'));
       expect(
@@ -3262,7 +3307,7 @@ void main() {
       expect(find.text('128 ft'), findsOneWidget); // the assumed landing
       expect(find.text('Grounder'), findsOneWidget); // the header chip
       // Restored with a trajectory: no modal re-asks.
-      expect(find.text('How did it come off the bat?'), findsNothing);
+      expect(find.text('How was it hit?'), findsNothing);
       expect(find.byKey(chainNodeKey(1)), findsOneWidget); // the boot node
 
       // And the restored draft still commits, location and reach intact —

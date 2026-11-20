@@ -34,7 +34,7 @@ Widget _dialogIn(Brightness brightness, {Trajectory? selected}) => MaterialApp(
             children: [
               Builder(
                 builder: (context) => Text(
-                  'How did it come off the bat?',
+                  'How was it hit?',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
               ),
