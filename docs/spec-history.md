@@ -3,6 +3,23 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.72
+
+**A tap on the receiver of a throw opens her menu (§15.1).** DIA-018d, ruled by Mark on 2026-11-19.
+
+**Why.** Since v0.56 a tap on the fielder shown holding the ball said she does not have it. That is
+right for a ball at her feet after a boot, which can carom to somebody else, and for the seeded
+catcher. It was wrong after a throw: a tap on the fielder who just caught one gave the ball up, when
+what the scorer wanted was to say how it arrived. Mark: *"After a throw, when we tap the receiver, we
+would like to open the menu that lets us say the throw was bad or it was dropped or whatever. then
+from there, we can possibly infer that it's loose."*
+
+**What changed.** The tap opens the receiver's node menu (§15.3) and the ball stays with her. The
+answer moves it: *Dropped* leaves it at her feet, *Missed catch* and *The throw was wild* make it
+loose. Every other holder tap still releases the ball. A clean fielder was considered and left out:
+her menu would only retype her own touch (Mark: *"a fielder shouldn't field the ball cleanly and then
+just drop it"*).
+
 ## v0.71
 
 **Out stretching counts the base she passed; the putout chain restarts at a misplay; a lone OUT

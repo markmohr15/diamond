@@ -195,7 +195,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
             context,
             scheme,
             key: chainAddKey(head.key),
-            label: _offersArrivalQuality(head)
+            label: _offersArrivalQuality(widget.draft, head)
                 ? 'arrival · misplay'
                 : 'misplay',
             onTap: () => _showTouchSheet(context, head),
@@ -367,95 +367,10 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     );
   }
 
-  /// A retype choice's words: a reception keeps the throw's vocabulary
-  /// (*Dropped*, *Missed catch*, *Missed tag*); a play on the ball reads as
-  /// the popup offered it, so a touch entered as *Misplayed* is not renamed
-  /// *Booted* here (DIA-025).
-  String _retypeLabel(TouchEntry touch, TouchType type) =>
-      throwerInto(widget.draft, touch) != null
-      ? _misplayLabels[type]!
-      : ballPlayLabel(
-          type,
-          state: ballStateAt(widget.draft, touch),
-          trajectory: widget.draft.trajectory,
-        );
-
-  /// Whether this node should ask **how the throw arrived**: only a
-  /// reception, which [throwerInto] decides on provenance rather than type.
-  /// `dropped` describes muffing a throw *or* a ball off the bat, so
-  /// dropping a routine fly used to ask how the throw arrived, for a ball
-  /// nobody threw.
-  bool _offersArrivalQuality(TouchEntry touch) =>
-      throwerInto(widget.draft, touch) != null;
-
-  /// §15.3's chip menu on a touch node: the misplay set, arrival quality on
-  /// receiving nodes, the §13.2 judgment on misplays, and removal.
-  void _showTouchSheet(BuildContext context, TouchEntry touch) {
-    final controller = ref.read(playDraftProvider.notifier);
-    final position = positionAbbreviations[touch.position] ?? touch.position;
-    _sheet(context, '$position — what happened?', [
-      Wrap(
-        spacing: 6,
-        children: [
-          // Retyping is another way in to the popup's vocabulary, so it
-          // offers only what the popup could have — a catcher chasing a
-          // pitch cannot be retyped to *Booted* any more than she could be
-          // entered that way (DIA-019 H).
-          for (final type in retypeChoices(widget.draft, touch))
-            ChoiceChip(
-              key: chainChipKey(touchTypeValues.reverse[type]!),
-              label: Text(_retypeLabel(touch, type)),
-              selected: touch.touchType == type,
-              onSelected: (_) {
-                controller.setTouchType(touch.key, type);
-                Navigator.pop(context);
-              },
-            ),
-        ],
-      ),
-      // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
-      // the grammar is right — but the throw **arrives** badly, and the
-      // receiver's node is the one that just appeared, so that is where the
-      // finger goes. Confirmed in the field: a catcher's throw to first
-      // recorded `wild_throw` on position 3, which charges E3 instead of E2.
-      //
-      // So the receiving node offers the question in the direction the scorer
-      // is actually looking, and it retypes the *thrower*.
-      if (throwerInto(widget.draft, touch) case final thrower?) ...[
-        const SizedBox(height: 8),
-        ActionChip(
-          key: chainChipKey('throw_was_wild'),
-          label: const Text('The throw was wild'),
-          onPressed: () {
-            controller.markThrowWild(
-              throwerKey: thrower.key,
-              receiverKey: touch.key,
-            );
-            Navigator.pop(context);
-          },
-        ),
-      ],
-      if (_offersArrivalQuality(touch)) ...[
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          children: [
-            for (final entry in _arrivalLabels.entries)
-              ChoiceChip(
-                key: chainChipKey(receivedQualityValues.reverse[entry.key]!),
-                label: Text(entry.value),
-                selected: touch.receivedQuality == entry.key,
-                onSelected: (_) {
-                  controller.setReceivedQuality(touch.key, entry.key);
-                  Navigator.pop(context);
-                },
-              ),
-          ],
-        ),
-      ],
-      _removeTile(context, touch.key),
-    ]);
-  }
+  /// The canvas opens this same menu when the receiver of a throw is
+  /// tapped (DIA-018d), so it lives outside the strip.
+  void _showTouchSheet(BuildContext context, TouchEntry touch) =>
+      showTouchSheet(context, ref, widget.draft, touch);
 
   void _showLegSheet(BuildContext context, LegEntry leg) {
     final who = widget.runnerLabels[leg.runnerId] ?? 'Runner';
@@ -470,7 +385,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
         },
       ),
       ..._ruleCallTiles(context, leg.key),
-      _removeTile(context, leg.key),
+      _removeTile(context, ref, leg.key),
     ]);
   }
 
@@ -515,7 +430,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
         ],
       ),
       ..._ruleCallTiles(context, out.key),
-      _removeTile(context, out.key),
+      _removeTile(context, ref, out.key),
     ]);
   }
 
@@ -546,7 +461,7 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
   }
 
   void _showRuleCallNodeSheet(BuildContext context, int key) {
-    _sheet(context, 'Rule call', [_removeTile(context, key)]);
+    _sheet(context, 'Rule call', [_removeTile(context, ref, key)]);
   }
 
   /// §15.3 v0.43: the ⚖ calls are baserunning facts, so they live on the
@@ -586,29 +501,127 @@ class _PlayChainStripState extends ConsumerState<PlayChainStrip> {
     ];
   }
 
-  Widget _removeTile(BuildContext context, int key) {
-    return ListTile(
-      key: chainRemoveKey,
-      leading: const Icon(Icons.delete_outline),
-      title: const Text('Remove'),
-      onTap: () {
-        ref.read(playDraftProvider.notifier).removeEntry(key);
-        Navigator.pop(context);
-      },
-    );
-  }
+}
 
-  /// Every node menu: a centered dialog, only as big as its content —
-  /// front and center, matching the surface's other popups (see
-  /// [showFieldDialog] for the sizing they share).
-  void _sheet(BuildContext context, String title, List<Widget> children) {
-    showFieldDialog<void>(
-      context,
-      title: title,
-      alignment: CrossAxisAlignment.start,
-      children: (_) => children,
-    );
-  }
+Widget _removeTile(BuildContext context, WidgetRef ref, int key) {
+  return ListTile(
+    key: chainRemoveKey,
+    leading: const Icon(Icons.delete_outline),
+    title: const Text('Remove'),
+    onTap: () {
+      ref.read(playDraftProvider.notifier).removeEntry(key);
+      Navigator.pop(context);
+    },
+  );
+}
+
+/// Every node menu: a centered dialog, only as big as its content —
+/// front and center, matching the surface's other popups (see
+/// [showFieldDialog] for the sizing they share).
+void _sheet(BuildContext context, String title, List<Widget> children) {
+  showFieldDialog<void>(
+    context,
+    title: title,
+    alignment: CrossAxisAlignment.start,
+    children: (_) => children,
+  );
+}
+
+/// A retype choice's words: a reception keeps the throw's vocabulary
+/// (*Dropped*, *Missed catch*, *Missed tag*); a play on the ball reads as
+/// the popup offered it, so a touch entered as *Misplayed* is not renamed
+/// *Booted* here (DIA-025).
+String _retypeLabel(PlayDraft draft, TouchEntry touch, TouchType type) =>
+    throwerInto(draft, touch) != null
+    ? _misplayLabels[type]!
+    : ballPlayLabel(
+        type,
+        state: ballStateAt(draft, touch),
+        trajectory: draft.trajectory,
+      );
+
+/// Whether this node should ask **how the throw arrived**: only a
+/// reception, which [throwerInto] decides on provenance rather than type.
+/// `dropped` describes muffing a throw *or* a ball off the bat, so
+/// dropping a routine fly used to ask how the throw arrived, for a ball
+/// nobody threw.
+bool _offersArrivalQuality(PlayDraft draft, TouchEntry touch) =>
+    throwerInto(draft, touch) != null;
+
+/// §15.3's chip menu on a touch node: the misplay set, arrival quality on
+/// receiving nodes, the §13.2 judgment on misplays, and removal. Opened
+/// from the node, and from the canvas by a tap on the receiver of a throw
+/// (§15.1 v0.72).
+void showTouchSheet(
+  BuildContext context,
+  WidgetRef ref,
+  PlayDraft draft,
+  TouchEntry touch,
+) {
+  final controller = ref.read(playDraftProvider.notifier);
+  final position = positionAbbreviations[touch.position] ?? touch.position;
+  _sheet(context, '$position — what happened?', [
+    Wrap(
+      spacing: 6,
+      children: [
+        // Retyping is another way in to the popup's vocabulary, so it
+        // offers only what the popup could have — a catcher chasing a
+        // pitch cannot be retyped to *Booted* any more than she could be
+        // entered that way (DIA-019 H).
+        for (final type in retypeChoices(draft, touch))
+          ChoiceChip(
+            key: chainChipKey(touchTypeValues.reverse[type]!),
+            label: Text(_retypeLabel(draft, touch, type)),
+            selected: touch.touchType == type,
+            onSelected: (_) {
+              controller.setTouchType(touch.key, type);
+              Navigator.pop(context);
+            },
+          ),
+      ],
+    ),
+    // §13.2: `wild_throw` on a node means *this fielder threw it away*, and
+    // the grammar is right — but the throw **arrives** badly, and the
+    // receiver's node is the one that just appeared, so that is where the
+    // finger goes. Confirmed in the field: a catcher's throw to first
+    // recorded `wild_throw` on position 3, which charges E3 instead of E2.
+    //
+    // So the receiving node offers the question in the direction the scorer
+    // is actually looking, and it retypes the *thrower*.
+    if (throwerInto(draft, touch) case final thrower?) ...[
+      const SizedBox(height: 8),
+      ActionChip(
+        key: chainChipKey('throw_was_wild'),
+        label: const Text('The throw was wild'),
+        onPressed: () {
+          controller.markThrowWild(
+            throwerKey: thrower.key,
+            receiverKey: touch.key,
+          );
+          Navigator.pop(context);
+        },
+      ),
+    ],
+    if (_offersArrivalQuality(draft, touch)) ...[
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 6,
+        children: [
+          for (final entry in _arrivalLabels.entries)
+            ChoiceChip(
+              key: chainChipKey(receivedQualityValues.reverse[entry.key]!),
+              label: Text(entry.value),
+              selected: touch.receivedQuality == entry.key,
+              onSelected: (_) {
+                controller.setReceivedQuality(touch.key, entry.key);
+                Navigator.pop(context);
+              },
+            ),
+        ],
+      ),
+    ],
+    _removeTile(context, ref, touch.key),
+  ]);
 }
 
 /// A dashed rounded-rect outline, for [_PlayChainStripState._addChip].
