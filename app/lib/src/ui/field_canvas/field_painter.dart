@@ -7,6 +7,11 @@ import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+/// Where a tag-out target draws, the base its out is at, and the runner it
+/// stands in for (null: it stands in for the holder). See
+/// [FieldPainter.tagTarget].
+typedef TagTarget = ({Offset center, int base, String? coversRunnerId});
+
 /// One runner as the canvas shows them: who, what to print on the token,
 /// and where they currently stand — draft moves already applied by the
 /// surface, so the painter only ever renders, never reasons.
@@ -18,6 +23,7 @@ class RunnerToken {
     required this.base,
     this.origin,
     this.inMotion = false,
+    this.leading = false,
   });
 
   final String runnerId;
@@ -29,6 +35,12 @@ class RunnerToken {
   /// True while her position is the play's presumption rather than the
   /// scorer's answer: she draws partway up the line (§15.1 v0.43).
   final bool inMotion;
+
+  /// True for a runner a batted ball found on base and nobody has moved:
+  /// not forced, so no leg is presumed, but off her bag so she and the base
+  /// read as two things (§15.1 v0.73). Left alone, she commits where she
+  /// stood.
+  final bool leading;
 
   /// Short print label ("B" for the batter-runner, "1"/"2"/"3" for the base
   /// a runner started on) — tokens are position markers, never player names.
@@ -65,6 +77,7 @@ class FieldPainter extends CustomPainter {
     this.canRecordOut = true,
     this.holderDragBase,
     this.outPillDetail,
+    this.tagTarget,
     this.hiddenPills = const {},
   });
 
@@ -131,6 +144,15 @@ class FieldPainter extends CustomPainter {
   /// the bare OUT.
   final String? outPillDetail;
 
+  /// The fielder with the ball and a runner off her bag, one over the other
+  /// (DIA-029): whichever is under the finger draws as the lit OUT pill,
+  /// spelled out with [outPillDetail], and a release records the tag.
+  /// `coversRunnerId` is the runner it stands in for; null means it stands
+  /// in for the holder, a runner having been dragged onto her. While it
+  /// shows, the base pills stand down — pointing at her is the more specific
+  /// gesture.
+  final TagTarget? tagTarget;
+
   /// Pills held on until they hid (DIA-018d): not drawn, and not a target.
   /// The hold itself draws nothing — the pill just goes (Mark, 2026-11-19).
   final Set<(int, BaseCall)> hiddenPills;
@@ -186,9 +208,14 @@ class FieldPainter extends CustomPainter {
     _paintLooseBall(canvas);
     // After the play's own marks: a ball caught where it landed puts the
     // landing marker on her spot, and it must not cover her label.
-    _paintHolder(canvas);
-    _paintBaseTargets(canvas);
+    // While a tag target shows, the pill stands for the holder and the
+    // runner both, so neither draws beneath it.
+    if (tagTarget == null) {
+      _paintHolder(canvas);
+      _paintBaseTargets(canvas);
+    }
     _paintTokens(canvas);
+    _paintTagTarget(canvas);
   }
 
   /// The ball's journey (§15.1 v0.43): dashed accent segments between
@@ -624,8 +651,21 @@ class FieldPainter extends CustomPainter {
       );
   }
 
+  void _paintTagTarget(Canvas canvas) {
+    final target = tagTarget;
+    if (target == null) return;
+    _paintPill(
+      canvas,
+      outPillDetail == null ? 'OUT' : 'OUT AT ${_baseCodes[target.base]}',
+      target.center,
+      lit: true,
+      detail: outPillDetail,
+    );
+  }
+
   void _paintTokens(Canvas canvas) {
     for (final token in tokens) {
+      if (token.runnerId == tagTarget?.coversRunnerId) continue;
       final dragging = token.runnerId == dragTokenId;
       final center = dragging && dragPosition != null
           ? dragPosition!
@@ -633,6 +673,7 @@ class FieldPainter extends CustomPainter {
               base: token.base,
               origin: token.origin,
               inMotion: token.inMotion,
+              leading: token.leading,
             );
       // Faded means *done* — she scored and the play no longer concerns
       // her. A runner still in motion at home has not: on a bases-loaded
@@ -724,6 +765,7 @@ class FieldPainter extends CustomPainter {
         oldDelegate.canRecordOut != canRecordOut ||
         oldDelegate.holderDragBase != holderDragBase ||
         oldDelegate.outPillDetail != outPillDetail ||
+        oldDelegate.tagTarget != tagTarget ||
         !setEquals(oldDelegate.hiddenPills, hiddenPills) ||
         oldDelegate.ink != ink ||
         oldDelegate.accent != accent ||

@@ -116,10 +116,11 @@ class _ActiveDrag {
 class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   _ActiveDrag? _drag;
 
-  /// A throw just arrived at this base with a runner heading there: the
-  /// SAFE/OUT pair is up at the bag, waiting for the tap that resolves the
-  /// force play (§15.1 v0.43).
-  ({String runnerId, int base})? _pendingForcePlay;
+  /// A throw just arrived at this base with a runner heading there, or one
+  /// standing on the base before it: the SAFE/OUT pair is up at the bag,
+  /// waiting for the tap that resolves the play (§15.1 v0.43, v0.73).
+  /// `standing` is the second case — she has no leg yet.
+  _PendingPlay? _pendingForcePlay;
 
   /// Hold to hide (DIA-018d): a pill the fielder with the ball is held on
   /// for [_holdToHide] gets out of the way, because the space it owns is
@@ -136,7 +137,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// The pills hidden this drag. Leaving the base brings them back.
   final Set<(int, BaseCall)> _hiddenPills = {};
   int? _engagedBase;
-  (int, BaseCall)? _heldPill;
+
+  /// The tag target hidden this drag, by runner (DIA-029). Leaving her —
+  /// or the holder, on a runner's drag — brings it back.
+  String? _hiddenTag;
+  String? _engagedTag;
+
+  /// What the finger is holding on: a base pill `(base, call)`, or a tag
+  /// target by its runner's id.
+  Object? _heldSubject;
   Timer? _holdTimer;
 
   @override
@@ -254,7 +263,14 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                 profile: FieldProfile.fastpitch12U,
                 size: constraints.biggest,
               );
-              final holderTarget = _drag == null
+              final tag = _drag == null
+                  ? null
+                  : _tagTarget(_drag!, geometry, tokens);
+              // The runner beats the base: pointing at her is the more
+              // specific gesture (DIA-029), and still is once her target
+              // hid — held there, the holder is just being put there.
+              final holderTarget =
+                  _drag == null || _holderOverRunner(_drag!, geometry, tokens)
                   ? null
                   : _holderTarget(_drag!, geometry, tokens);
               return GestureDetector(
@@ -295,9 +311,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
                     canRecordOut: _canRecordOut,
                     route: draft.ballRoute,
                     holderDragBase: holderTarget?.base,
-                    outPillDetail: holderTarget == null
+                    outPillDetail: holderTarget == null && tag == null
                         ? null
-                        : _outPillDetail(_drag!.fielderPosition!),
+                        : _outPillDetail(_draft.securedTouch!.position),
+                    tagTarget: tag == null
+                        ? null
+                        : (
+                            center: tag.center,
+                            base: tag.base,
+                            coversRunnerId: tag.onHolder ? null : tag.runnerId,
+                          ),
                     hiddenPills: {..._hiddenPills},
                   ),
                 ),
@@ -393,6 +416,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             base: draft.displayBase(runnerId, origin),
             origin: origin,
             inMotion: draft.isProvisional(runnerId),
+            leading: draft.battedBall && !draft.hasLeg(runnerId),
           ),
     ];
   }
@@ -421,6 +445,21 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     if (pending != null) {
       final controller = ref.read(playDraftProvider.notifier);
       final pill = geometry.pillAt(pending.base, position);
+      // Nothing moved her yet: OUT is the drag to that pill, so it asks
+      // what the drag asks — a lone answer applies, a between-pitch ruling
+      // (caught stealing, picked off) is asked (v0.69).
+      if (_canRecordOut && pill == BaseCall.out && pending.standing) {
+        setState(() => _pendingForcePlay = null);
+        _resolveDrop(
+          pending.runnerId,
+          pending.base,
+          BaseCall.out,
+          onBase: 0,
+          tokens: tokens,
+          controller: controller,
+        );
+        return;
+      }
       if (_canRecordOut && pill == BaseCall.out) {
         controller.addOut(
           pending.runnerId,
@@ -436,6 +475,19 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       if (pill == BaseCall.safe ||
           (position - baseCenter).distance <= _snapRadiusPx) {
         setState(() => _pendingForcePlay = null);
+        // Nothing moved her yet: SAFE is the drag to that base, so it
+        // records her leg and asks why, the same way.
+        if (pending.standing) {
+          _resolveDrop(
+            pending.runnerId,
+            pending.base,
+            BaseCall.safe,
+            onBase: 0,
+            tokens: tokens,
+            controller: controller,
+          );
+          return;
+        }
         // Safe: she stays where the walk-up put her, but it is an answer
         // now rather than a presumption — so she stops running and stands
         // on the bag. For the batter after a misplay opened the play that
@@ -520,10 +572,27 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     final drag = _drag;
     if (drag == null) return;
     final hidden = {..._hiddenPills};
+    final tag = _tagTarget(drag, geometry, tokens);
+    final overRunner = _holderOverRunner(drag, geometry, tokens);
     setState(() {
       _drag = null;
       _endHold();
     });
+    // The holder and a runner off her bag, one dropped on the other: the
+    // tag (DIA-029). Either way the putout is the holder's; dragged onto
+    // the runner, she stands where she made it.
+    if (tag != null) {
+      _resolveDrop(
+        tag.runnerId,
+        tag.base,
+        BaseCall.out,
+        onBase: double.infinity,
+        tokens: tokens,
+        controller: controller,
+        holderAt: tag.onHolder ? null : geometry.toField(tag.center),
+      );
+      return;
+    }
     final moved = (drag.current - drag.start).distance > kTouchSlop;
     // What the release lands on: the lit pill, or nothing when that pill
     // was held until it hid.
@@ -564,7 +633,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // events dragging the runner there records — both gestures are kept
       // (DIA-018, 2026-11-05). On OUT she ran to the bag and made it
       // herself, so she stands there now.
-      final target = _holderTarget(drag, geometry, tokens);
+      final target = overRunner
+          ? null
+          : _holderTarget(drag, geometry, tokens);
       final pill = target == null ? null : visiblePill(target.base);
       if (target != null && pill != null) {
         _resolveDrop(
@@ -610,7 +681,9 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // SAFE/OUT pair at the bag (§15.1 v0.43): the force play is the
       // question, asked where it happened.
       if (holder != null && position != holder) {
-        final forcePlay = _canRecordOut ? _forcePlayFor(spot, geometry) : null;
+        final forcePlay = _canRecordOut
+            ? _forcePlayFor(spot, geometry, tokens)
+            : null;
         controller.receiveThrow(
           position,
           spot: spot,
@@ -804,28 +877,48 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         : 'PUTOUT · $who';
   }
 
-  /// Follows the holder's finger for hold to hide: a new pill under it
-  /// restarts the hold, leaving the base brings its hidden pills back.
+  /// Follows the finger for hold to hide: a new target under it restarts
+  /// the hold, and leaving a base or a runner brings its hidden targets
+  /// back. Base pills hide only on the holder's drag; a tag target hides on
+  /// either gesture (DIA-029).
   void _trackHold(FieldGeometry geometry, List<RunnerToken> tokens) {
     final drag = _drag;
     if (drag == null) return;
-    final base = _holderTarget(drag, geometry, tokens)?.base;
-    if (base != _engagedBase) {
-      _hiddenPills.clear();
-      _engagedBase = base;
+    final tag = _tagTarget(drag, geometry, tokens, includeHidden: true);
+    if (tag?.runnerId != _engagedTag) {
+      _hiddenTag = null;
+      _engagedTag = tag?.runnerId;
     }
-    final over = base == null ? null : geometry.pillAt(base, drag.current);
-    final pill = over == null || _hiddenPills.contains((base!, over))
-        ? null
-        : (base, over);
-    if (pill == _heldPill) return;
+    Object? subject;
+    if (tag != null) {
+      // Over a runner the runner owns the gesture, hidden or not; only a
+      // runner's own drag falls back to the bases once the holder's target
+      // hid, and a runner's base pills never hide.
+      subject = tag.runnerId == _hiddenTag ? null : tag.runnerId;
+    } else {
+      final base = _holderTarget(drag, geometry, tokens)?.base;
+      if (base != _engagedBase) {
+        _hiddenPills.clear();
+        _engagedBase = base;
+      }
+      final over = base == null ? null : geometry.pillAt(base, drag.current);
+      subject = over == null || _hiddenPills.contains((base!, over))
+          ? null
+          : (base, over);
+    }
+    if (subject == _heldSubject) return;
     _stopHold();
-    if (pill == null) return;
-    _heldPill = pill;
+    if (subject == null) return;
+    _heldSubject = subject;
     _holdTimer = Timer(_holdToHide, () {
       if (!mounted) return;
       setState(() {
-        _hiddenPills.add(_heldPill!);
+        switch (subject) {
+          case final String runnerId:
+            _hiddenTag = runnerId;
+          case final (int, BaseCall) pill:
+            _hiddenPills.add(pill);
+        }
         _stopHold();
       });
     });
@@ -834,14 +927,85 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   void _stopHold() {
     _holdTimer?.cancel();
     _holdTimer = null;
-    _heldPill = null;
+    _heldSubject = null;
   }
 
   void _endHold() {
     _stopHold();
     _hiddenPills.clear();
     _engagedBase = null;
+    _hiddenTag = null;
+    _engagedTag = null;
   }
+
+  /// Whether the holder's drag is over a runner off her bag, her target
+  /// shown or hidden: then the base pills stand down (DIA-029).
+  bool _holderOverRunner(
+    _ActiveDrag drag,
+    FieldGeometry geometry,
+    List<RunnerToken> tokens,
+  ) =>
+      _tagTarget(drag, geometry, tokens, includeHidden: true)?.onHolder ==
+      false;
+
+  /// DIA-029: the fielder with the ball dragged over a runner off her bag,
+  /// or that runner dragged onto her. Only a runner off her bag — running,
+  /// or leading — since one standing on it got there because the scorer
+  /// put her there. The out is at the runner's token base: where she was
+  /// heading, or the bag she was leading off.
+  ///
+  /// The holder by touch only, as for the base pills: the seeded catcher
+  /// has no touch a putout could point at (§15.6 v0.68). [includeHidden]
+  /// still reports a target the hold hid, so the hold can tell it apart
+  /// from a new one.
+  ({String runnerId, int base, Offset center, bool onHolder})? _tagTarget(
+    _ActiveDrag drag,
+    FieldGeometry geometry,
+    List<RunnerToken> tokens, {
+    bool includeHidden = false,
+  }) {
+    final holder = _draft.securedTouch?.position;
+    if (holder == null || !_canRecordOut || _pendingForcePlay != null) {
+      return null;
+    }
+    if ((drag.current - drag.start).distance <= kTouchSlop) return null;
+    bool offBag(RunnerToken token) =>
+        !_draft.isOut(token.runnerId) && (token.inMotion || token.leading);
+    if (drag.fielderPosition == holder) {
+      RunnerToken? best;
+      var bestDistance = _snapRadiusPx;
+      for (final token in tokens) {
+        if (!offBag(token)) continue;
+        final d = (drag.current - _tokenCenter(geometry, token)).distance;
+        if (d <= bestDistance) {
+          bestDistance = d;
+          best = token;
+        }
+      }
+      if (best == null) return null;
+      if (!includeHidden && best.runnerId == _hiddenTag) return null;
+      return (
+        runnerId: best.runnerId,
+        base: best.base,
+        center: _tokenCenter(geometry, best),
+        onHolder: false,
+      );
+    }
+    final runnerId = drag.runnerId;
+    if (runnerId == null) return null;
+    final token = tokens.where((t) => t.runnerId == runnerId).firstOrNull;
+    if (token == null || !offBag(token)) return null;
+    final holderPx = geometry.toPx(_currentFielderSpot(holder, geometry));
+    if ((drag.current - holderPx).distance > _snapRadiusPx) return null;
+    if (!includeHidden && runnerId == _hiddenTag) return null;
+    return (
+      runnerId: runnerId,
+      base: token.base,
+      center: holderPx,
+      onHolder: true,
+    );
+  }
+
 
   static const _baseLabels = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};
 
@@ -1528,12 +1692,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     ]);
   }
 
-  /// A throw arriving at [spot]: which base is it covering, and is a
-  /// runner provisionally headed there? Only unresolved walk-up movement
-  /// asks — a runner the scorer already classified safe is settled.
-  ({String runnerId, int base})? _forcePlayFor(
+  /// A throw arriving at [spot]: which base is it covering, and who could
+  /// it be for? A runner provisionally headed there — only unresolved
+  /// walk-up movement asks, since a runner the scorer already classified
+  /// safe is settled — or else one standing on the base before it, whom
+  /// nothing forced (Mark, 2026-11-19: a grounder to short with a runner on
+  /// second, thrown to third, asks without moving her first).
+  _PendingPlay? _forcePlayFor(
     FieldCoord spot,
     FieldGeometry geometry,
+    List<RunnerToken> tokens,
   ) {
     final draft = _draft;
     for (final base in const [1, 2, 3, 4]) {
@@ -1544,7 +1712,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
             entry.key < draft.openingLegCount &&
             !draft.isOut(entry.runnerId) &&
             draft.displayBase(entry.runnerId, entry.from) == base) {
-          return (runnerId: entry.runnerId, base: base);
+          return (runnerId: entry.runnerId, base: base, standing: false);
+        }
+      }
+      for (final token in tokens) {
+        if (token.base == base - 1 &&
+            token.base >= 1 &&
+            !token.inMotion &&
+            !draft.isOut(token.runnerId)) {
+          return (runnerId: token.runnerId, base: base, standing: true);
         }
       }
     }
@@ -1558,6 +1734,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         base: token.base,
         origin: token.origin,
         inMotion: token.inMotion,
+        leading: token.leading,
       );
 
   FieldCoord _currentFielderSpot(int position, FieldGeometry geometry) =>
@@ -1740,3 +1917,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     return FieldGeometry(profile: FieldProfile.fastpitch12U, size: size);
   }
 }
+
+/// A SAFE/OUT question a throw raised at `base` for `runnerId`. `standing`
+/// is a runner nothing moved, on the base before it (§15.1 v0.73).
+typedef _PendingPlay = ({String runnerId, int base, bool standing});

@@ -14,11 +14,22 @@ const _canvasSize = Size(700, 640);
 /// to look at: the holder over OUT, which grows to say what it will record;
 /// and a pill she was held on until it hid, leaving its partner standing.
 /// The hold itself draws nothing (Mark, 2026-11-19), so there is no state
-/// to show between the two.
+/// to show between the two. Then the tag (DIA-029): the holder over a
+/// runner, and a runner over the holder — whichever is under the finger
+/// becomes the OUT pill.
 void main() {
   final geometry = FieldGeometry(
     profile: FieldProfile.fastpitch12U,
     size: _canvasSize,
+  );
+
+  final runnerAt = geometry.runnerTokenCenter(
+    base: 2,
+    origin: 1,
+    inMotion: true,
+  );
+  final shortstopAt = geometry.toPx(
+    standardFielderSpots(FieldProfile.fastpitch12U)[6]!,
   );
 
   const runnerToSecond = RunnerToken(
@@ -38,6 +49,7 @@ void main() {
     int? holderDragBase,
     String? outPillDetail,
     Set<(int, BaseCall)> hiddenPills = const {},
+    TagTarget? tagTarget,
   }) {
     final scheme = deriveScheme(
       accentSeed: StubTeamColors.ownTeam.primary!,
@@ -65,6 +77,7 @@ void main() {
           holderDragBase: holderDragBase,
           outPillDetail: outPillDetail,
           hiddenPills: hiddenPills,
+          tagTarget: tagTarget,
         ),
       ),
     );
@@ -97,17 +110,41 @@ void main() {
           hiddenPills: const {(2, BaseCall.out)},
         ),
       ),
+      GoldenTestScenario(
+        name: 'the shortstop over the runner: she is the OUT ($suffix)',
+        constraints: BoxConstraints.tight(_canvasSize),
+        child: canvas(
+          brightness: brightness,
+          dragPosition: runnerAt,
+          dragFielderPosition: 6,
+          holderPosition: 6,
+          outPillDetail: 'UNASSISTED · SS',
+          tagTarget: (center: runnerAt, base: 2, coversRunnerId: 'r1'),
+        ),
+      ),
+      GoldenTestScenario(
+        name: 'the runner over the shortstop: she is the OUT ($suffix)',
+        constraints: BoxConstraints.tight(_canvasSize),
+        child: canvas(
+          brightness: brightness,
+          dragPosition: shortstopAt,
+          dragTokenId: 'r1',
+          holderPosition: 6,
+          outPillDetail: 'UNASSISTED · SS',
+          tagTarget: (center: shortstopAt, base: 2, coversRunnerId: null),
+        ),
+      ),
     ];
   }
 
   goldenTest(
-    'the pills hide, and say what they record',
+    'the pills hide, say what they record, and stand in for a tag',
     fileName: 'field_pills',
     builder: () => GoldenTestGroup(
       columns: 2,
       children: [
         for (final (light, dark) in [
-          for (var i = 0; i < 2; i++)
+          for (var i = 0; i < 4; i++)
             (scenarios(Brightness.light)[i], scenarios(Brightness.dark)[i]),
         ]) ...[light, dark],
       ],
