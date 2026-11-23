@@ -19,10 +19,11 @@ const _size = Size(900, 124);
 /// pitches. BATS and LIGHT / DARK fill the chosen segment with ink, never
 /// with the accent.
 void main() {
-  // Pitch 4 of the plate appearance, a runner on second.
+  // Pitch 4 of the plate appearance, runners on first and third: a filled
+  // base beside an empty one is where the bases used to run together.
   const game = GameState(
     pitchesThisPlateAppearance: 3,
-    bases: BaseState(second: 'r2'),
+    bases: BaseState(first: 'r1', third: 'r3'),
     currentBatterId: 'b1',
   );
 

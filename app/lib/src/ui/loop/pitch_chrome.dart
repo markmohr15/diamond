@@ -230,17 +230,22 @@ class _Segmented extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final radius = BorderRadius.circular(BrandMetrics.radiusMd);
+    // The outline is a *foreground*: drawn under the segments, their fills
+    // painted over it and the chosen side lost its edge entirely.
     return Container(
       height: 44,
-      decoration: BoxDecoration(
+      decoration: BoxDecoration(borderRadius: radius),
+      foregroundDecoration: BoxDecoration(
         border: Border.all(color: scheme.onSurface, width: 1.5),
-        borderRadius: BorderRadius.circular(BrandMetrics.radiusMd),
+        borderRadius: radius,
       ),
       clipBehavior: Clip.antiAlias,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          for (final option in options)
+          for (final (i, option) in options.indexed) ...[
+            if (i > 0) Container(width: 1.5, color: scheme.onSurface),
             Semantics(
               selected: option.selected,
               button: true,
@@ -266,6 +271,7 @@ class _Segmented extends StatelessWidget {
                 ),
               ),
             ),
+          ],
         ],
       ),
     );
@@ -293,11 +299,10 @@ class _BaseDiamond extends StatelessWidget {
     return Semantics(
       label: on.isEmpty ? 'Bases empty' : 'Runners on ${on.join(', ')}',
       child: CustomPaint(
-        size: const Size.square(40),
+        size: const Size.square(44),
         painter: _BaseDiamondPainter(
           occupied: occupied,
           ink: Theme.of(context).colorScheme.onSurface,
-          outline: Theme.of(context).colorScheme.outline,
         ),
       ),
     );
@@ -305,40 +310,52 @@ class _BaseDiamond extends StatelessWidget {
 }
 
 class _BaseDiamondPainter extends CustomPainter {
-  _BaseDiamondPainter({
-    required this.occupied,
-    required this.ink,
-    required this.outline,
-  });
+  _BaseDiamondPainter({required this.occupied, required this.ink});
 
   final List<bool> occupied;
   final Color ink;
-  final Color outline;
+
+  /// A base's side, and the distance between neighboring bases' centers.
+  /// Spaced so each pair keeps a gap: half a side reaches toward each
+  /// neighbor, so the spacing must beat a full side. 15A's own numbers
+  /// (12 on 9.9) overlapped, and the bases read as one shape.
+  static const double _side = 11;
+  static const double _spacing = 15;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final s = size.width / 40;
-    // 15A's three squares, turned 45°: first on the right, second on top.
-    const centers = [Offset(27, 20), Offset(20, 13), Offset(13, 20)];
+    final s = size.shortestSide / 44;
+    const d = _spacing / math.sqrt2;
+    // Centered on the group's own extent, which runs from second's top
+    // corner to first and third's bottom corners.
+    final cx = 22 * s;
+    final cy = (22 + d / 2) * s;
+    final centers = [
+      Offset(cx + d * s, cy), // first, on the right
+      Offset(cx, cy - d * s), // second, on top
+      Offset(cx - d * s, cy), // third
+    ];
     for (var i = 0; i < 3; i++) {
       canvas
         ..save()
-        ..translate(centers[i].dx * s, centers[i].dy * s)
+        ..translate(centers[i].dx, centers[i].dy)
         ..rotate(math.pi / 4);
       final rect = Rect.fromCenter(
         center: Offset.zero,
-        width: 12 * s,
-        height: 12 * s,
+        width: _side * s,
+        height: _side * s,
       );
+      // The same ink and weight as the strip's control borders, so an empty
+      // base and an occupied one read as one set.
       canvas
         ..drawRect(
           rect,
           occupied[i]
               ? (Paint()..color = ink)
               : (Paint()
-                  ..color = outline
+                  ..color = ink
                   ..style = PaintingStyle.stroke
-                  ..strokeWidth = 2 * s),
+                  ..strokeWidth = 1.5 * s),
         )
         ..restore();
     }
@@ -346,9 +363,7 @@ class _BaseDiamondPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BaseDiamondPainter old) =>
-      old.ink != ink ||
-      old.outline != outline ||
-      !_sameList(old.occupied, occupied);
+      old.ink != ink || !_sameList(old.occupied, occupied);
 
   static bool _sameList(List<bool> a, List<bool> b) =>
       a.length == b.length &&
