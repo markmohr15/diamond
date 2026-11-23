@@ -2,7 +2,6 @@ import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
-import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -282,18 +281,27 @@ class _PitchTypeRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: GestureDetector(
                 onTap: selected == null ? () => onTypeSelected(type.id) : null,
-                child: DecoratedBox(
+                // T09/T10's button: card fill and a hairline edge, so an
+                // unchosen type reads as something to press. It used to fill
+                // with the screen's own color and no border — just a word.
+                // The chosen one takes the accent (§10.3).
+                child: Container(
+                  height: 50,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: type.id == selected
                         ? scheme.primary
-                        : scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(6),
+                        : scheme.surfaceContainerLowest,
+                    border: Border.all(
+                      color: type.id == selected
+                          ? scheme.primary
+                          : scheme.outlineVariant,
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: BrandMetrics.spaceMd,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
                     child: Text(
                       type.name,
                       style: Theme.of(context).textTheme.headlineSmall
@@ -312,8 +320,9 @@ class _PitchTypeRow extends StatelessWidget {
       ),
     );
 
-    // A choice takes taps; a label must not (§11.4). Cancel — in the control
-    // strip below the canvas — is how the coach gets the arsenal back.
+    // A choice takes taps; a label must not (§11.4). Discard pitch — in the
+    // control strip below the canvas — is how the coach gets the arsenal
+    // back.
     return selected == null ? row : IgnorePointer(child: row);
   }
 }
