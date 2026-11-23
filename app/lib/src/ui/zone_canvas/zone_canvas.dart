@@ -156,8 +156,8 @@ class ZoneCanvas extends StatefulWidget {
     required this.mode,
     required this.value,
     required this.onCommit,
-    required this.onSkip,
     required this.onCancel,
+    this.onSkip,
     this.bounceValue,
     this.onCommitBounce,
     this.batterSide = BatterSide.R,
@@ -172,6 +172,8 @@ class ZoneCanvas extends StatefulWidget {
     this.topStrip,
     this.onReroll,
     this.skipLabel = 'Skip location',
+    this.cancelLabel = 'Cancel',
+    this.stripHint,
     super.key,
   });
 
@@ -186,13 +188,26 @@ class ZoneCanvas extends StatefulWidget {
   final ValueChanged<ZoneCoord> onCommit;
 
   /// "Skip location" affordance (§11.2) — deliberately capture no location.
-  final VoidCallback onSkip;
+  /// Null takes it off the frontal plane's strip: the call screen has no
+  /// skip, because the rail's second stop is the way past a call (DIA-021).
+  final VoidCallback? onSkip;
 
   /// Cancel/Back — available in both modes; lets the parent step (DIA-007's
   /// pitch loop) reverse a locked-in call/actual and return to the previous
   /// step. Nothing is committed to the event stream until the full pitch
-  /// resolves (§10.3), so this is always safe to wire up.
-  final VoidCallback onCancel;
+  /// resolves (§10.3), so this is always safe to wire up. Null takes it off
+  /// the frontal plane's strip — hidden, not disabled (§23.1), for a call
+  /// screen with nothing yet to discard.
+  final VoidCallback? onCancel;
+
+  /// What [onCancel]'s button says in the frontal plane. The pitch screens
+  /// pass *Discard pitch* (DIA-021b); backfilling a committed pitch keeps
+  /// *Cancel*, since there is no new pitch there to discard.
+  final String cancelLabel;
+
+  /// One muted line in the strip, beside the buttons — 15A's *Nothing is
+  /// recorded until ✓.* Frontal plane only.
+  final String? stripHint;
 
   /// The committed bounce, or null if this pitch did not hit the dirt. A
   /// non-null value with a null `depth` is "in the dirt, depth unknown"
@@ -277,8 +292,8 @@ class ZoneCanvas extends StatefulWidget {
 
   /// What the skip affordance in the control strip says while the frontal
   /// plane is up. The *meaning* is the caller's to define — the call screen
-  /// passes "Skip call" because skipping there skips the whole call (§11.2),
-  /// while location entry keeps the default. Labels only; the callback is
+  /// passes its own label for the backfill offer's *Keep unlocated*, while
+  /// location entry keeps the default. Labels only; the callback is
   /// [onSkip] either way, and the top-down plane's "Depth unknown" is not
   /// affected.
   final String skipLabel;
@@ -432,21 +447,61 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
         Padding(
           padding: const EdgeInsets.all(8),
           child: Row(
-            children: [
-              Expanded(
-                child: _AffordanceButton(
-                  label: topDown ? 'Back to zone' : 'Cancel',
-                  onPressed: topDown ? _handleUnhinge : widget.onCancel,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _AffordanceButton(
-                  label: topDown ? 'Depth unknown' : widget.skipLabel,
-                  onPressed: topDown ? _handleSkipDepth : widget.onSkip,
-                ),
-              ),
-            ],
+            children: topDown
+                ? [
+                    Expanded(
+                      child: _AffordanceButton(
+                        label: 'Back to zone',
+                        onPressed: _handleUnhinge,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _AffordanceButton(
+                        label: 'Depth unknown',
+                        onPressed: _handleSkipDepth,
+                      ),
+                    ),
+                  ]
+                : [
+                    if (widget.onCancel case final cancel?)
+                      Expanded(
+                        child: _AffordanceButton(
+                          label: widget.cancelLabel,
+                          onPressed: cancel,
+                        ),
+                      ),
+                    if (widget.stripHint case final hint?)
+                      Expanded(
+                        flex: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text.rich(
+                            withCheckIcons(
+                              hint,
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    if (widget.onSkip case final skip?) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _AffordanceButton(
+                          label: widget.skipLabel,
+                          onPressed: skip,
+                        ),
+                      ),
+                    ],
+                    // Holds the strip's height when every control is hidden,
+                    // so the canvas above never jumps (§11.4's stable rect).
+                    const SizedBox(height: 44),
+                  ],
           ),
         ),
       ],

@@ -77,6 +77,22 @@ int? pitchNumberInPa(List<GameEvent> visible, String pitchEventId) {
   return number;
 }
 
+/// The side [batterId] stood in on her most recent visible pitch this game,
+/// or null when she has none yet.
+///
+/// Read off the stream rather than carried in `GameState`: it outlives the
+/// half, and the fold's cumulative fields are exactly what the §7 snapshot
+/// must reproduce — so a field here would be one more thing the snapshot
+/// could silently drop.
+BatterSide? lastBatterSide(List<GameEvent> visible, String batterId) {
+  for (final event in visible.reversed) {
+    if (event.type != 'PitchThrown') continue;
+    final pitch = PitchThrown.fromJson(event.payload);
+    if (pitch.batterId == batterId) return pitch.batterSide;
+  }
+  return null;
+}
+
 /// The UI's one writer and one reader of the event stream: append an event,
 /// re-project [GameState] (§5's pure fold, snapshot-aware via
 /// [GameStateProjector]).

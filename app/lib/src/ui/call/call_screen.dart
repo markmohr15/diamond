@@ -2,7 +2,6 @@ import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
-import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -60,14 +59,14 @@ const double _typeRowHeight = 66;
 /// card bounds it when they are on, the layout when they are off, and with them
 /// off there is no code to show.
 ///
-/// Cancel lives in the canvas's control strip, *below* the drawing area, where
-/// it structurally cannot compete with a location tap.
+/// *Discard pitch* lives in the canvas's control strip, *below* the drawing
+/// area, where it structurally cannot compete with a location tap (DIA-021b).
+/// There is no skip here: the rail's second stop is the way past a call.
 class CallScreen extends ConsumerStatefulWidget {
   const CallScreen({
     this.batterSide = BatterSide.R,
     this.fidelity = CanvasFidelity.restrained,
     this.showBatterSilhouette = false,
-    this.onSkipCall,
     this.onPitchThrown,
     super.key,
   });
@@ -81,12 +80,6 @@ class CallScreen extends ConsumerStatefulWidget {
   final CanvasFidelity fidelity;
 
   final bool showBatterSilhouette;
-
-  /// §11.2's per-pitch Scorer mode: this pitch gets no recorded intent. Wired
-  /// to the control strip's skip affordance, relabeled "Skip call" here —
-  /// skipping on this screen skips the whole call, not just a location. Null
-  /// (the DIA-006 harness and tests) leaves the affordance inert.
-  final VoidCallback? onSkipCall;
 
   /// §10.3's pitch-happened checkmark (v0.40): confirms the pending call was
   /// used and advances the loop to actual-location entry. Rendered beside the
@@ -156,9 +149,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       // Freeform capture is unreachable in grid-calling mode, so onCommit
       // never fires here.
       onCommit: (_) {},
-      skipLabel: 'Skip call',
-      onSkip: widget.onSkipCall ?? () {},
-      onCancel: () => ref.read(callDraftProvider.notifier).clear(),
+      // Hidden until there is something to discard (§23.1) — a pitch type
+      // chosen is the first thing a call has.
+      cancelLabel: 'Discard pitch',
+      onCancel: typeId == null
+          ? null
+          : () => ref.read(callDraftProvider.notifier).clear(),
+      stripHint: pending == null
+          ? null
+          : 'Shake-off? Tap another spot. Nothing is recorded until ✓.',
     );
   }
 }
@@ -282,18 +281,27 @@ class _PitchTypeRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: GestureDetector(
                 onTap: selected == null ? () => onTypeSelected(type.id) : null,
-                child: DecoratedBox(
+                // T09/T10's button: card fill and a hairline edge, so an
+                // unchosen type reads as something to press. It used to fill
+                // with the screen's own color and no border — just a word.
+                // The chosen one takes the accent (§10.3).
+                child: Container(
+                  height: 50,
+                  alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: type.id == selected
                         ? scheme.primary
-                        : scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(6),
+                        : scheme.surfaceContainerLowest,
+                    border: Border.all(
+                      color: type.id == selected
+                          ? scheme.primary
+                          : scheme.outlineVariant,
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: BrandMetrics.spaceMd,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
                     child: Text(
                       type.name,
                       style: Theme.of(context).textTheme.headlineSmall
@@ -312,8 +320,9 @@ class _PitchTypeRow extends StatelessWidget {
       ),
     );
 
-    // A choice takes taps; a label must not (§11.4). Cancel — in the control
-    // strip below the canvas — is how the coach gets the arsenal back.
+    // A choice takes taps; a label must not (§11.4). Discard pitch — in the
+    // control strip below the canvas — is how the coach gets the arsenal
+    // back.
     return selected == null ? row : IgnorePointer(child: row);
   }
 }

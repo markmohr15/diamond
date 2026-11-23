@@ -7,7 +7,6 @@ import 'package:diamond/src/ui/loop/play_log_sheet.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
-import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,8 +16,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key countHudKey = Key('countHud');
 @visibleForTesting
 const Key countHudUndoKey = Key('countHudUndo');
-@visibleForTesting
-const Key countHudThemeKey = Key('countHudTheme');
 const Key countHudLogKey = Key('countHudLog');
 @visibleForTesting
 const Key countHudCountKey = Key('countHudCount');
@@ -72,8 +69,6 @@ class CountHud extends ConsumerWidget {
     // Ink either way. The old treatment switched this too, which is what made
     // the strip a solid block of chroma.
     final foreground = scheme.onSurface;
-
-    final isDark = ref.watch(themeModeProvider).valueOrNull == ThemeMode.dark;
 
     // §15.5 v0.60: off while a play is open — the field's own controls own
     // that screen. Known synchronously, so it never flickers.
@@ -165,22 +160,6 @@ class CountHud extends ConsumerWidget {
           // home is a settings screen or a menu that may not be reachable
           // from here — so a sheet built to hold this one control was
           // scaffolding pretending to be a destination.
-          IconButton(
-            key: countHudThemeKey,
-            onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
-            icon: Icon(
-              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-              color: foreground,
-            ),
-            // Names what the tap *does*, not what is showing.
-            tooltip: isDark ? 'Light' : 'Dark',
-          ),
-          // DIA-021a: the button names what it will take — "UNDO PITCH 3",
-          // "UNDO WP" — because a bare ↺ could mean the pitch, the play or
-          // the entry step, and greyed out it explained nothing. When nothing
-          // is reachable it is **not on screen** (§23.1 v0.63, reversing
-          // §11.3 v0.54's disable), and it keeps its space so the strip
-          // never shifts when it comes back.
           Visibility(
             visible: canUndo,
             maintainSize: true,

@@ -10,6 +10,7 @@ import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
+import 'package:diamond/src/ui/loop/pitch_chrome.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -21,8 +22,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 const Key recordLastPitchKey = Key('recordLastPitch');
 @visibleForTesting
 const Key dismissLastPitchKey = Key('dismissLastPitch');
-@visibleForTesting
-const Key openIdleFieldKey = Key('openIdleField');
 @visibleForTesting
 const Key d3kCalledKey = Key('d3kCalled');
 @visibleForTesting
@@ -107,6 +106,33 @@ class PitchLoopPage extends ConsumerWidget {
         child: Column(
           children: [
             const CountHud(),
+            BatterStrip(
+              showBats: flow.step != PitchStep.recordLast,
+              // §15.6: the way to the field with nothing in play — a steal,
+              // a runner taking a base on a passed ball. Between pitches
+              // only, so it interrupts nothing.
+              onField: flow.step != PitchStep.call
+                  ? null
+                  : () async {
+                      final anchors = await ref
+                          .read(gameControllerProvider.notifier)
+                          .betweenPitchAnchors();
+                      final pitchId = anchors.pitchId;
+                      if (pitchId == null) return;
+                      await ref
+                          .read(playDraftProvider.notifier)
+                          .startBetweenPitches(pitchEventId: pitchId);
+                    },
+            ),
+            // The rail describes the pitch being entered, so it stands down
+            // for backfilling one already written and for bailout's outcome
+            // row, which has no steps.
+            if (const {
+              PitchStep.call,
+              PitchStep.actual,
+              PitchStep.outcome,
+            }.contains(flow.step))
+              const PitchRail(),
             Expanded(
               // §11.2's two-finger swipe wraps every step surface, so bailout
               // is reachable from anywhere in the pitch — a Listener, not a
@@ -143,41 +169,9 @@ class PitchLoopPage extends ConsumerWidget {
                             ),
                           ],
                         ),
-                      // §15.6: the way to the field with nothing in play —
-                      // a steal, a runner taking a base on a passed ball.
-                      // Deliberately a plain affordance rather than a step
-                      // in the flow: it interrupts nothing, and if the field
-                      // ever becomes the loop's home surface this is the
-                      // only line that changes.
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 16),
-                          child: TextButton.icon(
-                            key: openIdleFieldKey,
-                            onPressed: () async {
-                              final anchors = await ref
-                                  .read(gameControllerProvider.notifier)
-                                  .betweenPitchAnchors();
-                              final pitchId = anchors.pitchId;
-                              if (pitchId == null) return;
-                              await ref
-                                  .read(playDraftProvider.notifier)
-                                  .startBetweenPitches(pitchEventId: pitchId);
-                            },
-                            // Material ships no softball glyph, so this is
-                            // the framework's name rather than a claim about
-                            // the sport. DIA-018's field design replaces this
-                            // button anyway (Mark, 2026-09-03).
-                            icon: const Icon(Icons.sports_baseball),
-                            label: const Text('Go to field'),
-                          ),
-                        ),
-                      ),
                       Expanded(
                         child: CallScreen(
                           batterSide: batterSide,
-                          onSkipCall: controller.skipCall,
                           onPitchThrown: controller.pitchThrown,
                         ),
                       ),
@@ -191,7 +185,8 @@ class PitchLoopPage extends ConsumerWidget {
                     onCommit: controller.actualCommitted,
                     onCommitBounce: controller.bounceCommitted,
                     onSkip: controller.skipLocation,
-                    onCancel: controller.backToCall,
+                    cancelLabel: 'Discard pitch',
+                    onCancel: controller.discardPitch,
                   ),
                   // The outcome sheet (shown by the listener above) floats
                   // over the location canvas the scorer just used — context
@@ -203,6 +198,7 @@ class PitchLoopPage extends ConsumerWidget {
                     batterSide: batterSide,
                     onCommit: (_) {},
                     onSkip: () {},
+                    cancelLabel: 'Discard pitch',
                     onCancel: () {},
                   ),
                   // Location entry for the already-committed pitch (§11.1

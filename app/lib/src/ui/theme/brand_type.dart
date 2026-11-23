@@ -209,3 +209,24 @@ extension DiamondCodeText on TextStyle {
     letterSpacing: 0,
   );
 }
+
+/// [text] with each `✓` drawn as the check icon. Neither bundled face carries
+/// the glyph, so a literal ✓ renders as a missing-glyph box — the copy keeps
+/// saying ✓ because that is what the scorer sees on the ✓ button.
+InlineSpan withCheckIcons(String text, TextStyle? style) {
+  final parts = text.split('✓');
+  final size = (style?.fontSize ?? 14) * 1.1;
+  return TextSpan(
+    style: style,
+    children: [
+      for (var i = 0; i < parts.length; i++) ...[
+        if (i > 0)
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Icon(Icons.check, size: size, color: style?.color),
+          ),
+        TextSpan(text: parts[i]),
+      ],
+    ],
+  );
+}

@@ -243,7 +243,7 @@ void main() {
     });
   });
 
-  group('cancel', () {
+  group('discard pitch (DIA-021b)', () {
     testWidgets('brings the whole arsenal back and drops the call', (
       tester,
     ) async {
@@ -253,7 +253,7 @@ void main() {
       await tapAt(tester, ZoneCoord(x: -0.8, y: 0.5));
       expect(draft().pending, isNotNull);
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.text('Discard pitch'));
       await tester.pumpAndSettle();
 
       expect(draft().hasType, isFalse);
@@ -266,10 +266,26 @@ void main() {
     testWidgets('lives outside the drawing area, so it can never compete with '
         'a location tap', (tester) async {
       await pumpScreen(tester);
+      await selectType(tester, 'Drop');
       final canvas = tester.getRect(find.byKey(zoneCanvasDrawingAreaKey));
-      final cancel = tester.getRect(find.text('Cancel'));
+      final cancel = tester.getRect(find.text('Discard pitch'));
 
       expect(canvas.overlaps(cancel), isFalse);
+    });
+
+    testWidgets('is not on screen before there is a call to discard (§23.1)', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      expect(find.text('Discard pitch'), findsNothing);
+      expect(
+        find.text('Skip call'),
+        findsNothing,
+        reason: 'the rail replaced it',
+      );
+
+      await selectType(tester, 'Drop');
+      expect(find.text('Discard pitch'), findsOneWidget);
     });
   });
 
@@ -312,7 +328,7 @@ void main() {
       await selectType(tester, 'Fastball');
       final before = tester.getRect(find.byKey(zoneCanvasDrawingAreaKey));
 
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.text('Discard pitch'));
       await tester.pumpAndSettle();
       await selectType(tester, 'Change');
 

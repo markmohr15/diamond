@@ -71,6 +71,62 @@ void main() {
     expect(state.batterDue('home'), 'h2');
   });
 
+  test('pitchesThisPlateAppearance counts the batter at the plate and resets '
+      'when her plate appearance ends, a new batter steps in, or the half '
+      'turns (DIA-021c)', () {
+    final b = EventBuilder();
+    GameEvent half(String id) => b.inningHalfStart(
+      id: id,
+      inning: 1,
+      half: Half.BOTTOM,
+      battingTeamId: 'home',
+    );
+    final lineup = b.lineupSet(
+      id: 'lineup',
+      teamId: 'home',
+      battingOrder: ['h1', 'h2'],
+    );
+    final p1 = b.pitch(
+      id: 'p1',
+      batterId: 'h1',
+      pitcherId: 'p',
+      outcome: Outcome.BALL,
+    );
+    final p2 = b.pitch(
+      id: 'p2',
+      batterId: 'h1',
+      pitcherId: 'p',
+      outcome: Outcome.FOUL,
+    );
+    final p3 = b.pitch(
+      id: 'p3',
+      batterId: 'h1',
+      pitcherId: 'p',
+      outcome: Outcome.IN_PLAY,
+    );
+    final p4 = b.pitch(
+      id: 'p4',
+      batterId: 'h2',
+      pitcherId: 'p',
+      outcome: Outcome.BALL,
+    );
+
+    int count(List<GameEvent> events) =>
+        foldGameState(events).pitchesThisPlateAppearance;
+
+    expect(count([lineup, half('h')]), 0);
+    expect(count([lineup, half('h'), p1, p2]), 2);
+    expect(
+      count([lineup, half('h'), p1, p2, p3]),
+      0,
+      reason: 'in play ends it',
+    );
+    expect(count([lineup, half('h'), p1, p2, p3, p4]), 1);
+    // A new batter with no PA-ending pitch between still starts over.
+    expect(count([lineup, half('h'), p1, p4]), 1);
+    expect(count([lineup, half('h'), p1, p2, half('h2')]), 0);
+  });
+
   test('a walk ends the AB and advances batterDue', () {
     final b = EventBuilder();
     final events = [

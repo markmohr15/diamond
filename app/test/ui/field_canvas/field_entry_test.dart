@@ -16,6 +16,7 @@ import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
+import 'package:diamond/src/ui/loop/pitch_chrome.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/loop/play_log_sheet.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
@@ -90,7 +91,7 @@ void main() {
   /// Fastest path to the field surface: skip call, skip location, "In play".
   /// Arrives with the trajectory modal open (§15.1 v0.43).
   Future<void> reachFieldSurface(WidgetTester tester) async {
-    await tester.tap(find.text('Skip call'));
+    await tester.tap(find.text('Jump here — no call'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Skip location'));
     await tester.pumpAndSettle();
@@ -871,7 +872,7 @@ void main() {
       ]);
 
       expect(find.byKey(fieldCanvasKey), findsNothing);
-      expect(find.text('Skip call'), findsOneWidget);
+      expect(find.text('Jump here — no call'), findsOneWidget);
 
       final events = await stream();
       final types = events.map((e) => e.type).toList();
@@ -906,7 +907,7 @@ void main() {
       // Walk opp-1 aboard: four skipped-entry balls (§11.3 auto-applies the
       // forced advance).
       for (var i = 0; i < 4; i++) {
-        await tester.tap(find.text('Skip call'));
+        await tester.tap(find.text('Jump here — no call'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Skip location'));
         await tester.pumpAndSettle();
@@ -2039,7 +2040,7 @@ void main() {
     }) async {
       await runnerOnFirst(tester);
       if (fromSheet) {
-        await tester.tap(find.text('Skip call'));
+        await tester.tap(find.text('Jump here — no call'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Skip location'));
         await tester.pumpAndSettle();
@@ -2989,7 +2990,7 @@ void main() {
         'is preselected (v0.69)', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 4; i++) {
-        await tester.tap(find.text('Skip call'));
+        await tester.tap(find.text('Jump here — no call'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Skip location'));
         await tester.pumpAndSettle();
@@ -3329,7 +3330,7 @@ void main() {
     Future<void> runnerOnFirstThenField(WidgetTester tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 4; i++) {
-        await tester.tap(find.text('Skip call'));
+        await tester.tap(find.text('Jump here — no call'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Skip location'));
         await tester.pumpAndSettle();
@@ -3415,7 +3416,7 @@ void main() {
       Future<void> twoRunnersThenField(WidgetTester tester) async {
         await pumpLoop(tester);
         for (var i = 0; i < 8; i++) {
-          await tester.tap(find.text('Skip call'));
+          await tester.tap(find.text('Jump here — no call'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Skip location'));
           await tester.pumpAndSettle();
@@ -3579,7 +3580,7 @@ void main() {
         await pumpLoop(tester);
         // Two walks: opp-1 forced to second, opp-2 on first.
         for (var i = 0; i < 8; i++) {
-          await tester.tap(find.text('Skip call'));
+          await tester.tap(find.text('Jump here — no call'));
           await tester.pumpAndSettle();
           await tester.tap(find.text('Skip location'));
           await tester.pumpAndSettle();
@@ -4145,7 +4146,7 @@ void main() {
       await pumpLoop(tester);
 
       Future<void> pitch(String outcome) async {
-        await tester.tap(find.text('Skip call'));
+        await tester.tap(find.text('Jump here — no call'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Skip location'));
         await tester.pumpAndSettle();
@@ -4170,7 +4171,7 @@ void main() {
       for (var i = 0; i < 2; i++) {
         await pitch('Called strike');
       }
-      await tester.tap(find.text('Skip call'));
+      await tester.tap(find.text('Jump here — no call'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Skip location'));
       await tester.pumpAndSettle();
