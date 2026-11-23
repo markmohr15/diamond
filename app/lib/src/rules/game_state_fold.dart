@@ -65,6 +65,7 @@ GameState _foldInningHalfStart(GameState state, GameEvent event) {
   var next = state.copyWith(
     balls: 0,
     strikes: 0,
+    pitchesThisPlateAppearance: 0,
     uncertainCount: false,
     pendingSpanEvents: const [],
     spanStartBalls: 0,
@@ -113,6 +114,7 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
     working = working.copyWith(
       balls: 0,
       strikes: 0,
+      pitchesThisPlateAppearance: 0,
       uncertainCount: false,
       pendingSpanEvents: const [],
       spanStartBalls: 0,
@@ -120,7 +122,10 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
       currentBatterId: payload.batterId,
     );
   }
-  working = working.copyWith(currentPitcherId: payload.pitcherId);
+  working = working.copyWith(
+    currentPitcherId: payload.pitcherId,
+    pitchesThisPlateAppearance: working.pitchesThisPlateAppearance + 1,
+  );
 
   // Every recorded pitch counts toward the pitcher's total, unconditionally.
   // `no_pitch` used to be the exception and is gone (v0.51): nothing ever
@@ -157,6 +162,7 @@ GameState _foldPitchThrown(GameState state, GameEvent event) {
       nextBatterIndexByTeam: nextIndex,
       balls: 0,
       strikes: 0,
+      pitchesThisPlateAppearance: 0,
       uncertainCount: false,
       pendingSpanEvents: const [],
       spanStartBalls: 0,

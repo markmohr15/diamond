@@ -60,14 +60,14 @@ const double _typeRowHeight = 66;
 /// card bounds it when they are on, the layout when they are off, and with them
 /// off there is no code to show.
 ///
-/// Cancel lives in the canvas's control strip, *below* the drawing area, where
-/// it structurally cannot compete with a location tap.
+/// *Discard pitch* lives in the canvas's control strip, *below* the drawing
+/// area, where it structurally cannot compete with a location tap (DIA-021b).
+/// There is no skip here: the rail's second stop is the way past a call.
 class CallScreen extends ConsumerStatefulWidget {
   const CallScreen({
     this.batterSide = BatterSide.R,
     this.fidelity = CanvasFidelity.restrained,
     this.showBatterSilhouette = false,
-    this.onSkipCall,
     this.onPitchThrown,
     super.key,
   });
@@ -81,12 +81,6 @@ class CallScreen extends ConsumerStatefulWidget {
   final CanvasFidelity fidelity;
 
   final bool showBatterSilhouette;
-
-  /// §11.2's per-pitch Scorer mode: this pitch gets no recorded intent. Wired
-  /// to the control strip's skip affordance, relabeled "Skip call" here —
-  /// skipping on this screen skips the whole call, not just a location. Null
-  /// (the DIA-006 harness and tests) leaves the affordance inert.
-  final VoidCallback? onSkipCall;
 
   /// §10.3's pitch-happened checkmark (v0.40): confirms the pending call was
   /// used and advances the loop to actual-location entry. Rendered beside the
@@ -156,9 +150,15 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       // Freeform capture is unreachable in grid-calling mode, so onCommit
       // never fires here.
       onCommit: (_) {},
-      skipLabel: 'Skip call',
-      onSkip: widget.onSkipCall ?? () {},
-      onCancel: () => ref.read(callDraftProvider.notifier).clear(),
+      // Hidden until there is something to discard (§23.1) — a pitch type
+      // chosen is the first thing a call has.
+      cancelLabel: 'Discard pitch',
+      onCancel: typeId == null
+          ? null
+          : () => ref.read(callDraftProvider.notifier).clear(),
+      stripHint: pending == null
+          ? null
+          : 'Shake-off? Tap another spot. Nothing is recorded until ✓.',
     );
   }
 }

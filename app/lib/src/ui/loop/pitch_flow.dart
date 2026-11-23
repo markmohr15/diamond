@@ -270,10 +270,46 @@ bool hasMovedOn({
       flow.bounce != null;
 }
 
-/// Which box the batter stands in. Session-level stub for M1 — DIA-008/009's
-/// lineup work replaces this with per-batter data; the loop already reads it
-/// per pitch, so that swap touches only this provider.
-final batterSideProvider = StateProvider<BatterSide>((ref) => BatterSide.R);
+/// The batter at the plate, or the one due up between plate appearances.
+final dueBatterProvider = Provider<String?>((ref) {
+  final gs = ref.watch(gameControllerProvider).valueOrNull;
+  if (gs == null) return null;
+  final team = gs.battingTeamId;
+  return gs.currentBatterId ?? (team == null ? null : gs.batterDue(team));
+});
+
+/// The side a batter's last visible pitch recorded (`lastBatterSide`).
+final lastBatterSideProvider = FutureProvider.family<BatterSide?, String>((
+  ref,
+  batterId,
+) async {
+  ref.watch(gameControllerProvider);
+  final visible = await ref
+      .read(eventStoreProvider)
+      .readStream(ref.read(gameSessionProvider).gameId);
+  return lastBatterSide(visible, batterId);
+});
+
+/// What the scorer set on the batter strip's BATS toggle, and for whom. It
+/// stops applying the moment someone else is due, so a lefty's flip never
+/// carries to the next batter.
+final batterSideChoiceProvider =
+    StateProvider<({String batterId, BatterSide side})?>((ref) => null);
+
+/// Which box the batter stands in, read per pitch when `PitchThrown` is
+/// written (§4: per pitch, for switch hitters).
+///
+/// The scorer's flip for this batter, else the side her last pitch this game
+/// recorded, else Right. There is no roster yet (§19.3's *bats*); when there
+/// is, it goes ahead of the last pitch (Mark, 2026-11-21).
+final batterSideProvider = Provider<BatterSide>((ref) {
+  final batter = ref.watch(dueBatterProvider);
+  if (batter == null) return BatterSide.R;
+  final choice = ref.watch(batterSideChoiceProvider);
+  if (choice != null && choice.batterId == batter) return choice.side;
+  return ref.watch(lastBatterSideProvider(batter)).valueOrNull ??
+      BatterSide.R;
+});
 
 /// The call as it stood when the pitch left the hand: what `PitchThrown`
 /// records as intent (§10.1).
@@ -285,10 +321,18 @@ final batterSideProvider = StateProvider<BatterSide>((ref) => BatterSide.R);
 /// coach finishes it, replaces it, or skips.
 @immutable
 class CallIntent {
-  const CallIntent({required this.pitchTypeId, required this.zoneId});
+  const CallIntent({
+    required this.pitchTypeId,
+    required this.zoneId,
+    this.code,
+  });
 
   final String pitchTypeId;
   final String zoneId;
+
+  /// What was yelled, for the rail's echo of the call (DIA-021c). Display
+  /// only — `PitchThrown` records the call, not the code.
+  final String? code;
 }
 
 /// §11.1 v0.39's "record last pitch": the in-play pitch that just committed
@@ -456,6 +500,7 @@ class PitchFlowController extends Notifier<PitchFlowState> {
       intent: CallIntent(
         pitchTypeId: pending.pitchTypeId,
         zoneId: pending.zoneId,
+        code: pending.code,
       ),
     );
   }
@@ -490,11 +535,20 @@ class PitchFlowController extends Notifier<PitchFlowState> {
     state = PitchFlowState(step: PitchStep.outcome, intent: state.intent);
   }
 
-  /// Back from the actual step (§11.1: Cancel reverses the step). The pending
+  /// Back from the actual step: the rail's first stop (DIA-021c). The pending
   /// call is still on screen when we get there — it persists until the pitch
   /// result is entered (§10.3).
   void backToCall() {
     state = PitchFlowState(intent: state.intent);
+  }
+
+  /// DIA-021b's *Discard pitch*, in each pitch screen's bottom bar: drop the
+  /// call and anything located, and start this pitch over on an empty call
+  /// screen. Nothing was written, so there is nothing to void. The
+  /// record-last offer survives — it is about the pitch before this one.
+  void discardPitch() {
+    ref.read(callDraftProvider.notifier).clear();
+    state = PitchFlowState(lastPitchOffer: state.lastPitchOffer);
   }
 
   /// Dismissing the outcome sheet without a choice: back to the location

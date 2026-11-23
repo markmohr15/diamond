@@ -55,6 +55,7 @@ class GameState {
   const GameState({
     this.balls = 0,
     this.strikes = 0,
+    this.pitchesThisPlateAppearance = 0,
     this.uncertainCount = false,
     this.pendingSpanEvents = const [],
     this.spanStartBalls = 0,
@@ -80,6 +81,11 @@ class GameState {
 
   final int balls;
   final int strikes;
+
+  /// Pitches recorded to the batter at the plate, `0` between plate
+  /// appearances. Per-half like the count, so the §7 snapshot omits it. The
+  /// rail's *PITCH 4* is this plus one: the pitch being entered.
+  final int pitchesThisPlateAppearance;
   final bool uncertainCount;
 
   /// Every PitchThrown event (known and unknown outcomes alike) since the
@@ -151,6 +157,7 @@ class GameState {
   GameState copyWith({
     int? balls,
     int? strikes,
+    int? pitchesThisPlateAppearance,
     bool? uncertainCount,
     List<GameEvent>? pendingSpanEvents,
     int? spanStartBalls,
@@ -173,6 +180,8 @@ class GameState {
     return GameState(
       balls: balls ?? this.balls,
       strikes: strikes ?? this.strikes,
+      pitchesThisPlateAppearance:
+          pitchesThisPlateAppearance ?? this.pitchesThisPlateAppearance,
       uncertainCount: uncertainCount ?? this.uncertainCount,
       pendingSpanEvents: pendingSpanEvents ?? this.pendingSpanEvents,
       spanStartBalls: spanStartBalls ?? this.spanStartBalls,

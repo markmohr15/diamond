@@ -14,6 +14,7 @@ import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/count_hud.dart';
 import 'package:diamond/src/ui/loop/outcome_step.dart';
+import 'package:diamond/src/ui/loop/pitch_chrome.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
@@ -184,8 +185,10 @@ void main() {
       expect(find.byType(CallScreen), findsOneWidget);
     });
 
-    testWidgets('cancel on the actual step goes back to the call screen with '
-        'the pending call still up (§10.3)', (tester) async {
+    testWidgets("the rail's first stop goes back from the location step to "
+        'the call screen with the pending call still up (§10.3, DIA-021c)', (
+      tester,
+    ) async {
       await pumpLoop(tester);
 
       await tapText(tester, 'Fastball');
@@ -194,7 +197,8 @@ void main() {
       await tester.tap(find.byKey(callScreenPitchThrownKey));
       await tester.pumpAndSettle();
 
-      await tapText(tester, 'Cancel');
+      await tester.tap(find.byKey(railCallKey));
+      await tester.pumpAndSettle();
 
       expect(find.byType(CallScreen), findsOneWidget);
       expect(
@@ -217,7 +221,7 @@ void main() {
         'no intent and no location', (tester) async {
       await pumpLoop(tester);
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       expect(find.text('Skip location'), findsOneWidget);
       await tapText(tester, 'Skip location');
 
@@ -243,7 +247,7 @@ void main() {
       // committed separately, which could disagree about which pitch it
       // described.
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, batterActionKey(BatterAction.BUNT));
       await tapText(tester, 'Foul');
@@ -257,7 +261,7 @@ void main() {
       tester,
     ) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       // On, then off: a mis-tap is corrected before committing rather than by
       // undoing the pitch.
@@ -272,12 +276,12 @@ void main() {
       // Posture is a per-pitch observation. Sticking would record a bunt she
       // never showed.
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, batterActionKey(BatterAction.SLASH));
       await tapText(tester, 'Ball');
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Ball');
       expect((await lastPitch()).batterAction, isNull);
@@ -304,7 +308,7 @@ void main() {
       // Rule 9.13 charges a getaway on its *consequence*. Empty bases, no
       // consequence, no question — and no chip to mis-tap either.
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       expect(find.byKey(runnerMoveKey(RunnerMove.wildPitch)), findsNothing);
     });
@@ -312,7 +316,7 @@ void main() {
     testWidgets('all runners up one, in a single tap', (tester) async {
       await pumpLoop(tester);
       await runnerOnSecond(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
       await tapText(tester, 'Ball');
@@ -333,7 +337,7 @@ void main() {
     ) async {
       await pumpLoop(tester);
       await runnerOnSecond(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
       await tapText(tester, 'Ball');
@@ -356,7 +360,7 @@ void main() {
             ).toJson(),
           );
       await tester.pumpAndSettle();
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.passedBall));
       await tapText(tester, 'Ball');
@@ -372,7 +376,7 @@ void main() {
       // D3K resolution writes, reused rather than reinvented.
       await pumpLoop(tester);
       await runnerOnSecond(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.passedBall));
       await tapText(tester, 'Ball');
@@ -403,7 +407,7 @@ void main() {
       // her would assert something that did not happen.
       await pumpLoop(tester);
       await runnerOnSecond(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.wildPitch));
       await tapText(tester, 'Ball');
@@ -446,7 +450,7 @@ void main() {
     ) async {
       await pumpLoop(tester);
       await runnersOn(tester, [('r1', 1)]);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       expect(find.text('ON THE BASES'), findsOneWidget);
       expect(find.text('GOT AWAY'), findsNothing);
@@ -461,7 +465,7 @@ void main() {
         'no cause, no touch', (tester) async {
       await pumpLoop(tester);
       await runnersOn(tester, [('r1', 1)]);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
       await tapText(tester, 'Ball');
@@ -486,7 +490,7 @@ void main() {
         'is where caught stealing starts', (tester) async {
       await pumpLoop(tester);
       await runnersOn(tester, [('r1', 1)]);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
       await tapText(tester, 'Ball');
@@ -501,7 +505,7 @@ void main() {
         'field, catcher holding', (tester) async {
       await pumpLoop(tester);
       await runnersOn(tester, [('r3', 3), ('r1', 1)]);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, runnerMoveKey(RunnerMove.stolenBase));
       await tapText(tester, 'Ball');
@@ -548,7 +552,7 @@ void main() {
     testWidgets('no batter due: the scorer is told, nothing is written, and '
         'the pitch is still placed', (tester) async {
       await noLineup(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await placeActualAt(tester, ZoneCoord(x: 0.1, y: 0.5));
       await tapText(tester, 'Ball');
 
@@ -586,7 +590,7 @@ void main() {
 
   group('strikeout (§11.3 automatic state)', () {
     Future<void> skipToOutcome(WidgetTester tester) async {
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
     }
 
@@ -641,7 +645,7 @@ void main() {
     testWidgets('an unknown outcome tints the HUD and says so', (tester) async {
       await pumpLoop(tester);
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Unknown');
 
@@ -709,7 +713,7 @@ void main() {
         'its forced advance, not without it', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Ball');
       }
@@ -725,7 +729,7 @@ void main() {
     testWidgets('a pitch that skipped the call comes back with no call — '
         'a zone without a type is not a call (§10.3)', (tester) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await placeActualAt(tester, ZoneCoord(x: 0.1, y: 0.2));
       await tapText(tester, 'Ball');
 
@@ -744,7 +748,7 @@ void main() {
       await pumpLoop(tester);
       // In play with no location, then take the standing offer — that
       // backfill is a correction, not a new pitch.
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
       await commitMinimalPlay(tester);
@@ -782,7 +786,7 @@ void main() {
   group('undo stops at the plate appearance (§11.3 v0.54)', () {
     /// One taken pitch, no call, no location.
     Future<void> pitch(WidgetTester tester, String outcome) async {
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, outcome);
     }
@@ -995,7 +999,7 @@ void main() {
         'and leaves the previous pitch alone', (tester) async {
       await pumpLoop(tester);
       // A committed pitch to sit behind the idle field.
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Ball');
       await tapKey(tester, openIdleFieldKey);
@@ -1025,7 +1029,7 @@ void main() {
     ) async {
       await pumpLoop(tester);
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Ball');
       expect(find.text('1-0', findRichText: true), findsOneWidget);
@@ -1045,12 +1049,12 @@ void main() {
         reason: 'nothing to take, so not on screen (§23.1 v0.63)',
       );
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Ball');
       expect(find.text('UNDO BALL'), findsOneWidget);
 
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'Called strike');
       expect(find.text('UNDO STRIKE'), findsOneWidget);
@@ -1062,7 +1066,7 @@ void main() {
         'returns straight to the call screen', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Ball');
       }
@@ -1081,7 +1085,7 @@ void main() {
         'forced advance, one action-scoped unit (§6)', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Ball');
       }
@@ -1152,7 +1156,7 @@ void main() {
         'the at-bat ended — and the K consequence fires', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Called strike');
       }
@@ -1170,7 +1174,7 @@ void main() {
         'box', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Called strike');
       }
@@ -1204,7 +1208,7 @@ void main() {
       tester,
     ) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, "Catcher's interference");
 
@@ -1237,7 +1241,7 @@ void main() {
     testWidgets('the five primaries are in the same places whatever the '
         'location was', (tester) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
 
       // In the zone. The sheet used to promote "Called strike" to a confirm
       // button here — its most confident case and its worst one, since a
@@ -1284,7 +1288,7 @@ void main() {
     testWidgets('dismissing it returns to the location step with nothing '
         'committed — the choice still takes a tap', (tester) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       expect(find.byKey(outcomeInPlayKey), findsOneWidget);
 
@@ -1312,7 +1316,7 @@ void main() {
     // belongs to the loop's *return*, so these tests discard the play to get
     // back — the offer must survive the whole field-entry detour.
     Future<void> inPlayUnlocated(WidgetTester tester) async {
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapText(tester, 'In play');
       await commitMinimalPlay(tester);
@@ -1321,7 +1325,7 @@ void main() {
     testWidgets('no offer when the in-play pitch was located — there is '
         'nothing to fill in', (tester) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: 0.6));
       await tapText(tester, 'In play');
       await commitMinimalPlay(tester);
@@ -1350,7 +1354,7 @@ void main() {
       await inPlayUnlocated(tester);
       expect(find.byKey(recordLastPitchKey), findsOneWidget);
 
-      await tapText(tester, 'Skip call'); // next pitch is underway
+      await tapText(tester, 'Jump here — no call'); // next pitch is underway
       expect(find.byKey(recordLastPitchKey), findsNothing);
     });
 
@@ -1384,11 +1388,11 @@ void main() {
     /// pitch commits here; what follows is only how the D3K ended.
     Future<void> d3kUnlocated(WidgetTester tester) async {
       for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Called strike');
       }
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       await tapKey(tester, outcomeD3kKey);
       await tapKey(tester, d3kSwingingKey);
@@ -1454,11 +1458,11 @@ void main() {
         'arming this for every pitch', (tester) async {
       await pumpLoop(tester);
       for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Called strike');
       }
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await placeActualAt(tester, ZoneCoord(x: 0.2, y: -0.3));
       await tapKey(tester, outcomeD3kKey);
       await tapKey(tester, d3kSwingingKey);
@@ -1584,11 +1588,11 @@ void main() {
     /// Two called strikes, then open the outcome sheet on the third pitch.
     Future<void> toThirdStrikeSheet(WidgetTester tester) async {
       for (var i = 0; i < 2; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Called strike');
       }
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
     }
 
@@ -1602,14 +1606,14 @@ void main() {
     testWidgets('absent at one strike, and absent when the rules prevent her '
         'running', (tester) async {
       await pumpLoop(tester);
-      await tapText(tester, 'Skip call');
+      await tapText(tester, 'Jump here — no call');
       await tapText(tester, 'Skip location');
       expect(find.byKey(outcomeD3kKey), findsNothing, reason: '0 strikes');
       await tapText(tester, 'Called strike');
 
       // Put a runner on first: now she may not run with fewer than two out.
       for (var i = 0; i < 4; i++) {
-        await tapText(tester, 'Skip call');
+        await tapText(tester, 'Jump here — no call');
         await tapText(tester, 'Skip location');
         await tapText(tester, 'Ball');
       }
@@ -1686,6 +1690,157 @@ void main() {
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();
       expect((await stream()).length, before + 2, reason: 'the two strikes');
+    });
+  });
+
+  group('the rail and the batter strip (DIA-021)', () {
+    String status(WidgetTester tester) =>
+        tester.widget<Text>(find.byKey(railStatusKey)).data!;
+
+    testWidgets('two stops, the second live from the start, and no Skip call '
+        '— jumping drops the call and opens the zone', (tester) async {
+      await pumpLoop(tester);
+
+      expect(find.text('Skip call'), findsNothing);
+      expect(find.textContaining('Yell it, then'), findsOneWidget);
+      expect(status(tester), 'PITCH 1 · CALL');
+
+      await tapText(tester, 'Fastball');
+      await tapText(tester, 'Jump here — no call');
+
+      expect(find.byType(CallScreen), findsNothing);
+      expect(container.read(pitchFlowProvider).step, PitchStep.actual);
+      expect(container.read(pitchFlowProvider).intent, isNull);
+      expect(container.read(callDraftProvider).hasType, isFalse);
+      expect(find.text('No call'), findsOneWidget);
+      expect(status(tester), 'PITCH 1 · RECORD');
+
+      await tapText(tester, 'Skip location');
+      await tapText(tester, 'Ball');
+      expect((await lastPitch()).intendedZoneId, isNull);
+    });
+
+    testWidgets('the pitch number counts this plate appearance, and starts '
+        'over for the next batter', (tester) async {
+      await pumpLoop(tester);
+      Future<void> pitch(String outcome) async {
+        await tapText(tester, 'Jump here — no call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, outcome);
+      }
+
+      await pitch('Ball');
+      await pitch('Foul');
+      expect(status(tester), 'PITCH 3 · CALL');
+
+      await pitch('Called strike');
+      await pitch('Called strike');
+      expect(status(tester), 'PITCH 1 · CALL', reason: 'a strikeout ends it');
+    });
+
+    testWidgets('once the ✓ freezes the call, the first stop echoes it in '
+        'words', (tester) async {
+      await pumpLoop(tester);
+      await tapText(tester, 'Fastball');
+      await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5));
+      final code = tester.widget<Text>(find.byKey(callScreenCodeKey)).data;
+      await tapKey(tester, callScreenPitchThrownKey);
+
+      expect(find.text('Fastball · Middle · $code'), findsOneWidget);
+    });
+
+    testWidgets('Discard pitch on the location step drops the call and '
+        'writes nothing (DIA-021b)', (tester) async {
+      await pumpLoop(tester);
+      final before = (await stream()).length;
+
+      await tapText(tester, 'Fastball');
+      await tapCanvasAt(tester, ZoneCoord(x: 0, y: 0.5));
+      await tapKey(tester, callScreenPitchThrownKey);
+      await tapText(tester, 'Discard pitch');
+
+      expect(find.byType(CallScreen), findsOneWidget);
+      expect(container.read(callDraftProvider).hasType, isFalse);
+      expect(container.read(pitchFlowProvider).intent, isNull);
+      expect(find.text('Discard pitch'), findsNothing, reason: 'nothing left');
+      expect((await stream()).length, before);
+    });
+
+    testWidgets('BATS writes the side each pitch records, and the next batter '
+        'does not inherit a flip', (tester) async {
+      await pumpLoop(tester);
+      await tapKey(tester, batsLeftKey);
+
+      Future<void> pitch(String outcome) async {
+        await tapText(tester, 'Jump here — no call');
+        await tapText(tester, 'Skip location');
+        await tapText(tester, outcome);
+      }
+
+      await pitch('Ball');
+      expect((await lastPitch()).batterSide, BatterSide.L);
+      for (var i = 0; i < 3; i++) {
+        await pitch('Called strike');
+      }
+
+      expect(container.read(batterSideProvider), BatterSide.R);
+      await pitch('Ball');
+      final next = await lastPitch();
+      expect(next.batterId, 'opp-2');
+      expect(next.batterSide, BatterSide.R);
+    });
+
+    test(
+      'a batter back up starts on the side her last pitch recorded',
+      () async {
+        await container.read(gameControllerProvider.future);
+        final game = container.read(gameControllerProvider.notifier);
+        await game.append(
+          type: 'PitchThrown',
+          payload: PitchThrown(
+            pitcherId: 'p',
+            batterId: 'opp-1',
+            batterSide: BatterSide.L,
+            outcome: Outcome.IN_PLAY,
+          ).toJson(),
+        );
+        expect(container.read(dueBatterProvider), 'opp-2');
+        expect(container.read(batterSideProvider), BatterSide.R);
+
+        expect(
+          await container.read(lastBatterSideProvider('opp-1').future),
+          BatterSide.L,
+        );
+        expect(
+          await container.read(lastBatterSideProvider('opp-2').future),
+          isNull,
+          reason: 'no pitch yet, so the strip falls back to Right',
+        );
+
+        // Around the order once: she is due again, and starts on Left.
+        for (var n = 2; n <= 9; n++) {
+          await game.append(
+            type: 'PitchThrown',
+            payload: PitchThrown(
+              pitcherId: 'p',
+              batterId: 'opp-$n',
+              batterSide: BatterSide.R,
+              outcome: Outcome.IN_PLAY,
+            ).toJson(),
+          );
+        }
+        expect(container.read(dueBatterProvider), 'opp-1');
+        await container.read(lastBatterSideProvider('opp-1').future);
+        expect(container.read(batterSideProvider), BatterSide.L);
+      },
+    );
+
+    testWidgets('FIELD is on the strip between pitches and gone once a pitch '
+        'is underway', (tester) async {
+      await pumpLoop(tester);
+      expect(find.byKey(openIdleFieldKey), findsOneWidget);
+      await tapText(tester, 'Jump here — no call');
+      expect(find.byKey(openIdleFieldKey), findsNothing);
     });
   });
 }

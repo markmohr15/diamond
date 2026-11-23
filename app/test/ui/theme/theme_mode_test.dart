@@ -1,6 +1,6 @@
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/game/game_session.dart';
-import 'package:diamond/src/ui/loop/count_hud.dart';
+import 'package:diamond/src/ui/loop/pitch_chrome.dart';
 import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
 import 'package:drift/native.dart';
@@ -73,7 +73,8 @@ void main() {
     expect(await relaunch().read(themeModeProvider.future), ThemeMode.light);
   });
 
-  testWidgets('the top-bar button flips the theme and it reaches MaterialApp', (
+  testWidgets("the batter strip's LIGHT / DARK sets the theme and it reaches "
+      'MaterialApp (DIA-021)', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -85,29 +86,33 @@ void main() {
         tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode!;
     expect(modeOnApp(), ThemeMode.light);
 
-    // One tap, no sheet in between.
-    await tester.tap(find.byKey(countHudThemeKey));
+    // One tap, no sheet in between — and each segment says what it sets,
+    // so tapping the one already chosen changes nothing.
+    await tester.tap(find.byKey(themeDarkKey));
     await tester.pumpAndSettle();
     expect(modeOnApp(), ThemeMode.dark);
 
-    await tester.tap(find.byKey(countHudThemeKey));
+    await tester.tap(find.byKey(themeDarkKey));
+    await tester.pumpAndSettle();
+    expect(modeOnApp(), ThemeMode.dark);
+
+    await tester.tap(find.byKey(themeLightKey));
     await tester.pumpAndSettle();
     expect(modeOnApp(), ThemeMode.light);
   });
 }
 
-/// The count HUD under a `MaterialApp` whose `themeMode` the test reads —
+/// The batter strip under a `MaterialApp` whose `themeMode` the test reads —
 /// the smallest tree that proves the wiring end to end.
 class _App extends ConsumerWidget {
   const _App();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp(
-    // The real themes: `CountHud` reads `DiamondSemantics`, which only
-    // `buildTheme` installs.
+    // The real themes, as the app installs them.
     theme: ref.watch(lightThemeProvider),
     darkTheme: ref.watch(darkThemeProvider),
     themeMode: ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system,
-    home: const Scaffold(body: CountHud()),
+    home: const Scaffold(body: BatterStrip(showBats: true)),
   );
 }

@@ -90,7 +90,7 @@ void main() {
 
   /// One skipped-entry pitch: skip call, skip location, tap [outcome].
   Future<void> quickPitch(WidgetTester tester, String outcome) async {
-    await tapText(tester, 'Skip call');
+    await tapText(tester, 'Jump here — no call');
     await tapText(tester, 'Skip location');
     await tapText(tester, outcome);
   }
