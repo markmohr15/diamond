@@ -333,7 +333,7 @@ void main() {
         reason: 'a low call commits a low ZoneCoord',
       );
       expect(committed!.y, lessThan(geometry.groundY));
-      expect(find.text('CALL'), findsOneWidget);
+      expect(find.text('IN THE DIRT'), findsNothing);
     });
 
     testWidgets('REGRESSION: arming in the dirt and dragging up into the zone '
@@ -465,7 +465,6 @@ void main() {
       expect(bounced, isFalse);
       expect(committed, isFalse);
       expect(find.text('IN THE DIRT'), findsNothing);
-      expect(find.text('ACTUAL'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Skip location'), findsOneWidget);
     });
@@ -522,27 +521,6 @@ void main() {
   // recorded anywhere on the canvas, so a label that swallows presses makes the
   // region it covers uncapturable.
   group('Canvas overlays take no pointer events', () {
-    testWidgets('a press under the mode banner commits in the frontal plane', (
-      tester,
-    ) async {
-      ZoneCoord? committed;
-      await tester.pumpWidget(_Harness(onCommit: (c) => committed = c));
-
-      final banner = tester.getRect(find.text('ACTUAL'));
-      final gesture = await tester.startGesture(banner.center);
-      await tester.pump(
-        zoneCanvasArmDuration + const Duration(milliseconds: 50),
-      );
-      await gesture.up();
-      await tester.pump();
-
-      expect(
-        committed,
-        isNotNull,
-        reason: 'the banner swallowed the press instead of letting it through',
-      );
-    });
-
     testWidgets('a press under the banner commits in the top-down plane too', (
       tester,
     ) async {
@@ -762,16 +740,17 @@ void main() {
   });
 
   group('ZoneCanvas mode labeling', () {
-    testWidgets('shows CALL banner in call mode', (tester) async {
-      await tester.pumpWidget(const _Harness(mode: ZoneCanvasIntent.call));
-      expect(find.text('CALL'), findsOneWidget);
-      expect(find.text('ACTUAL'), findsNothing);
-    });
-
-    testWidgets('shows ACTUAL banner in actual mode', (tester) async {
-      await tester.pumpWidget(const _Harness());
-      expect(find.text('ACTUAL'), findsOneWidget);
-      expect(find.text('CALL'), findsNothing);
-    });
+    // The rail says which step you are on (DIA-021d); the hinge is the one
+    // change of picture nothing else announces, so it keeps its banner.
+    for (final mode in ZoneCanvasIntent.values) {
+      testWidgets('the frontal plane carries no mode banner (${mode.name})', (
+        tester,
+      ) async {
+        await tester.pumpWidget(_Harness(mode: mode));
+        expect(find.text('CALL'), findsNothing);
+        expect(find.text('ACTUAL'), findsNothing);
+        expect(find.text('IN THE DIRT'), findsNothing);
+      });
+    }
   });
 }

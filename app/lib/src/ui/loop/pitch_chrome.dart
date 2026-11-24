@@ -1,12 +1,13 @@
 import 'dart:math' as math;
 
 import 'package:diamond/src/call/canonical_cells.dart';
-import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
+import 'package:diamond/src/ui/call/call_words.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
+import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -32,35 +33,6 @@ const Key railCallKey = Key('railCall');
 const Key railRecordKey = Key('railRecord');
 @visibleForTesting
 const Key railStatusKey = Key('railStatus');
-
-/// A canonical cell in words, from the batter's point of view: *Low away*,
-/// *Up in*, *Middle*. The ring cells read *Below*, *High*, *Off in* and
-/// *Off away*, so a pitch off the plate never reads as a strike.
-String describeCell(CanonicalCell cell) {
-  const rows = ['Below', 'Low', 'Middle', 'Up', 'High'];
-  const columns = ['off in', 'in', 'middle', 'away', 'off away'];
-  if (cell.row == 2 && cell.column == 2) return 'Middle';
-  return '${rows[cell.row]} ${columns[cell.column]}';
-}
-
-/// The call in words for the rail's first stop: *Drop · Low middle · 702*.
-///
-/// A zone of one cell is named by the cell, because the fine layout's zone
-/// labels are its cell ids; a grouped zone (*Bury*, *Off In*) keeps its
-/// coach-given label.
-String describeCall(TeamCallConfig config, CallIntent intent) {
-  final type = config.arsenal
-      .where((t) => t.id == intent.pitchTypeId)
-      .map((t) => t.name)
-      .firstOrNull;
-  final zone = config.layout.byId(intent.zoneId);
-  final where = zone == null
-      ? intent.zoneId
-      : zone.cells.length == 1
-      ? describeCell(zone.cells.single)
-      : zone.label;
-  return [type ?? intent.pitchTypeId, where, ?intent.code].join(' · ');
-}
 
 /// Where the pitch went, in words, for the rail's second stop. [actual] is
 /// absolute (§3.1), so it is turned to the batter's frame before it is
@@ -403,7 +375,14 @@ class PitchRail extends ConsumerWidget {
         : _RailStop(
             key: railCallKey,
             number: '1 CALL',
-            text: intent == null ? 'No call' : describeCall(config, intent),
+            text: intent == null
+                ? 'No call'
+                : describeCall(
+                    config,
+                    pitchTypeId: intent.pitchTypeId,
+                    zoneId: intent.zoneId,
+                    code: intent.code,
+                  ),
             state: _StopState.done,
             checked: intent != null,
             onTap: flow.step == PitchStep.actual ? controller.backToCall : null,
@@ -516,7 +495,9 @@ class _RailStop extends StatelessWidget {
       height: 44,
       padding: const EdgeInsets.symmetric(horizontal: BrandMetrics.spaceMd),
       decoration: BoxDecoration(
-        color: done ? scheme.onSurface : scheme.surfaceContainerLowest,
+        color: done
+            ? scheme.onSurface
+            : BrandBaseline.of(scheme.brightness).card,
         border: border,
         borderRadius: BorderRadius.circular(BrandMetrics.radiusSm),
       ),

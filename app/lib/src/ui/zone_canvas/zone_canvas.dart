@@ -173,6 +173,7 @@ class ZoneCanvas extends StatefulWidget {
     this.onReroll,
     this.skipLabel = 'Skip location',
     this.cancelLabel = 'Cancel',
+    this.cancelCaption,
     this.stripHint,
     super.key,
   });
@@ -204,6 +205,11 @@ class ZoneCanvas extends StatefulWidget {
   /// pass *Discard pitch* (DIA-021b); backfilling a committed pitch keeps
   /// *Cancel*, since there is no new pitch there to discard.
   final String cancelLabel;
+
+  /// Where [onCancel] takes you, as a second line under [cancelLabel] — 15A's
+  /// *Back to the pitch list*. Null for a one-line button, which is right
+  /// wherever the destination would need explaining differently each time.
+  final String? cancelCaption;
 
   /// One muted line in the strip, beside the buttons — 15A's *Nothing is
   /// recorded until ✓.* Frontal plane only.
@@ -466,9 +472,13 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 : [
                     if (widget.onCancel case final cancel?)
                       Expanded(
-                        child: _AffordanceButton(
-                          label: widget.cancelLabel,
-                          onPressed: cancel,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _CancelButton(
+                            label: widget.cancelLabel,
+                            caption: widget.cancelCaption,
+                            onPressed: cancel,
+                          ),
                         ),
                       ),
                     if (widget.stripHint case final hint?)
@@ -500,7 +510,7 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                     ],
                     // Holds the strip's height when every control is hidden,
                     // so the canvas above never jumps (§11.4's stable rect).
-                    const SizedBox(height: 44),
+                    const SizedBox(height: _stripHeight),
                   ],
           ),
         ),
@@ -723,6 +733,11 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                           context,
                         ).callableOutline,
                         accent: Theme.of(context).colorScheme.primary,
+                        // Off only means something once a pitch is picked:
+                        // until then the grid is inert, not empty.
+                        offOutline: widget.onZoneSelected == null
+                            ? null
+                            : DiamondSemantics.of(context).callableOff,
                       ),
                     ),
                   ),
@@ -745,13 +760,16 @@ class _ZoneCanvasState extends State<ZoneCanvas> {
                 // makes the region it covers uncapturable, and a pitch may be
                 // recorded anywhere on the canvas. Worse after the hinge,
                 // where the banner sits over live dirt.
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: IgnorePointer(
-                    child: _ModeBanner(mode: widget.mode, plane: _plane),
+                //
+                // Only the hinge is labeled: the rail says which step you are
+                // on (DIA-021), but nothing else says the picture turned
+                // into the dirt seen from above.
+                if (topDown)
+                  const Positioned(
+                    top: 8,
+                    left: 8,
+                    child: IgnorePointer(child: _ModeBanner()),
                   ),
-                ),
               ],
             ),
           ),
@@ -1549,20 +1567,11 @@ class _DepthUnknownBand extends StatelessWidget {
 }
 
 class _ModeBanner extends StatelessWidget {
-  const _ModeBanner({required this.mode, required this.plane});
-
-  final ZoneCanvasIntent mode;
-  final ZoneCanvasPlane plane;
+  const _ModeBanner();
 
   @override
   Widget build(BuildContext context) {
-    // The top-down plane never appears in call mode, so its banner replaces the
-    // mode label outright rather than qualifying it.
-    final label = switch ((mode, plane)) {
-      (_, ZoneCanvasPlane.topDown) => 'IN THE DIRT',
-      (ZoneCanvasIntent.call, _) => 'CALL',
-      (ZoneCanvasIntent.actual, _) => 'ACTUAL',
-    };
+    const label = 'IN THE DIRT';
     final scheme = Theme.of(context).colorScheme;
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -1589,6 +1598,85 @@ class _ModeBanner extends StatelessWidget {
   }
 }
 
+/// The control strip's height in both planes: the cancel button's, which is
+/// the tallest thing in it. Fixed, so the canvas above is the same size
+/// whichever controls are showing (§11.4's stable rect).
+const double _stripHeight = 56;
+
+/// 15A's *Discard pitch*: a bordered button with an ✕, so it reads as an
+/// action rather than as a link. With a [caption], the label becomes an
+/// eyebrow over where it takes you.
+class _CancelButton extends StatelessWidget {
+  const _CancelButton({
+    required this.label,
+    required this.caption,
+    required this.onPressed,
+  });
+
+  final String label;
+  final String? caption;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final strong = Theme.of(context).textTheme.titleSmall?.copyWith(
+      color: scheme.onSurface,
+      fontWeight: FontWeight.w700,
+    );
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(44, _stripHeight),
+        maximumSize: const Size.fromHeight(_stripHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        foregroundColor: scheme.onSurface,
+        side: BorderSide(color: scheme.outline, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.close, size: 18),
+          const SizedBox(width: 10),
+          Flexible(
+            child: switch (caption) {
+              null => Text(
+                label,
+                style: strong,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              final caption => Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label.toUpperCase(),
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      fontFamily: BrandType.mono,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  Text(
+                    caption,
+                    style: strong,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AffordanceButton extends StatelessWidget {
   const _AffordanceButton({required this.label, required this.onPressed});
 
@@ -1598,7 +1686,7 @@ class _AffordanceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: _stripHeight,
       child: TextButton(
         onPressed: onPressed,
         style: TextButton.styleFrom(

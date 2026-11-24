@@ -253,7 +253,7 @@ void main() {
       await tapAt(tester, ZoneCoord(x: -0.8, y: 0.5));
       expect(draft().pending, isNotNull);
 
-      await tester.tap(find.text('Discard pitch'));
+      await tester.tap(find.text('DISCARD PITCH'));
       await tester.pumpAndSettle();
 
       expect(draft().hasType, isFalse);
@@ -268,7 +268,7 @@ void main() {
       await pumpScreen(tester);
       await selectType(tester, 'Drop');
       final canvas = tester.getRect(find.byKey(zoneCanvasDrawingAreaKey));
-      final cancel = tester.getRect(find.text('Discard pitch'));
+      final cancel = tester.getRect(find.text('DISCARD PITCH'));
 
       expect(canvas.overlaps(cancel), isFalse);
     });
@@ -277,7 +277,7 @@ void main() {
       tester,
     ) async {
       await pumpScreen(tester);
-      expect(find.text('Discard pitch'), findsNothing);
+      expect(find.text('DISCARD PITCH'), findsNothing);
       expect(
         find.text('Skip call'),
         findsNothing,
@@ -285,7 +285,37 @@ void main() {
       );
 
       await selectType(tester, 'Drop');
-      expect(find.text('Discard pitch'), findsOneWidget);
+      expect(find.text('DISCARD PITCH'), findsOneWidget);
+    });
+  });
+
+  group('the call in words (DIA-021d)', () {
+    String echo(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(callScreenEchoKey))
+        .textSpan!
+        .toPlainText();
+
+    testWidgets('the call is echoed under the code, with the swipe named '
+        '(§10.3)', (tester) async {
+      await pumpScreen(tester);
+      await selectType(tester, 'Drop');
+      expect(
+        find.byKey(callScreenEchoKey),
+        findsNothing,
+        reason: 'a half-made call has nothing to echo',
+      );
+
+      await tapAt(tester, ZoneCoord(x: -0.8, y: 0.5));
+      final code = draft().pending!.code!;
+      expect(
+        echo(tester),
+        'Drop · Middle in · #$code  ·  swipe the code for another',
+      );
+
+      // A re-roll changes the number, and the echo follows it.
+      container.read(callDraftProvider.notifier).reroll();
+      await tester.pumpAndSettle();
+      expect(echo(tester), contains('#${draft().pending!.code}'));
     });
   });
 
@@ -328,7 +358,7 @@ void main() {
       await selectType(tester, 'Fastball');
       final before = tester.getRect(find.byKey(zoneCanvasDrawingAreaKey));
 
-      await tester.tap(find.text('Discard pitch'));
+      await tester.tap(find.text('DISCARD PITCH'));
       await tester.pumpAndSettle();
       await selectType(tester, 'Change');
 
