@@ -22,6 +22,7 @@ class CallGridPainter extends CustomPainter {
     required this.callableFill,
     required this.callableOutline,
     required this.accent,
+    this.offOutline,
   });
 
   final CallZoneLayout layout;
@@ -35,18 +36,32 @@ class CallGridPainter extends CustomPainter {
   final BatterSide batterSide;
 
   /// Marks a zone as available to call — green, from
-  /// `DiamondSemantics.callable`. Zones that are *not* callable are simply not
-  /// drawn: absence is the quietest possible treatment, and it leaves the
-  /// ground furniture underneath unobscured.
+  /// `DiamondSemantics.callable`. A ring zone that is *not* callable is simply
+  /// not drawn: absence is the quietest possible treatment, and it leaves the
+  /// ground furniture underneath unobscured. An in-zone one is dashed
+  /// ([offOutline]).
   /// The wash and its border (§23.2 v0.47). Both arrive at their final
-  /// opacity — Grass at 14/18% and 34/42% — so this paints them as given.
+  /// opacity — §23.2's figures, Grass in light and Grass-as-line in dark —
+  /// so this paints them as given.
   /// Multiplying an alpha here again would compound with the token and put
   /// the wash back under the threshold where it reads as a smudge.
   final Color callableFill;
   final Color callableOutline;
 
-  /// The one zone already chosen (§23.1.3 — the accent goes to the datum).
+  /// The one zone already chosen (§23.1.3 — the accent goes to the datum),
+  /// filled solid: §23.2's *called* step.
   final Color accent;
+
+  /// §23.2's *off* step: the dashed edge of an in-zone cell the pitch in hand
+  /// cannot be called to. Null draws none — before a pitch is picked nothing
+  /// is callable *or* off, and dashing the whole zone would say "nothing can
+  /// be called here" when what is true is "pick a pitch first."
+  final Color? offOutline;
+
+  /// Gap between a spot and the cell it sits in, so neighboring spots read
+  /// as separate targets rather than one shaded block (15A).
+  static const double _inset = 3;
+  static const Radius _corner = Radius.circular(4);
 
   double _absoluteX(double relativeX) =>
       batterSide == BatterSide.L ? -relativeX : relativeX;
@@ -75,46 +90,59 @@ class CallGridPainter extends CustomPainter {
     );
   }
 
+  RRect _spot(CallZone zone, Size size) =>
+      RRect.fromRectAndRadius(_zoneRect(zone, size).deflate(_inset), _corner);
+
   @override
   void paint(Canvas canvas, Size size) {
-    // Only what can be called is drawn. No dividing lines: the canvas already
-    // carries the zone rect and its 3x3, and a second grid over the top of the
-    // ground furniture was ink competing with the markers rather than carrying
-    // information (§23.1.1).
+    // §23.2's three steps on one hue: wash = callable, solid = called,
+    // dashed = off. A ring cell that is not callable is simply not drawn —
+    // off the plate, absence already says it, and it leaves the ground
+    // furniture underneath unobscured. No dividing lines either: the canvas
+    // carries the zone rect and its 3x3 (§23.1.1).
+    final wash = Paint()..color = callableFill;
+    final washEdge = Paint()
+      ..color = callableOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    final off = offOutline;
     for (final zone in layout.zones) {
-      if (!callableZoneIds.contains(zone.id) || zone.id == selectedZoneId) {
-        continue;
-      }
-      final rect = _zoneRect(zone, size);
-      canvas
-        ..drawRect(rect, Paint()..color = callableFill)
-        ..drawRect(
-          rect,
+      if (zone.id == selectedZoneId) continue;
+      final spot = _spot(zone, size);
+      if (callableZoneIds.contains(zone.id)) {
+        canvas
+          ..drawRRect(spot, wash)
+          ..drawRRect(spot, washEdge);
+      } else if (off != null && !zone.isChase) {
+        canvas.drawPath(
+          _dashed(Path()..addRRect(spot)),
           Paint()
-            ..color = callableOutline
+            ..color = off
             ..style = PaintingStyle.stroke
             ..strokeWidth = 1.5,
         );
-    }
-
-    // The accent goes to the datum (§23.1.3): the one zone chosen, drawn last
-    // so it reads over the field of available ones.
-    final selected = selectedZoneId;
-    if (selected != null) {
-      final zone = layout.byId(selected);
-      if (zone != null) {
-        final rect = _zoneRect(zone, size);
-        canvas
-          ..drawRect(rect, Paint()..color = accent.withValues(alpha: 0.30))
-          ..drawRect(
-            rect,
-            Paint()
-              ..color = accent
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 3,
-          );
       }
     }
+
+    // The accent goes to the datum (§23.1.3): the one zone chosen, solid,
+    // drawn last so it reads over the field of available ones.
+    final zone = selectedZoneId == null ? null : layout.byId(selectedZoneId!);
+    if (zone != null) {
+      canvas.drawRRect(_spot(zone, size), Paint()..color = accent);
+    }
+  }
+
+  /// [source] as 6-on, 5-off dashes (15A).
+  static Path _dashed(Path source) {
+    const dash = 6.0;
+    const gap = 5.0;
+    final out = Path();
+    for (final metric in source.computeMetrics()) {
+      for (var d = 0.0; d < metric.length; d += dash + gap) {
+        out.addPath(metric.extractPath(d, d + dash), Offset.zero);
+      }
+    }
+    return out;
   }
 
   @override
@@ -124,5 +152,7 @@ class CallGridPainter extends CustomPainter {
       oldDelegate.batterSide != batterSide ||
       oldDelegate.callableZoneIds != callableZoneIds ||
       oldDelegate.accent != accent ||
-      oldDelegate.callableFill != callableFill;
+      oldDelegate.callableFill != callableFill ||
+      oldDelegate.callableOutline != callableOutline ||
+      oldDelegate.offOutline != offOutline;
 }

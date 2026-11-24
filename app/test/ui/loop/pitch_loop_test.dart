@@ -1746,7 +1746,7 @@ void main() {
       final code = tester.widget<Text>(find.byKey(callScreenCodeKey)).data;
       await tapKey(tester, callScreenPitchThrownKey);
 
-      expect(find.text('Fastball · Middle · $code'), findsOneWidget);
+      expect(find.text('Fastball · Middle · #$code'), findsOneWidget);
     });
 
     testWidgets('Discard pitch on the location step drops the call and '

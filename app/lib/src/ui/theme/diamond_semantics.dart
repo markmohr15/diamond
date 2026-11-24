@@ -21,6 +21,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     required this.misplay,
     required this.callable,
     required this.callableOutline,
+    required this.callableOff,
     required this.grassLine,
     required this.clayLine,
   });
@@ -38,12 +39,23 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
         // most of the time. A hue of its own would put permanent alert
         // weight across half the grid, and a green a few degrees off Grass
         // is the collision actually worth fearing.
-        callable: BrandBaseline.grass.withValues(
-          alpha: baseline.brightness == Brightness.light ? 0.14 : 0.18,
-        ),
-        callableOutline: BrandBaseline.grass.withValues(
-          alpha: baseline.brightness == Brightness.light ? 0.34 : 0.42,
-        ),
+        //
+        // Dark builds all three from Grass-as-line (v0.75). From Grass at
+        // 18% / 42% the callable edge measured 1.24:1 against the zone while
+        // the off dashes measured 2.41:1 — the step that means *can't* was
+        // the loudest of the three. Lifted, callable's edge is ~3:1 and the
+        // dashes drop to ~1.6:1, so the order is called > callable > off.
+        callable: baseline.brightness == Brightness.light
+            ? BrandBaseline.grass.withValues(alpha: 0.14)
+            : BrandBaseline.grassLit.withValues(alpha: 0.22),
+        callableOutline: baseline.brightness == Brightness.light
+            ? BrandBaseline.grass.withValues(alpha: 0.34)
+            : BrandBaseline.grassLit.withValues(alpha: 0.70),
+        // The third step is a line, so it takes Grass-as-line too, and sits
+        // below callable's edge in both themes (15A).
+        callableOff: baseline.brightness == Brightness.light
+            ? BrandBaseline.grass.withValues(alpha: 0.55)
+            : BrandBaseline.grassLit.withValues(alpha: 0.30),
         // The "as line" row of §23.3's table, which until now had no home in
         // code. Grass and Clay keep their light values wherever they are a
         // *fill* with Chalk on top — those are BrandBaseline.grass/clay — and
@@ -80,6 +92,12 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
   final Color callable;
   final Color callableOutline;
 
+  /// The dashed step: a cell inside the strike zone that the pitch in hand
+  /// cannot be called to. Ring cells are never drawn off — off the plate,
+  /// absence says it — but an in-zone hole would read as part of the zone
+  /// rect's scaffolding, so it gets a dashed edge instead (15A).
+  final Color callableOff;
+
   /// Grass and Clay as **line** rather than fill — brand tier 1, so neither
   /// moves with a team accent (§23.3). The splash tagline is [grassLine]; the
   /// splash progress fill is [clayLine].
@@ -97,6 +115,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     Color? misplay,
     Color? callable,
     Color? callableOutline,
+    Color? callableOff,
     Color? grassLine,
     Color? clayLine,
   }) => DiamondSemantics(
@@ -105,6 +124,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
     misplay: misplay ?? this.misplay,
     callable: callable ?? this.callable,
     callableOutline: callableOutline ?? this.callableOutline,
+    callableOff: callableOff ?? this.callableOff,
     grassLine: grassLine ?? this.grassLine,
     clayLine: clayLine ?? this.clayLine,
   );
@@ -118,6 +138,7 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       misplay: Color.lerp(misplay, other.misplay, t)!,
       callable: Color.lerp(callable, other.callable, t)!,
       callableOutline: Color.lerp(callableOutline, other.callableOutline, t)!,
+      callableOff: Color.lerp(callableOff, other.callableOff, t)!,
       grassLine: Color.lerp(grassLine, other.grassLine, t)!,
       clayLine: Color.lerp(clayLine, other.clayLine, t)!,
     );
@@ -130,6 +151,8 @@ class DiamondSemantics extends ThemeExtension<DiamondSemantics> {
       other.onUncertainty == onUncertainty &&
       other.misplay == misplay &&
       other.callable == callable &&
+      other.callableOutline == callableOutline &&
+      other.callableOff == callableOff &&
       other.grassLine == grassLine &&
       other.clayLine == clayLine;
 

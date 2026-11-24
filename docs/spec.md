@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.74)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.75)
 
-**Status:** Draft for review — v0.74 makes the fielder with the ball and a runner off her bag, dropped one on the other, a tag out (§15.1). v0.73 stands every runner a batted ball did not force a little off her bag, and lets a throw ask SAFE/OUT about the runner on the base before the one it reached (§15.1). v0.72 opens the receiver's menu when the fielder who caught a throw is tapped, instead of taking the ball from her (§15.1). Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.75 builds dark mode's callable wash from Grass-as-line and quiets the dashed off step below it, so a spot that can be called outranks one that cannot (§23.2). v0.74 makes the fielder with the ball and a runner off her bag, dropped one on the other, a tag out (§15.1). v0.73 stands every runner a batted ball did not force a little off her bag, and lets a throw ask SAFE/OUT about the runner on the base before the one it reached (§15.1). Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -1383,8 +1383,10 @@ fielding error is Rosin's job.
 **`callable` is not a reservation.** It shades which zones the call grid can call (§10.1), and the
 three above are *events* — something happened, look here — where this is a standing description of
 where the tool works, true of most zones most of the time. A hue of its own would put permanent alert
-weight across half the grid. It is **Grass in three steps**: wash (14% fill / 34% border in light,
-18% / 42% in dark) = callable · solid = called · dashed = off. The border is not optional; a 14% fill
+weight across half the grid. It is **Grass in three steps**: wash (Grass at 14% fill / 34% border in light; Grass-as-line at
+22% / 70% in dark) = callable · solid = called · dashed = off (Grass at 55% in light, Grass-as-line
+at 30% in dark). In both themes the steps rank called > callable > off: the dashes mark what cannot
+be called and must never be louder than what can (v0.75). The border is not optional; a 14% fill
 alone reads as a smudge rather than a cell. The general rule: **a reserved color is for an event, not
 a state** — anything standing and common takes a step on an existing hue.
 

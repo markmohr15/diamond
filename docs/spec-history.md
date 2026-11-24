@@ -3,6 +3,21 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.75
+
+**Dark mode's callable wash is built from Grass-as-line, and the dashed off step sits below it
+(§23.2).** DIA-021d, ruled by Mark on 2026-11-23.
+
+**Why.** Mark, on the dark call screen: *"we need the available zones to contrast a little more
+than the unavailable zones."* Measured against the dark zone fill, the callable wash's border was
+1.24:1 and the off step's dashes 2.41:1 — the step meaning *cannot be called* was the loudest of
+the three. The wash was Grass, which §23.3 already says disappears on Ink as a line; the dashes,
+drawn later, had used Grass-as-line.
+
+**What changed.** In dark, callable is Grass-as-line at 22% fill / 70% border (≈1.4:1 / 3:1), and
+off is Grass-as-line dashes at 30% (≈1.6:1). Light is unchanged, with off stated as Grass at 55%.
+The rule stated with it: in both themes the steps rank called > callable > off.
+
 ## v0.74
 
 **The holder and a runner off her bag, one dropped on the other, make a tag (§15.1).** DIA-029,

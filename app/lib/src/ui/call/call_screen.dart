@@ -1,7 +1,9 @@
 import 'package:diamond/src/call/team_config.dart';
 import 'package:diamond/src/call/wristband_card.dart';
 import 'package:diamond/src/events/generated/events.dart';
+import 'package:diamond/src/ui/call/call_words.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
 import 'package:flutter/material.dart';
@@ -15,18 +17,27 @@ const Key callScreenCodeKey = Key('callScreenCode');
 const Key callScreenTypeRowKey = Key('callScreenTypeRow');
 @visibleForTesting
 const Key callScreenPitchThrownKey = Key('callScreenPitchThrown');
+@visibleForTesting
+const Key callScreenEchoKey = Key('callScreenEcho');
 
-/// Height reserved for the code, whether or not one is showing.
+/// Height reserved for the code and the call echoed under it, whether or not
+/// one is showing.
 ///
-/// §10.3 wants it at 120pt+; `height: 1` on the style makes the line box that
-/// tall exactly, so the constant and the font size move together.
+/// §10.3 wants the code at 120pt+; `height: 1` on the style makes the line box
+/// that tall exactly, so the constant and the font size move together. The
+/// echo line takes the rest.
 // Deliberately not a slot on the type scale (§23.5). The code is the one
 // thing the pitcher reads from across the circle, and 120 is a purpose-built
 // size for that job rather than a step in a ladder — the scale tops out at 44,
 // which is a headline, not a signal. `_codeSlotHeight` derives from it, so it
 // is load-bearing for layout too.
 const double _codeFontSize = 120;
-const double _codeSlotHeight = _codeFontSize;
+const double _echoGap = 6;
+const double _echoLineHeight = 24;
+const double _codeSlotHeight = _codeFontSize + _echoGap + _echoLineHeight;
+
+/// §10.3's checkmark, square, beside the code (15A).
+const double _checkSize = 96;
 
 /// Height of the pitch-type row, fixed rather than sized to its text.
 ///
@@ -141,6 +152,14 @@ class _CallScreenState extends ConsumerState<CallScreen> {
         onTypeSelected: (id) =>
             ref.read(callDraftProvider.notifier).selectType(id),
         pending: pending,
+        echo: pending == null
+            ? null
+            : describeCall(
+                config,
+                pitchTypeId: pending.pitchTypeId,
+                zoneId: pending.zoneId,
+                code: config.usesWristbands ? pending.code : null,
+              ),
         // §10.2: the code exists only when a card does. The checkmark keys
         // off the pending call instead, so verbal-calling teams still get it.
         showCode: config.usesWristbands,
@@ -152,6 +171,7 @@ class _CallScreenState extends ConsumerState<CallScreen> {
       // Hidden until there is something to discard (§23.1) — a pitch type
       // chosen is the first thing a call has.
       cancelLabel: 'Discard pitch',
+      cancelCaption: 'Back to the pitch list',
       onCancel: typeId == null
           ? null
           : () => ref.read(callDraftProvider.notifier).clear(),
@@ -168,6 +188,7 @@ class _CallOverlay extends StatelessWidget {
     required this.selectedTypeId,
     required this.onTypeSelected,
     required this.pending,
+    required this.echo,
     required this.showCode,
     required this.onPitchThrown,
   });
@@ -181,6 +202,10 @@ class _CallOverlay extends StatelessWidget {
   /// completed call.
   final PendingCall? pending;
 
+  /// The call in words under the code (§10.3): *Drop · Low middle · #702*.
+  /// Null exactly when [pending] is.
+  final String? echo;
+
   /// Whether the code is displayed (§10.2, wristbands on). Verbal-calling
   /// teams have a pending call — and a checkmark — but no code to read out.
   final bool showCode;
@@ -190,9 +215,13 @@ class _CallOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Code above the pitch, both at the top: the code is what the coach says
-    // out loud, so it leads. Nothing spells the call out in words — the chip
-    // names the pitch and the accent marks the zone, so a third statement of
-    // the same fact is ink without information (§23.1.1).
+    // out loud, so it leads. The call is echoed small under it (§10.3) — the
+    // code is digits with no pitch meaning, and the echo is how the coach
+    // checks that the number on screen is the call they meant.
+    final scheme = Theme.of(context).colorScheme;
+    final echoStyle = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant, height: 1);
     return Align(
       alignment: Alignment.topCenter,
       child: Column(
@@ -206,30 +235,64 @@ class _CallOverlay extends StatelessWidget {
             height: _codeSlotHeight,
             child: pending == null
                 ? null
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      if (showCode) _CodeDisplay(pending: pending!),
-                      // The pitch-happened checkmark (§10.3, v0.40). A real
-                      // control, unlike everything else up here — allowed
-                      // because the strip is outside the drawing area, so it
-                      // can never shadow a zone tap (§11.4).
-                      if (onPitchThrown != null)
-                        Padding(
-                          padding: EdgeInsets.only(left: showCode ? 20 : 0),
-                          child: FilledButton(
-                            key: callScreenPitchThrownKey,
-                            onPressed: onPitchThrown,
-                            style: FilledButton.styleFrom(
-                              minimumSize: const Size(76, 76),
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (showCode) _CodeDisplay(pending: pending!),
+                          // The pitch-happened checkmark (§10.3, v0.40). A
+                          // real control, unlike everything else up here —
+                          // allowed because the strip is outside the drawing
+                          // area, so it can never shadow a zone tap (§11.4).
+                          if (onPitchThrown != null)
+                            Padding(
+                              padding: EdgeInsets.only(left: showCode ? 24 : 0),
+                              child: FilledButton(
+                                key: callScreenPitchThrownKey,
+                                onPressed: onPitchThrown,
+                                style: FilledButton.styleFrom(
+                                  minimumSize: const Size.square(_checkSize),
+                                  maximumSize: const Size.square(_checkSize),
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                ),
+                                child: const Icon(Icons.check, size: 52),
                               ),
                             ),
-                            child: const Icon(Icons.check, size: 46),
+                        ],
+                      ),
+                      const SizedBox(height: _echoGap),
+                      SizedBox(
+                        height: _echoLineHeight,
+                        child: Center(
+                          child: Text.rich(
+                            key: callScreenEchoKey,
+                            TextSpan(
+                              text: echo,
+                              children: [
+                                // Re-roll is a swipe, which nothing on screen
+                                // would otherwise admit to (§10.3).
+                                if (showCode) ...[
+                                  TextSpan(
+                                    text: '  ·  ',
+                                    style: TextStyle(color: scheme.outline),
+                                  ),
+                                  const TextSpan(
+                                    text: 'swipe the code for another',
+                                  ),
+                                ],
+                              ],
+                            ),
+                            style: echoStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
+                      ),
                     ],
                   ),
           ),
@@ -291,7 +354,10 @@ class _PitchTypeRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: type.id == selected
                         ? scheme.primary
-                        : scheme.surfaceContainerLowest,
+                        // The Card role, not a Material slot: Lowest is
+                        // the card in light and the page in dark, which
+                        // left the dark buttons flat (BrandBaseline.card).
+                        : BrandBaseline.of(scheme.brightness).card,
                     border: Border.all(
                       color: type.id == selected
                           ? scheme.primary
