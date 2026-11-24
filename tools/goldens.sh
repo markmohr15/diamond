@@ -7,8 +7,10 @@
 # rasterization does it to every image carrying a string. Generating on a Mac
 # and comparing on Linux is what makes CI fail with no code change behind it.
 #
-# So goldens are generated in the same container family CI runs, on the
-# Flutter version .github/workflows/ci.yml pins. Bump both together.
+# Superseded by tools/goldens-ci.sh, which renders on CI's own runner. This
+# local fallback needs a ghcr.io/cirruslabs/flutter image at the pinned
+# version, and that publisher stopped at 3.44.0 (checked 2026-11-24), so it
+# stops working at the next Flutter bump. DIA-030b retires it.
 #
 # --run-skipped is not optional: every golden is skipped by dart_test.yaml so
 # a local `flutter test` stays green, so without it this script would silently
@@ -18,9 +20,9 @@
 #   tools/goldens.sh -n zone  regenerate only tests matching "zone"
 set -euo pipefail
 
-FLUTTER_VERSION=3.44.0
-IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FLUTTER_VERSION="$(cat "${REPO}/.github/flutter-version")"
+IMAGE="ghcr.io/cirruslabs/flutter:${FLUTTER_VERSION}"
 
 # Passed into the container through the environment rather than interpolated
 # into the `bash -lc` string below: a filter with a space in it ("call step")

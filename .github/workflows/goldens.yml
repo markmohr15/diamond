@@ -1,0 +1,69 @@
+name: Goldens
+
+# Regenerates golden images on the runner CI compares them on, and hands back
+# only the ones that changed. Goldens are pixels, and pixels are
+# platform-specific (app/dart_test.yaml), so they are rendered where they are
+# checked rather than in a container that merely resembles it.
+#
+# Run it with tools/goldens-ci.sh, which triggers this, waits, and unpacks the
+# result into the working tree. It also runs by itself on a PR that changes the
+# Flutter version or this file, so a version bump arrives with its new goldens
+# attached as an artifact. An empty artifact means nothing moved.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: Regenerate only goldens whose test name contains this
+        required: false
+        default: ""
+  pull_request:
+    paths:
+      - .github/flutter-version
+      - .github/workflows/goldens.yml
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the pinned Flutter version
+        id: flutter
+        run: echo "version=$(cat .github/flutter-version)" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ steps.flutter.outputs.version }}
+
+      - name: flutter pub get
+        run: flutter pub get
+        working-directory: app
+
+      # The filter goes through the environment rather than into the command
+      # string, so a name with a space in it stays one argument.
+      - name: Regenerate goldens
+        working-directory: app
+        env:
+          NAME_FILTER: ${{ inputs.name }}
+        run: |
+          flutter test --tags golden --run-skipped --update-goldens \
+            ${NAME_FILTER:+--plain-name "$NAME_FILTER"}
+
+      # Changed and new images only, at their repo paths, so unpacking at the
+      # repo root puts each one where it belongs. -m -o lists untracked files
+      # one by one, which is what makes a brand-new golden come back too.
+      - name: Collect changed goldens
+        run: |
+          mkdir -p out
+          git ls-files -m -o --exclude-standard -- '*.png' > out/changed.txt
+          echo "$(wc -l < out/changed.txt) golden(s) changed"
+          cat out/changed.txt
+          tar -czf out/goldens.tgz -T out/changed.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goldens
+          path: out/
+          retention-days: 7

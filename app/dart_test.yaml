@@ -7,8 +7,8 @@ tags:
   # glyph rasterization differs between platforms far more than curves do, and
   # every image carrying a string now drifts.
   #
-  # So goldens are generated on Linux (tools/goldens.sh), which is where CI
-  # compares them, and skipped by default so a bare local `flutter test` stays
+  # So goldens are generated on CI's own Linux runner (tools/goldens-ci.sh),
+  # which is where they are compared, and skipped by default so a bare local `flutter test` stays
   # a clean signal rather than ten failures nobody can act on. CI runs them
   # with `--run-skipped`.
   #
@@ -16,4 +16,4 @@ tags:
   # be wide enough to absorb glyph antialiasing, which is wide enough to hide
   # a moved chip.
   golden:
-    skip: "platform-specific pixels — CI runs these; regenerate via tools/goldens.sh"
+    skip: "platform-specific pixels — CI runs these; regenerate via tools/goldens-ci.sh"
