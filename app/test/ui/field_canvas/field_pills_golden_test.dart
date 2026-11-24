@@ -6,7 +6,7 @@ import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _canvasSize = Size(700, 640);
 

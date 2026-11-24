@@ -1,7 +1,7 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Box the widget is given. The canvas aspect-fits inside it and the control
 // strip sits below, so the painted drawing area is smaller than this — tests

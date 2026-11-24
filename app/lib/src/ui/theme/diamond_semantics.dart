@@ -1,5 +1,5 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// §23.2's reserved colors, carried on the theme so widgets read them the same
 /// way they read every other color — `Theme.of(context)` — rather than

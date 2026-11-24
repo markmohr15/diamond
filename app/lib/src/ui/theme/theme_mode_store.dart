@@ -1,7 +1,7 @@
 import 'package:diamond/src/events/database/app_database.dart';
 import 'package:diamond/src/game/game_session.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The settings key the choice lives under. One table, many keys eventually —
 /// the fidelity and silhouette toggles `main.dart` is waiting on land here.

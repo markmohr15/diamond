@@ -1,5 +1,5 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Tier 1 of §23.3 in geometry: the spacing rhythm, the corner radii, the
 /// touch floor, and the one shadow set.

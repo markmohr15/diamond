@@ -7,7 +7,7 @@ import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
 import 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 export 'package:diamond/src/ui/zone_canvas/canvas_geometry.dart';
 

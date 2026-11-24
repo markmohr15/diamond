@@ -3,8 +3,8 @@ import 'package:diamond/src/ui/brand/splash_screen.dart';
 import 'package:diamond/src/ui/loop/pitch_loop_page.dart';
 import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   runApp(const ProviderScope(child: DiamondApp()));

@@ -2,7 +2,7 @@ import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Color is data; the scheme is derived (§23.3). A pure function from one
 /// accent seed plus the brand baseline to a full [ColorScheme] — no widget

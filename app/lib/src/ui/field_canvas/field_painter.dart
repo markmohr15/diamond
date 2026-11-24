@@ -5,7 +5,7 @@ import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Where a tag-out target draws, the base its out is at, and the runner it
 /// stands in for (null: it stands in for the holder). See

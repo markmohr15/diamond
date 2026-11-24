@@ -1,6 +1,6 @@
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Every question the field surface asks (§15.1 v0.43): a centered dialog,
 /// only as big as its content.

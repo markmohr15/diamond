@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Diamond's mark: a chalk baseline diamond with a clay home plate at its near
 /// vertex (Claude Design, Turn 03). Two shapes, which is why it survives at

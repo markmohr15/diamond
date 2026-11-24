@@ -22,3 +22,6 @@ server/dist/
 .idea/
 *.iml
 app/test/**/failures/
+
+# FVM's per-project SDK link. .fvmrc is committed; this is the machine's copy.
+.fvm/

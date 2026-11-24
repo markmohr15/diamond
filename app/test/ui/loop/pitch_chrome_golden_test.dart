@@ -7,8 +7,8 @@ import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:diamond/src/ui/theme/theme_mode_store.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _size = Size(900, 124);
 

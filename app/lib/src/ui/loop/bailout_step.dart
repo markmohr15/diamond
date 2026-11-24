@@ -1,5 +1,5 @@
 import 'package:diamond/src/events/generated/events.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// §11.2's bottom rung (v0.41): BALL / STRIKE / FOUL / IN PLAY, filling the
 /// step surface — chaos mode, so the targets are enormous and there are only
