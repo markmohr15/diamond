@@ -1,7 +1,7 @@
 import 'package:diamond/src/call/call_zone.dart';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Draws §10.1's call zones over the entry canvas (§11.4, v0.38).
 ///

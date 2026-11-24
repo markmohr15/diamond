@@ -1,7 +1,7 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Keys the widget tests resolve against. Production code has no reason to
 /// look them up.

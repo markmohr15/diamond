@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Tier 1 of §23.3: the brand baseline. Surfaces, chrome, ink, and the §23.2
 /// semantic reservations — everything that is Diamond's own and **never** moves

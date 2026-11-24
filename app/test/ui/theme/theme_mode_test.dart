@@ -4,9 +4,9 @@ import 'package:diamond/src/ui/loop/pitch_chrome.dart';
 import 'package:diamond/src/ui/theme/theme_mode_store.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// §23.1.4's choice: both themes were built and nothing selected between
 /// them, so the app followed the system — the wrong authority for a tablet in

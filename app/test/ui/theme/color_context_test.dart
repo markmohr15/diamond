@@ -2,9 +2,9 @@ import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/color_context.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:diamond/src/ui/theme/theme_providers.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'scheme_tokens.dart';
 

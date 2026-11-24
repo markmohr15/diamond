@@ -6,8 +6,8 @@ import 'package:diamond/src/ui/call/pending_call.dart';
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_type.dart';
 import 'package:diamond/src/ui/zone_canvas/zone_canvas.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Keys the widget tests resolve against. Production code has no reason to look
 /// them up.

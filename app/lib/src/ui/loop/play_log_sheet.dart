@@ -15,8 +15,8 @@ import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/rules/play_line.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 const Key playLogKey = Key('playLog');
 const Key playLogEmptyKey = Key('playLogEmpty');

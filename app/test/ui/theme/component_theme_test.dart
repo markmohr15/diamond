@@ -1,8 +1,8 @@
 import 'package:diamond/src/ui/theme/brand_baseline.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/derive_scheme.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 
 ThemeData _theme(Brightness brightness) => buildTheme(
   deriveScheme(accentSeed: BrandBaseline.grass, brightness: brightness),

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Tier 1 of §23.3 expressed in type: the two faces, the size scale, and the
 /// rule deciding which face a given string takes.
