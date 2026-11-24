@@ -32,12 +32,17 @@ jobs:
       # Pinned, not tracking stable. Golden tests compare rendered pixels, so a
       # Flutter release that changes text metrics or rasterization breaks every
       # golden with no code change — and it lands on whichever PR happens to be
-      # open that day. Bump this deliberately, regenerating goldens in the same
-      # commit, so a rendering change is reviewed rather than discovered.
+      # open that day. Bump .github/flutter-version deliberately, regenerating
+      # goldens in the same commit, so a rendering change is reviewed rather
+      # than discovered. The goldens workflow reads the same file.
+      - name: Read the pinned Flutter version
+        id: flutter
+        run: echo "version=$(cat .github/flutter-version)" >> "$GITHUB_OUTPUT"
+
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.44.0
+          flutter-version: ${{ steps.flutter.outputs.version }}
 
       - name: flutter pub get
         run: flutter pub get
@@ -50,8 +55,8 @@ jobs:
       # --run-skipped is what runs the goldens at all: every golden is
       # skipped by default (app/dart_test.yaml) so a bare local `flutter test`
       # stays green on a Mac, and this job is the only place they are
-      # compared. They are generated on Linux by tools/goldens.sh, which runs
-      # the same image family this job does.
+      # compared. They are regenerated on this same runner by
+      # .github/workflows/goldens.yml (tools/goldens-ci.sh).
       - name: flutter test
         run: flutter test --run-skipped
         working-directory: app
