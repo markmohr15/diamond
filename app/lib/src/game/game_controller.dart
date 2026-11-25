@@ -19,6 +19,11 @@ const _undoableTypes = {
   'FielderTouch',
   'RuleCall',
   'CountCorrection',
+  // §13.5 v0.77: a run's rulings are written in their play's own batch, so
+  // they go with it. Left out, the walk back from the end of the stream
+  // stopped on them and the play could not be undone at all.
+  'EarnedRunOverride',
+  'RbiOverride',
 };
 
 /// Action roots (§11.3 v0.41): the events a scorer authors directly, one per

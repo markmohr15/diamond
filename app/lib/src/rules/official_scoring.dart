@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/field/field_profile.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
+import 'package:diamond/src/rules/earned_runs.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/game_state_fold.dart';
 import 'package:diamond/src/rules/pitch_count_effect.dart';
@@ -219,6 +220,55 @@ class BatterOutcome {
   final bool sacrifice;
 }
 
+/// One run scored, and how it was ruled (§13.3, §13.5): each ruling as the
+/// derivation made it, and the scorer's override where she made one.
+///
+/// Both are kept rather than only the answer. "Overridden by scorer, see
+/// note" needs to know an override decided it, and the log shows the
+/// derived ruling beside a scorer's, so she can see what she changed.
+class ScoredRun {
+  const ScoredRun({
+    required this.eventId,
+    required this.anchorId,
+    required this.runnerId,
+    required this.batterId,
+    required this.derivedEarned,
+    required this.earnedOverride,
+    required this.derivedRbi,
+    required this.rbiOverride,
+    this.earnedOverrideId,
+    this.rbiOverrideId,
+  });
+
+  /// The scoring `RunnerAdvance{to: 4}` as it is visible now.
+  final String eventId;
+
+  /// Its correction root, which is what an override names (v0.76).
+  final String anchorId;
+
+  final String runnerId;
+
+  /// Who was up when she scored: whose RBI it is, if it is one.
+  final String batterId;
+
+  final bool derivedEarned;
+  final EarnedRunOverride? earnedOverride;
+  final bool derivedRbi;
+  final RbiOverride? rbiOverride;
+
+  /// The correction root of the override event deciding each ruling, when
+  /// one does: what a writer names to correct the override, or to void it
+  /// and return the run to its derivation.
+  final String? earnedOverrideId;
+  final String? rbiOverrideId;
+
+  bool get earned => earnedOverride?.earned ?? derivedEarned;
+  bool get rbi => rbiOverride?.rbi ?? derivedRbi;
+
+  /// Whether either ruling is the scorer's rather than the derivation's.
+  bool get edited => earnedOverride != null || rbiOverride != null;
+}
+
 /// Official scoring derived from a play/half-inning stream (spec §13):
 /// errors, misplay ledger, batter results, putouts/assists, pitcher
 /// strikeouts, and conditional unearned-run flags. Pure projection — the
@@ -234,6 +284,7 @@ class OfficialScoring {
     required this.pitchGetaways,
     required this.unearnedConditions,
     required this.plays,
+    required this.runs,
   });
 
   final List<OfficialError> errors;
@@ -250,6 +301,10 @@ class OfficialScoring {
   /// The stream partitioned into happenings, in order (DIA-024). Pitches
   /// that were only pitches are not here — see [PlayRecord.isEmpty].
   final List<PlayRecord> plays;
+
+  /// Every run scored, in stream order, with its earned and RBI rulings
+  /// (§13.3, §13.5).
+  final List<ScoredRun> runs;
 
   /// WP charged to each pitcher, the counterpart to [strikeoutsByPitcher].
   Map<String, int> get wildPitchesByPitcher {
@@ -315,10 +370,21 @@ class _PlateAppearance {
 }
 
 class _AdvanceRecord {
-  _AdvanceRecord(this.eventId, this.payload, this.pitchAtTime);
+  _AdvanceRecord(
+    this.eventId,
+    this.payload,
+    this.pitchAtTime, {
+    required this.anchorId,
+  });
 
   final String eventId;
   final RunnerAdvance payload;
+
+  /// The advance's correction root, which is what a §13.5 override names
+  /// (v0.76). This app's corrections always name the original in `corrects`
+  /// (§6), so the visible version's `corrects`, or its own id when it was
+  /// never corrected, is the root.
+  final String anchorId;
 
   // No `batterAtTime` here, deliberately. It existed so that reads over the
   // whole game's advances could ask "did this happen in my plate
@@ -447,6 +513,10 @@ OfficialScoring foldOfficialScoring(
   String? latestCatcherInterferenceCallId;
   final callsById = <String, RuleCall>{};
   final strikeouts = <String, int>{};
+  final earnedOverrides = <String, EarnedRunOverride>{};
+  final rbiOverrides = <String, RbiOverride>{};
+  // Each override's own correction root, so a writer can correct or void it.
+  final overrideRootIds = <String, ({String? earned, String? rbi})>{};
 
   // The partition. A new plate appearance opens when the batter changes, and
   // an inning boundary closes whichever is open — without that second rule a
@@ -505,6 +575,7 @@ OfficialScoring foldOfficialScoring(
           event.id,
           RunnerAdvance.fromJson(event.payload),
           pitchOfRecord,
+          anchorId: event.corrects ?? event.id,
         );
         advances.add(advance);
         openPa?.advances.add(advance);
@@ -522,6 +593,23 @@ OfficialScoring foldOfficialScoring(
         // up when the side was retired starts a new plate appearance, not a
         // continuation of the one that never finished.
         openPa = null;
+      // §13.5: the latest visible override for a run wins. Visibility has
+      // already dropped voided overrides and collapsed corrected ones, so
+      // stream order is all that is left to decide.
+      case 'EarnedRunOverride':
+        final override = EarnedRunOverride.fromJson(event.payload);
+        earnedOverrides[override.runEventId] = override;
+        overrideRootIds[override.runEventId] = (
+          earned: event.corrects ?? event.id,
+          rbi: overrideRootIds[override.runEventId]?.rbi,
+        );
+      case 'RbiOverride':
+        final override = RbiOverride.fromJson(event.payload);
+        rbiOverrides[override.runEventId] = override;
+        overrideRootIds[override.runEventId] = (
+          earned: overrideRootIds[override.runEventId]?.earned,
+          rbi: event.corrects ?? event.id,
+        );
       case 'RuleCall':
         final call = RuleCall.fromJson(event.payload);
         if (call.callType == CallType.INTERFERENCE_CATCHER) {
@@ -637,6 +725,7 @@ OfficialScoring foldOfficialScoring(
       _batterOutcome(
         pa,
         chargedTouchIds,
+        rbiOverrides,
         sacrifice: _sacrificeFor(
           pa,
           battedBall: pa.battedBallId == null
@@ -745,6 +834,43 @@ OfficialScoring foldOfficialScoring(
       }(),
   ];
 
+  final scoring = OfficialScoring(
+    errors: errors,
+    misplays: misplays,
+    batterOutcomes: batterOutcomes,
+    putoutsByPosition: putouts,
+    assistsByPosition: assists,
+    strikeoutsByPitcher: strikeouts,
+    pitchGetaways: pitchGetaways,
+    unearnedConditions: unearned,
+    plays: plays,
+    runs: const [],
+  );
+
+  // §13.3 reads only the charged errors, which are final by now.
+  final derivedEarned = reconstructEarnedRuns(
+    visibleLogicalOrder,
+    startingFrom: startingFrom,
+    scoring: scoring,
+  );
+  final runs = [
+    for (final pa in plateAppearances)
+      for (final a in pa.advances)
+        if (a.payload.to == 4)
+          ScoredRun(
+            eventId: a.eventId,
+            anchorId: a.anchorId,
+            runnerId: a.payload.runnerId,
+            batterId: pa.batterId,
+            derivedEarned: derivedEarned[a.eventId] == RunRuling.earned,
+            earnedOverride: earnedOverrides[a.anchorId],
+            earnedOverrideId: overrideRootIds[a.anchorId]?.earned,
+            derivedRbi: _derivedRbi(a, chargedTouchIds),
+            rbiOverride: rbiOverrides[a.anchorId],
+            rbiOverrideId: overrideRootIds[a.anchorId]?.rbi,
+          ),
+  ];
+
   return OfficialScoring(
     errors: errors,
     misplays: misplays,
@@ -755,6 +881,7 @@ OfficialScoring foldOfficialScoring(
     pitchGetaways: pitchGetaways,
     unearnedConditions: unearned,
     plays: plays,
+    runs: runs,
   );
 }
 
@@ -1095,9 +1222,19 @@ String? _sacrificeFor(
   return runnerScored ? 'sacrifice_fly' : null;
 }
 
+/// Whether a run counts as an RBI by the derivation alone: a run scoring on
+/// this batter's play that a charged error did not gift (batted-ball runs,
+/// including the batter's own homer). `ground_rule` counts too (v0.43): a
+/// ground-rule double that scores a runner drove her in as surely as any
+/// other two-base hit.
+bool _derivedRbi(_AdvanceRecord a, Set<String> chargedTouchIds) =>
+    !chargedTouchIds.contains(a.payload.enabledByTouchId) &&
+    _rbiReasons.contains(a.payload.reason);
+
 BatterOutcome _batterOutcome(
   _PlateAppearance pa,
-  Set<String> chargedTouchIds, {
+  Set<String> chargedTouchIds,
+  Map<String, RbiOverride> rbiOverrides, {
   String? sacrifice,
 }) {
   final batterId = pa.batterId;
@@ -1111,15 +1248,15 @@ BatterOutcome _batterOutcome(
   ];
   final reach = own.where((a) => a.payload.from == 0).firstOrNull;
 
-  // RBIs: runs scoring on this batter's play that weren't gifted by a
-  // charged error (batted-ball runs, including the batter's own homer).
-  // `ground_rule` counts too (v0.43): a ground-rule double that scores a
-  // runner drove her in as surely as any other two-base hit.
+  // RBIs: one per run scoring in this plate appearance that counts, which
+  // the scorer's override decides where there is one (§13.5) and the
+  // derivation decides everywhere else.
   var rbi = 0;
   for (final a in pa.advances) {
     if (a.payload.to != 4) continue;
-    if (chargedTouchIds.contains(a.payload.enabledByTouchId)) continue;
-    if (_rbiReasons.contains(a.payload.reason)) rbi++;
+    final counts =
+        rbiOverrides[a.anchorId]?.rbi ?? _derivedRbi(a, chargedTouchIds);
+    if (counts) rbi++;
   }
 
   // Shared facts, resolved once above the branching. `sacrifice` used to be

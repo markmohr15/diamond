@@ -2,6 +2,8 @@ import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/rules/game_state.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
+import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/loop/play_log_sheet.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
@@ -192,10 +194,15 @@ class CountHud extends ConsumerWidget {
     final gs = ref.read(gameControllerProvider).valueOrNull;
     if (gs == null) return;
 
-    final result = await showModalBottomSheet<({int balls, int strikes})>(
-      context: context,
-      builder: (context) =>
-          _CountCorrectionSheet(balls: gs.balls, strikes: gs.strikes),
+    // A centered dialog like every other popup (§23.7 v0.77), not a
+    // bottom drawer.
+    final result = await showFieldDialog<({int balls, int strikes})>(
+      context,
+      title: 'Set the count',
+      question: 'What the scoreboard says.',
+      children: (_) => [
+        _CountCorrectionSheet(balls: gs.balls, strikes: gs.strikes),
+      ],
     );
     if (result == null) return;
     await ref
@@ -232,69 +239,59 @@ class _CountCorrectionSheetState extends State<_CountCorrectionSheet> {
   late int _balls = widget.balls;
   late int _strikes = widget.strikes;
 
-  Widget _chipRow({
+  Widget _row({
     required String label,
     required int max,
     required int selected,
     required ValueChanged<int> onSelected,
   }) {
-    return Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          width: 72,
-          child: Text(label, style: Theme.of(context).textTheme.titleLarge),
+        DialogSection(label),
+        AnswerGrid(
+          columns: 4,
+          children: [
+            for (var i = 0; i <= max; i++)
+              AnswerButton(
+                label: '$i',
+                selected: selected == i,
+                onPressed: () => onSelected(i),
+              ),
+          ],
         ),
-        for (var i = 0; i <= max; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: ChoiceChip(
-              label: Text('$i'),
-              selected: selected == i,
-              onSelected: (_) => onSelected(i),
-            ),
-          ),
       ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Set the count',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 16),
-            _chipRow(
-              label: 'Balls',
-              max: 3,
-              selected: _balls,
-              onSelected: (v) => setState(() => _balls = v),
-            ),
-            const SizedBox(height: 8),
-            _chipRow(
-              label: 'Strikes',
-              max: 2,
-              selected: _strikes,
-              onSelected: (v) => setState(() => _strikes = v),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              key: countCorrectionSetKey,
-              onPressed: () =>
-                  Navigator.of(context).pop((balls: _balls, strikes: _strikes)),
-              child: Text('Make it $_balls-$_strikes'),
-            ),
-          ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _row(
+          label: 'Balls',
+          max: 3,
+          selected: _balls,
+          onSelected: (v) => setState(() => _balls = v),
         ),
-      ),
+        _row(
+          label: 'Strikes',
+          max: 2,
+          selected: _strikes,
+          onSelected: (v) => setState(() => _strikes = v),
+        ),
+        const SizedBox(height: BrandMetrics.spaceLg),
+        AnswerButton(
+          key: countCorrectionSetKey,
+          label: 'Make it $_balls-$_strikes',
+          primary: true,
+          onPressed: () =>
+              Navigator.of(context).pop((balls: _balls, strikes: _strikes)),
+        ),
+      ],
     );
   }
 }

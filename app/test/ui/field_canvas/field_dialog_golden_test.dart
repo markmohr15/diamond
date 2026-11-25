@@ -6,17 +6,18 @@ import 'package:diamond/src/ui/theme/derive_scheme.dart';
 import 'package:diamond/src/ui/theme/team_colors.dart';
 import 'package:material_ui/material_ui.dart';
 
-const _dialog = Size(620, 260);
+const _dialog = Size(620, 360);
 
-/// The field surface's question dialogs (§15.1), which are all chips.
+/// The field surface's question dialogs (§15.1), in §23.7's language since
+/// v0.77: 56 px answer buttons in 14B's grid, the recorded answer solid Ink.
 ///
-/// This golden exists because **nothing rendered a `Chip` anywhere in the
+/// This golden began because **nothing rendered a `Chip` anywhere in the
 /// suite**, and DIA-016d's chip theme shipped with an uncolored label — white
 /// on white in a light dialog — which only turned up when Mark ran the
-/// simulator. A chip is not a button and does not get its color the same way.
+/// simulator. The chips are gone; the reason to look is not.
 ///
-/// What to look at: the label reads against the chip, and the selected chip
-/// reads against *its* fill, which is a different surface.
+/// What to look at: each label reads against its button, and the selected
+/// answer reads against *its* fill, which is a different surface.
 Widget _dialogIn(Brightness brightness, {Trajectory? selected}) => MaterialApp(
   theme: buildTheme(
     deriveScheme(

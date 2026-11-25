@@ -598,6 +598,18 @@ class PlayDraftController extends AsyncNotifier<PlayDraft?> {
     );
   }
 
+  /// The review card's answers (§15.5 v0.77), applied as one step so Back
+  /// one takes them back together. [answered] is the draft the card built
+  /// from this one with the draft's own transforms — the reach answer, the
+  /// sacrifice, the run rulings — so it is never a draft from elsewhere.
+  Future<void> applyAnswers(PlayDraft answered) => _mutate((_) => answered);
+
+  /// The scorer's earned and RBI answer for the run [legKey] scores (§13.5
+  /// v0.77). Pass the answer only when it differs from Diamond's call; an
+  /// empty [ruling] takes the override back.
+  Future<void> setRunRuling(int legKey, RunRuling ruling) =>
+      _mutate((draft) => draft.withRunRuling(legKey, ruling));
+
   /// Remove a chain node; links to it orphan to null, never retarget.
   ///
   /// A removal is a step **backward**, so it never becomes something Back

@@ -860,4 +860,65 @@ void main() {
       );
     });
   });
+
+  group("a run's rulings ride the play's batch (§13.5 v0.77)", () {
+    // A single scoring the runner from third: the run is the leg at key 0.
+    final scored = landed
+        .addingLeg('opp-9', from: 3, to: 4)
+        .addingLeg('opp-1', from: 0, to: 1);
+
+    test("each answer is written after the chain, anchored on the run's "
+        'own advance', () {
+      final events = scored
+          .withRunRuling(0, const RunRuling(earned: false, rbi: false))
+          .toEvents();
+      final types = events.map((e) => e.type).toList();
+      expect(types.sublist(types.length - 2), [
+        'EarnedRunOverride',
+        'RbiOverride',
+      ]);
+      final leg = events.firstWhere(
+        (e) => e.type == 'RunnerAdvance' && e.payload['to'] == 4,
+      );
+      for (final override in events.skip(types.length - 2)) {
+        expect(override.payload['runEventId'], localRef(leg.localKey!));
+      }
+      expect(events[types.length - 2].payload['earned'], isFalse);
+      expect(events.last.payload['rbi'], isFalse);
+    });
+
+    test('only the side the scorer answered is written', () {
+      final events = scored
+          .withRunRuling(0, const RunRuling(rbi: true))
+          .toEvents();
+      expect(events.where((e) => e.type == 'EarnedRunOverride'), isEmpty);
+      expect(events.where((e) => e.type == 'RbiOverride'), hasLength(1));
+    });
+
+    test('a run taken off the play takes its answer with it', () {
+      final ruled = scored.withRunRuling(0, const RunRuling(rbi: false));
+      final events = ruled.removingEntry(0).toEvents();
+      expect(events.where((e) => e.type == 'RbiOverride'), isEmpty);
+    });
+
+    test("an empty answer is Diamond's call: nothing is held", () {
+      final ruled = scored
+          .withRunRuling(0, const RunRuling(rbi: false))
+          .withRunRuling(0, const RunRuling());
+      expect(ruled.runRulings, isEmpty);
+    });
+
+    test('the journal keeps them, and an older journal reads as none', () {
+      final ruled = scored.withRunRuling(
+        0,
+        const RunRuling(earned: true, rbi: false),
+      );
+      final back = PlayDraft.fromJson(ruled.toJson());
+      expect(back.runRulings, {0: const RunRuling(earned: true, rbi: false)});
+      expect(
+        PlayDraft.fromJson(scored.toJson()..remove('runRulings')).runRulings,
+        isEmpty,
+      );
+    });
+  });
 }

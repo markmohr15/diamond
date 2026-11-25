@@ -10,11 +10,13 @@ import 'package:diamond/src/play/reach_at_commit.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
 import 'package:diamond/src/rules/game_state.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/field_canvas/field_controls.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/field_painter.dart';
 import 'package:diamond/src/ui/field_canvas/play_chain_strip.dart';
+import 'package:diamond/src/ui/field_canvas/review_card.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:diamond/src/ui/theme/diamond_semantics.dart';
@@ -633,9 +635,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       // events dragging the runner there records — both gestures are kept
       // (DIA-018, 2026-11-05). On OUT she ran to the bag and made it
       // herself, so she stands there now.
-      final target = overRunner
-          ? null
-          : _holderTarget(drag, geometry, tokens);
+      final target = overRunner ? null : _holderTarget(drag, geometry, tokens);
       final pill = target == null ? null : visiblePill(target.base);
       if (target != null && pill != null) {
         _resolveDrop(
@@ -1006,7 +1006,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     );
   }
 
-
   static const _baseLabels = {1: '1B', 2: '2B', 3: '3B', 4: 'home'};
 
   /// The error answers on offer, one per misplay the scorer could charge
@@ -1183,7 +1182,7 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   }
 
   /// The ✓ (§15.5). Two things stop it, both questions only the scorer can
-  /// answer and both asked here, in order:
+  /// answer:
   ///
   /// - a misplay opened the play and nobody has said whether the batter
   ///   earned first, so committing would derive hit-vs-error from an answer
@@ -1191,154 +1190,145 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
   /// - the play needs §13.6's sacrifice judgment — a bunt that moved a
   ///   runner, or a dropped fly a runner scored on.
   ///
-  /// The sacrifice is asked here rather than on a runner (DIA-019 J): the
-  /// runner it turns on is usually the walk-up nobody touched, so a question
-  /// on her would go unasked on the ordinary sacrifice. Every other
-  /// unresolved presumption is already safe by default — a runner nobody
-  /// marked out is safe (§15.1) — which is why these block and nothing else
-  /// does.
+  /// When either is open the ✓ opens one review card (§15.5 v0.77, board
+  /// 16D) that asks them together; otherwise it commits. The run rulings
+  /// are on the card when it opens, and never open it.
+  ///
+  /// Every other unresolved presumption is already safe by default — a
+  /// runner nobody marked out is safe (§15.1) — which is why these block and
+  /// nothing else does.
   ///
   /// Reads the controller's draft rather than the widget's: after an answer
   /// the widget has not rebuilt yet, and the stale draft would ask again.
   void _commitOrAsk() {
-    final draft = ref.read(playDraftProvider).valueOrNull ?? _draft;
-    if (draft.reachNeedsAnswer) {
-      _showReachDialog(thenCommit: true);
-      return;
-    }
-    final outs = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
-    if (draft.invitesSacrifice(outs: outs)) {
-      _showSacrificeDialog(bunt: isBunt(draft.trajectory));
-      return;
-    }
-    unawaited(ref.read(playDraftProvider.notifier).commit());
-  }
-
-  /// §13.6's judgment, named for the play it is about — the old standing
-  /// chip said "Sacrifice bunt" on a dropped fly. Either answer commits.
-  void _showSacrificeDialog({required bool bunt}) {
     final controller = ref.read(playDraftProvider.notifier);
-    Future<void> answer({required bool sacrifice}) async {
-      Navigator.pop(context);
-      await controller.setSacrifice(sacrifice: sacrifice);
-      await controller.commit();
+    final draft = ref.read(playDraftProvider).valueOrNull ?? _draft;
+    final outs = ref.read(gameControllerProvider).valueOrNull?.outs ?? 0;
+    final reachOpen = reachAtCommit(draft, _foldBases) == ReachAtCommit.ask;
+    // A reach the record settles by itself — a fielder's choice, or a
+    // single when nothing else could explain it — is applied, not asked.
+    final settled = withReachSettled(draft, _foldBases);
+    if (!reachOpen && !settled.invitesSacrifice(outs: outs)) {
+      unawaited(() async {
+        if (!identical(settled, draft)) await controller.applyAnswers(settled);
+        await controller.commit();
+      }());
+      return;
     }
-
-    _centeredDialog(bunt ? 'Sacrifice bunt?' : 'Sacrifice fly?', [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FilledButton(
-            key: sacrificeAnswerKey('yes'),
-            onPressed: () => unawaited(answer(sacrifice: true)),
-            child: const Text('Yes'),
-          ),
-          const SizedBox(width: 12),
-          OutlinedButton(
-            key: sacrificeAnswerKey('no'),
-            onPressed: () => unawaited(answer(sacrifice: false)),
-            child: const Text('No'),
-          ),
-        ],
-      ),
-    ]);
+    unawaited(() async {
+      if (!identical(settled, draft)) await controller.applyAnswers(settled);
+      if (!mounted) return;
+      await showReviewCard(
+        context,
+        reach: reachOpen ? _reachAnswers(draft) : null,
+        runnerName: (id) {
+          final label = _runnerLabels(draft, _foldBases)[id];
+          return label == null || label == 'B' ? 'Batter' : 'R$label';
+        },
+        sacrificeLabel: isBunt(draft.trajectory)
+            ? 'Sacrifice bunt?'
+            : 'Sacrifice fly?',
+        sacrificeKey: sacrificeAnswerKey,
+        reachKey: safeChipKey,
+      );
+    }());
   }
 
-  /// Hit-vs-error on the batter's reach (§13.2 v0.56) — the two-chip form of
-  /// the earned question, which at first base is the whole of it. The error
-  /// answer leads: a misplay on the first touch usually is what put her
-  /// there, so the common play stays one tap.
-  void _showReachDialog({bool thenCommit = false}) {
-    // Determined, not asked (v0.56): retiring a runner the batter pushed up
-    // a base *is* the defense choosing her over the batter, and one possible
-    // answer is not a question — a clean single costs the scorer nothing,
-    // which is what lets this gate run on every play. Decided in
-    // [reachAtCommit] so the result in words beside the ✓ says the same.
-    switch (reachAtCommit(_draft, _foldBases)) {
-      case ReachAtCommit.fieldersChoice:
-        unawaited(
-          _answerReach(
-            id: 'fc',
+  /// Hit-vs-error on the batter's reach (§13.2 v0.56), each answer as the
+  /// draft transform it makes, so the review card can show the play as it
+  /// would be saved before anything is.
+  ///
+  /// Everything the record leaves open, and nothing it doesn't. The errors
+  /// lead — a misplay on a play where she is still standing on first
+  /// usually is what put her there — and each names its own charge, so the
+  /// app never picks between the boot and the throw that followed it.
+  List<ReachAnswer> _reachAnswers(PlayDraft draft) {
+    final throwPair = draft.lastThrow;
+    final batter = draft.batterId;
+    return [
+      for (final choice in _errorChoices(draft))
+        (
+          id: choice.id,
+          label: choice.label,
+          misplay: true,
+          apply: (PlayDraft d) =>
+              d.resolvingReach(earned: false, misplayKey: choice.touchKey),
+        ),
+      // The throw that just arrived can be why she is safe, and a clean
+      // chain has no misplay for the error answers to point at. These write
+      // one — the same pair the SAFE popup offers a runner.
+      if (throwPair != null) ...[
+        (
+          id: 'wild_throw',
+          label: 'The throw was wild',
+          misplay: true,
+          apply: (PlayDraft d) => d
+              .updatingEntry(
+                throwPair.thrower.key,
+                (entry) => (entry as TouchEntry).copyWith(
+                  touchType: TouchType.WILD_THROW,
+                ),
+              )
+              .removingEntry(throwPair.receiver.key)
+              .affirmingSafe(batter, enabledByKey: throwPair.thrower.key),
+        ),
+        (
+          id: 'dropped_throw',
+          label: 'Dropped the throw',
+          misplay: true,
+          apply: (PlayDraft d) => d
+              .updatingEntry(
+                throwPair.receiver.key,
+                (entry) => (entry as TouchEntry).copyWith(
+                  touchType: TouchType.DROPPED,
+                ),
+              )
+              .affirmingSafe(batter, enabledByKey: throwPair.receiver.key),
+        ),
+      ],
+      if (_threwElsewhere)
+        (
+          id: 'fc',
+          label: "Fielder's choice",
+          misplay: false,
+          apply: (PlayDraft d) => d.resolvingReach(
             earned: true,
             reason: RunnerAdvanceReason.FIELDERS_CHOICE,
-            thenCommit: thenCommit,
           ),
-        );
-        return;
-      case ReachAtCommit.single:
-        unawaited(
-          _answerReach(id: 'hit', earned: true, thenCommit: thenCommit),
-        );
-        return;
-      case ReachAtCommit.ask || null:
-        break;
+        ),
+      (
+        id: 'hit',
+        label: 'Single',
+        misplay: false,
+        apply: (PlayDraft d) => d.resolvingReach(earned: true),
+      ),
+    ];
+  }
+
+  /// The reach asked in the middle of the play, when the scorer settles
+  /// the batter on first herself (§13.2 v0.56). The ✓ asks the same answers
+  /// on its review card.
+  void _showReachDialog() {
+    final controller = ref.read(playDraftProvider.notifier);
+    // Determined, not asked (v0.56): one possible answer is not a question.
+    // Decided in [reachAtCommit] so the result in words beside the ✓ says
+    // the same.
+    if (reachAtCommit(_draft, _foldBases) != ReachAtCommit.ask) {
+      unawaited(controller.applyAnswers(withReachSettled(_draft, _foldBases)));
+      return;
     }
-    // Everything the record leaves open, and nothing it doesn't. The errors
-    // lead — a misplay on a play where she is still standing on first
-    // usually is what put her there — and each names its own charge, so the
-    // app never picks between the boot and the throw that followed it.
-    final answers =
-        <({String id, String label, bool earned, int? key, bool fc})>[
-          for (final choice in _errorChoices(_draft))
-            (
-              id: choice.id,
-              label: choice.label,
-              earned: false,
-              key: choice.touchKey,
-              fc: false,
-            ),
-          // The throw that just arrived can be why she is safe, and a clean
-          // chain has no misplay for the error answers to point at. These
-          // write one — the same pair the SAFE popup offers a runner.
-          if (_draft.lastThrow != null) ...[
-            (
-              id: 'wild_throw',
-              label: 'The throw was wild',
-              earned: false,
-              key: null,
-              fc: false,
-            ),
-            (
-              id: 'dropped_throw',
-              label: 'Dropped the throw',
-              earned: false,
-              key: null,
-              fc: false,
-            ),
-          ],
-          if (_threwElsewhere)
-            (
-              id: 'fc',
-              label: "Fielder's choice",
-              earned: true,
-              key: null,
-              fc: true,
-            ),
-          (id: 'hit', label: 'Single', earned: true, key: null, fc: false),
-        ];
     _centeredDialog('Safe at 1B — how?', [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
+      AnswerGrid(
         children: [
-          for (final answer in answers)
-            ActionChip(
+          for (final answer in _reachAnswers(_draft))
+            AnswerButton(
               key: safeChipKey(answer.id),
-              label: Text(answer.label),
+              label: answer.label,
               onPressed: () {
                 Navigator.pop(context);
-                unawaited(
-                  _answerReach(
-                    id: answer.id,
-                    earned: answer.earned,
-                    misplayKey: answer.key,
-                    reason: answer.fc
-                        ? RunnerAdvanceReason.FIELDERS_CHOICE
-                        : null,
-                    thenCommit: thenCommit,
-                  ),
-                );
+                final current =
+                    ref.read(playDraftProvider).valueOrNull ?? _draft;
+                unawaited(controller.applyAnswers(answer.apply(current)));
               },
             ),
         ],
@@ -1386,18 +1376,15 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       return;
     }
     _centeredDialog('How much did she earn?', [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
+      AnswerGrid(
         children: [
           // Most-earned first: the hit shrinks as the error grows. The top
           // rung — all of it earned — is the plain hit chip on the dialog
           // before this one, so it is not repeated here.
           for (var earned = base - 1; earned >= least; earned--)
-            ActionChip(
+            AnswerButton(
               key: safeChipKey('earned-$earned'),
-              label: Text(_earnedLabel(earned, base, splitCharge: splitCharge)),
+              label: _earnedLabel(earned, base, splitCharge: splitCharge),
               onPressed: () {
                 Navigator.pop(context);
                 apply(earned);
@@ -1406,40 +1393,6 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
         ],
       ),
     ]);
-  }
-
-  Future<void> _answerReach({
-    required String id,
-    required bool earned,
-    required bool thenCommit,
-    int? misplayKey,
-    RunnerAdvanceReason? reason,
-  }) async {
-    final controller = ref.read(playDraftProvider.notifier);
-    final throwPair = _draft.lastThrow;
-    // The two answers that write the misplay they name rather than pointing
-    // at one already on the chain.
-    if (throwPair != null && id == 'wild_throw') {
-      await controller.safeOnWildThrow(
-        throwerKey: throwPair.thrower.key,
-        receiverKey: throwPair.receiver.key,
-        affirmRunnerId: _draft.batterId,
-      );
-    } else if (throwPair != null && id == 'dropped_throw') {
-      await controller.safeOnDroppedThrow(
-        receiverKey: throwPair.receiver.key,
-        affirmRunnerId: _draft.batterId,
-      );
-    } else {
-      await controller.resolveReach(
-        earned: earned,
-        misplayKey: misplayKey,
-        reason: reason,
-      );
-    }
-    // Not a bare commit: the reach was the first of the ✓'s questions, and
-    // the sacrifice may still be open.
-    if (thenCommit) _commitOrAsk();
   }
 
   /// The SAFE classification (§15.1 v0.43): what got the runner there.
@@ -1595,15 +1548,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
       return;
     }
     _centeredDialog('Safe at ${_baseLabels[base]} — how?', [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
+      AnswerGrid(
         children: [
           for (final (id, label, resolution, earned) in choices)
-            ActionChip(
+            AnswerButton(
               key: safeChipKey(id),
-              label: Text(label),
+              label: label,
               onPressed: () {
                 Navigator.pop(context);
                 if (id.startsWith(_splitPrefix)) {
@@ -1665,19 +1615,16 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     }
     final inferred = hows.first.$3;
     _centeredDialog('Out at ${_baseLabels[base]} — how?', [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
+      AnswerGrid(
         children: [
           for (final (id, label, how) in hows)
-            ChoiceChip(
+            AnswerButton(
               key: outChipKey(id),
-              label: Text(label),
+              label: label,
               // Nothing preselected between pitches (v0.69): the likeliest
               // out is a guess there, not an inference from the play.
               selected: _draft.battedBall && how == inferred,
-              onSelected: (_) {
+              onPressed: () {
                 controller.addOut(
                   runnerId,
                   atBase: base,
@@ -1782,22 +1729,20 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
 
   void _yesNoDialog(String question, {required VoidCallback onYes}) {
     _centeredDialog(question, [
-      Row(
-        mainAxisSize: MainAxisSize.min,
+      AnswerGrid(
         children: [
-          FilledButton(
+          AnswerButton(
             key: beyondFenceKey('yes'),
+            label: 'Yes',
             onPressed: () {
               onYes();
               Navigator.pop(context);
             },
-            child: const Text('Yes'),
           ),
-          const SizedBox(width: 12),
-          OutlinedButton(
+          AnswerButton(
             key: beyondFenceKey('no'),
+            label: 'No',
             onPressed: () => Navigator.pop(context),
-            child: const Text('No'),
           ),
         ],
       ),
@@ -1822,15 +1767,12 @@ class _FieldEntrySurfaceState extends ConsumerState<FieldEntrySurface> {
     _centeredDialog(
       'What happened at ${positionAbbreviations[position] ?? position}?',
       [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
+        AnswerGrid(
           children: [
             for (final (id, label, touchType) in choices)
-              ActionChip(
+              AnswerButton(
                 key: fielderPlayKey(id),
-                label: Text(label),
+                label: label,
                 onPressed: () {
                   controller.recordFielderPlay(
                     position,

@@ -6,7 +6,9 @@ import 'package:diamond/src/play/play_draft.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/play/play_preview.dart';
 import 'package:diamond/src/play/possible_entries.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
+import 'package:diamond/src/ui/field_canvas/play_stream.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
 import 'package:diamond/src/ui/loop/pitch_flow.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
@@ -41,15 +43,6 @@ final pitchNumberProvider = FutureProvider.family<int?, String>((
       .read(eventStoreProvider)
       .readStream(ref.read(gameSessionProvider).gameId);
   return pitchNumberInPa(visible, pitchEventId);
-});
-
-/// The game's visible stream, for saying what the open play would score as.
-/// Rebuilt whenever the fold moves.
-final _visibleStreamProvider = FutureProvider<List<GameEvent>>((ref) {
-  ref.watch(gameControllerProvider);
-  return ref
-      .read(eventStoreProvider)
-      .readStream(ref.read(gameSessionProvider).gameId);
 });
 
 /// §15.5 v0.60: the field's own bar, every control labeled with what it does.
@@ -91,7 +84,7 @@ class FieldControls extends ConsumerWidget {
     // before it is pressed (DIA-018b-2). Mark's last several simulator
     // findings were all visible here first: "on the throw" where he meant an
     // error, and a throw from the RF that nobody made.
-    final visible = ref.watch(_visibleStreamProvider).valueOrNull;
+    final visible = ref.watch(visibleStreamProvider).valueOrNull;
     final fold = ref.watch(gameControllerProvider).valueOrNull;
     final scoresAs = visible == null || fold == null
         ? null
@@ -270,19 +263,18 @@ class FieldControls extends ConsumerWidget {
       children: (dialogContext) => [
         Text(body, style: Theme.of(dialogContext).textTheme.bodyLarge),
         const SizedBox(height: BrandMetrics.spaceXl),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
+        AnswerGrid(
           children: [
-            OutlinedButton(
+            AnswerButton(
               key: leaveKeepKey,
+              label: keep,
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: Text(keep),
             ),
-            const SizedBox(width: BrandMetrics.spaceMd),
-            FilledButton(
+            AnswerButton(
               key: leaveDiscardKey,
+              label: drop,
+              primary: true,
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: Text(drop),
             ),
           ],
         ),

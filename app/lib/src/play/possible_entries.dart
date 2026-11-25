@@ -192,6 +192,27 @@ const _heldTypes = {
   TouchType.TAG_APPLIED,
 };
 
+/// The clean answer a touch's menu offers beside its misplays (§23.7,
+/// board 16E), or null where there is no clean answer that leaves the rest
+/// of the record standing.
+///
+/// Only two are safe to offer. A **reception** goes back to *took the
+/// throw*: dropping it and holding it differ in the touch alone. A **ball on
+/// the ground** goes back to *fielded* from a boot or a bobble, which are
+/// both still a fielder with the ball in front of her. An air ball has no
+/// clean answer here: *caught* retires the batter, and an out is a runner
+/// entry, not a touch, so retyping the touch could not make the record
+/// agree with itself.
+TouchType? cleanCounterpart(PlayDraft draft, TouchEntry touch) {
+  if (throwerInto(draft, touch) != null) return TouchType.RECEIVED_THROW;
+  const groundTypes = {TouchType.FIELDED, TouchType.BOOTED, TouchType.BOBBLED};
+  if (!groundTypes.contains(touch.touchType)) return null;
+  return switch (ballStateAt(draft, touch)) {
+    BallState.onGround || BallState.loosePitch => TouchType.FIELDED,
+    BallState.inFlight => null,
+  };
+}
+
 /// §15.3's retype menu on a touch node: the misplays this touch could have
 /// been, plus `deflected` where a deflection was possible. Derived from the
 /// same [ballPlayChoices] as the popup, so the two cannot disagree.

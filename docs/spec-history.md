@@ -3,6 +3,54 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.77
+
+**The play chain strip is redrawn, the "+" chip gives way to each step's own menu, a run's rulings
+are entered from its row, the ✓ asks on one review card, and every dialog speaks one language.**
+DIA-032, ruled by Mark on 2026-11-24 and 2026-11-25.
+
+**Why.** Mark, on the built strip: *"the text is really small. it's kind of weird and unclear what
+it does. you can't even tell that these events are clickable where other stuff can be entered. the
+popups that do appear seem to lack design."* An audit agreed. The nodes were grey 40 px circles on a
+grey page, the consequences were code (`B→1`, `3→⌂`), and ⚾ and ⌂ rendered as missing glyphs. The
+only affordance was a 12 px dashed chip, and the menus were stock Material lists. v0.76 had also
+left the run's override menu to this design pass.
+
+**What changed.** Turn 16 drew three directions. Mark picked 16A, the strip made legible.
+- **§15.2:** steps are buttons with a fielder and a verb, misplays are filled Rosin, runners read in
+  words, a run's row carries its rulings, and the strip scrolls sideways.
+- **§15.3:** the "+" chip is gone. Tapping a step opens its menu, and rarer options sit in it under a
+  section label. A run's row opens earned and RBI.
+- **§13.5:** an override is entered from the run's row. Diamond's call and the scorer's call are
+  labeled, and *Use Diamond's call* takes an override back.
+- **§15.5:** when the play leaves a question open (reach, sacrifice), the ✓ opens one review card
+  (16D) in place of a run of dialogs. Earned and RBI show on it but never open it.
+- **§23.7 (new):** one dialog language for every popup in the app (16E).
+- **Not chosen:** 16C (the field with no strip) was dropped as too busy. 16B (the play as live
+  sentences) is tabled, not ruled out, until Mark has used the strip without it.
+
+## v0.76
+
+**§13.5's overrides get types and an anchor rule, §13.3's reconstruction runs per half-inning, and
+an override is entered with its play.** DIA-010, ruled by Mark on 2026-11-24.
+
+**Why.** DIA-010 found the override events had never reached `schema/`, and that §13.5 never said
+what type `rbi` is. Wiring them into a screen found that the earned-run reconstruction had only ever
+run on one half-inning: over a whole game, it carried its three reconstructed outs forward, so every
+run after the first half derived unearned. Nothing in the app displayed an earned run or an RBI, so
+there was nowhere to override one. A first cut put the override in the play log. Mark rejected it:
+*"you have to leave the play to enter the play. that makes no sense."*
+
+**What changed.**
+- `rbi` is a boolean on one run, not a count. A count goes stale when a correction removes a run it
+  covered; a per-run answer simply stops applying.
+- `runEventId` names the run's correction root, so an override follows its run through corrections
+  and goes quiet if the run is voided or stops scoring.
+- §13.3's reconstruction starts each half-inning fresh.
+- An override is entered with its play, from the scoring runner's node on the chain strip, in the
+  play's own batch. The menu is DIA-032's design pass.
+- The play log shows each run's rulings, read-only. Editing a committed play's ruling is deferred.
+
 ## v0.75
 
 **Dark mode's callable wash is built from Grass-as-line, and the dashed off step sits below it

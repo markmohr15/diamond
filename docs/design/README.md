@@ -15,7 +15,9 @@ Board names: `13A` is Turn 13, board A. `12A` is Turn 12, panel A, in the archiv
 |---|---|---|---|---|
 | Outcome sheet | **13A** | **13A dark** | §11.1; built option set (`outcome_step.dart`) | 5A, 6A |
 | In the dirt (top-down plane) | **13B** | **13B dark** | §11.4: a foot ruler with unsigned labels, no bands, no catcher, no weight on 0 ft; same rect and px-per-x as 15A's zone; depth −2.5 ft … +2.6 ft. Lifting records it, no confirm button (as built). | 3A, 6E |
-| Optional actions on the play chain | **13C** | **13C dark** | §15.3: rule calls on runner chips, the batter's included (DIA-018, 2026-11-05) | 11D |
+| Play chain strip and its menus | **16A**, **16E** | **16A dark**, **16E dark** | §15.2–§15.3 (v0.77): no "+" chips; tapping a step opens its menu. Rule calls stay on runner rows, the batter's included. 16E's runner menu says *tap it on the strip* for re-linking. | 13C, 14A's strip, 11D |
+| Review at the ✓ | **16D** | **16D dark** | §15.5 (v0.77): only when a question is open (reach, sacrifice). Earned and RBI show on it but never open it. Its first row's wording predates the built reach question; the build's question wins. | 14B's sacrifice prompt |
+| Every dialog in the app | **16E** | **16E dark** | §23.7 (v0.77). 14B's dialogs keep their content and take 16E's rules. | stock Material dialogs |
 | Field surface (play editor) | **14A** | **14A dark** | §15.5 and §15.1 (v0.60). No runner panel: runners resolve by drag, and neither the spec nor the build has one. | 12A, 11A, 11B, 4A, 6D |
 | Field dialogs (trajectory, bunt pair, leave field) | **14B** | **14B dark** | Built labels (Grounder, Popup, Bunt on the ground…) | 12B, 11G bunt inline |
 | SAFE / OUT pills | **14B** | **14B dark** | Hold-to-hide completes or never happened (DIA-018) | 12F, 11C |
@@ -26,6 +28,10 @@ Board names: `13A` is Turn 13, board A. `12A` is Turn 12, panel A, in the archiv
 | Pitcher and batter scouting | 2B, 2C | 6G, 6H | Not M1 | — |
 | Palette, surface ladder, reserved colors | Branding T01–02 | Branding T02 | Built in DIA-016 (`brand_baseline.dart`) | — |
 | App icon and splash | Branding T03 (3A, 3C) | Branding T03 (3B, 3D) | — | — |
+
+**Turn 16 (DIA-032), ruled 2026-11-24/25:** 16A, 16D and 16E are current (rows above). **16B**, the
+play as live sentences, is **tabled** and still on the canvas: not chosen, not ruled out. 16C was
+dropped and removed from the canvas.
 
 **Still to draw:** nothing for M1. Scouting (2B/2C, 6G/6H) is post-M1 and gets redrawn when its
 ticket comes up.
