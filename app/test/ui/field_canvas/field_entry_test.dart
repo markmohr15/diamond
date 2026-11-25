@@ -662,6 +662,78 @@ void main() {
       expect(rendered.first, contains('On a fielding error by the SS'));
       expect(rendered.last, contains('singled to left-center'));
     });
+
+    testWidgets("a run's rulings show under its play, read-only, and an "
+        'override reads as edited (§13.5, DIA-010)', (tester) async {
+      await pumpLoop(tester);
+      final game = container.read(gameControllerProvider.notifier);
+      final pitch = await game.append(
+        type: 'PitchThrown',
+        payload: PitchThrown(
+          pitcherId: 'p1',
+          batterId: 'b1',
+          batterSide: BatterSide.R,
+          outcome: Outcome.IN_PLAY,
+        ).toJson(),
+      );
+      await game.append(
+        type: 'BallInPlay',
+        payload: BallInPlay(
+          pitchEventId: pitch.id,
+          fair: true,
+          trajectory: Trajectory.LINE,
+          landing: FieldCoord(x: -45, y: 120),
+          landingIsCaught: false,
+        ).toJson(),
+      );
+      final run = await game.append(
+        type: 'RunnerAdvance',
+        payload: RunnerAdvance(
+          runnerId: 'r3',
+          from: 3,
+          to: 4,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+        ).toJson(),
+      );
+      await game.append(
+        type: 'RunnerAdvance',
+        payload: RunnerAdvance(
+          runnerId: 'b1',
+          from: 0,
+          to: 1,
+          reason: RunnerAdvanceReason.BATTED_BALL,
+        ).toJson(),
+      );
+      await tester.pumpAndSettle();
+
+      // Derived: a clean single scores her, earned, and the RBI is b1's.
+      await tapKey(tester, countHudLogKey);
+      expect(
+        find.text('r3 · earned · RBI b1', findRichText: true),
+        findsOneWidget,
+      );
+      // Nothing to tap: the log reads rulings, it does not enter them.
+      expect(
+        find.ancestor(
+          of: find.byKey(playLogRunKey(run.id)),
+          matching: find.byType(InkWell),
+        ),
+        findsNothing,
+      );
+      await tapKey(tester, playLogCloseKey);
+
+      // An override, as the play's entry will write it, reads as edited.
+      await game.append(
+        type: 'EarnedRunOverride',
+        payload: EarnedRunOverride(runEventId: run.id, earned: false).toJson(),
+      );
+      await tester.pumpAndSettle();
+      await tapKey(tester, countHudLogKey);
+      expect(
+        find.text('r3 · unearned · RBI b1 · edited', findRichText: true),
+        findsOneWidget,
+      );
+    });
   });
 
   group('beyond the fence (§16.3)', () {
