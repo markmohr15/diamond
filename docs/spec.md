@@ -1,6 +1,6 @@
-# Diamond — Event Taxonomy & Pitch Entry Spec (v0.76)
+# Diamond — Event Taxonomy & Pitch Entry Spec (v0.77)
 
-**Status:** Draft for review — v0.76 types §13.5's overrides (`earned` and `rbi` are booleans on one run), anchors them to the run's correction root, makes §13.3's reconstruction start fresh each half-inning, and enters an override with its play, from the run's node on the chain strip (§13.3, §13.5). v0.75 builds dark mode's callable wash from Grass-as-line and quiets the dashed off step below it, so a spot that can be called outranks one that cannot (§23.2). v0.74 makes the fielder with the ball and a runner off her bag, dropped one on the other, a tag out (§15.1). Full history: `docs/spec-history.md`.
+**Status:** Draft for review — v0.77 redraws the play chain strip as buttons that say what happened, puts every option in the tapped step's own menu in place of the "+" chip, enters a run's earned and RBI rulings from its row, asks the ✓'s questions on one review card, and gives every dialog one language (§13.5, §15.2–§15.5, §23.7). v0.76 types §13.5's overrides (`earned` and `rbi` are booleans on one run), anchors them to the run's correction root, makes §13.3's reconstruction start fresh each half-inning, and enters an override with its play, from the run's node on the chain strip (§13.3, §13.5). v0.75 builds dark mode's callable wash from Grass-as-line and quiets the dashed off step below it, so a spot that can be called outranks one that cannot (§23.2). Full history: `docs/spec-history.md`.
 **Scope:** The complete catalog of game events, their payloads, coordinate systems, and the correction model. This document is the foundation of the data layer; every stat, heat map, spray chart, and scouting report is a projection over this event stream.
 
 ---
@@ -796,7 +796,7 @@ Both are deliberately **narrow**: they override one specific run's ruling, not a
 **The anchor and where it is entered (v0.76).**
 - **`rbi` is a boolean**, not a count: *does this run count as an RBI.* One run is at most one RBI, a multi-run play is several runs each with its own answer, and a count would go stale the moment a correction removed a run it was counting.
 - **`runEventId` names the run's correction root**: the original `RunnerAdvance`, which every correction of it names in `corrects` (§6). So an override follows its run through corrections. If the run is voided, or corrected so it no longer scores, the override applies to nothing; it stays in the stream and applies again if an undo brings the run back. An override naming anything else is ignored.
-- **It is entered with its play**, from the scoring runner's node on the play chain strip (§15.2), and written in the play's own batch (§6), so undoing the play takes it too. Mark, 2026-11-24: *"you have to leave the play to enter the play. that makes no sense."* What the node's menu looks like is DIA-032's design pass.
+- **It is entered with its play**, from the run's row on the play chain strip (§15.2), and written in the play's own batch (§6), so undoing the play takes it too. Mark, 2026-11-24: *"you have to leave the play to enter the play. that makes no sense."* **The run's menu (v0.77)** asks two questions, *Earned* and *RBI*, each a pair of answers with Diamond's derivation selected and labeled *Diamond's call*. Choosing the other answer writes the override and labels it *Your call* in the accent; *Use Diamond's call* takes it back, by dropping it from the draft before the commit (§23.7). The row shows the run's rulings in words, *unearned · no RBI*, so the scorer sees them without opening anything, and they never stop the commit (§15.5).
 - **The play log shows each run's rulings and edits nothing**: earned or unearned, RBI or not, and *edited* when an override decides it. Changing a ruling after the play is committed is deferred (*"maybe we allow editing in the play log down the road but that can't be the default"*); until then, the play is undone and re-entered.
 
 ---
@@ -857,7 +857,7 @@ The interaction model keeps what GC got right — dragging the ball around the f
 
 ### 15.1 The Canvas (v0.43)
 
-The play canvas shows the field with fielders at their positions. Entry order is fixed and load-bearing: **the trajectory comes first** — `ground` / `line` / `fly` / `popup` / `bunt`, where *Bunt* opens a second pair, *on the ground* (`bunt`) or *in the air* (`bunt_air`), because a bunt still has to say whether it can be caught (v0.58); when the outcome sheet already said Bunt, the field skips the five and asks only that pair — asked in a centered modal that opens with the surface (every popup on this surface is a centered dialog, sized to its content) — because the batted-ball type drives every later option: the what-happened popup's contents, the caught-vs-fielded readings, the fly-out inference. Until it's answered, any canvas touch just brings the question back.
+The play canvas shows the field with fielders at their positions. Entry order is fixed and load-bearing: **the trajectory comes first** — `ground` / `line` / `fly` / `popup` / `bunt`, where *Bunt* opens a second pair, *on the ground* (`bunt`) or *in the air* (`bunt_air`), because a bunt still has to say whether it can be caught (v0.58); when the outcome sheet already said Bunt, the field skips the five and asks only that pair — asked in a centered modal that opens with the surface (every popup on this surface is a centered dialog, sized to its content, in §23.7's language) — because the batted-ball type drives every later option: the what-happened popup's contents, the caught-vs-fielded readings, the fly-out inference. Until it's answered, any canvas touch just brings the question back.
 
 **The batter runs on contact.** The surface opens with the batter-runner already walked up to first (the forced cascade applied — runners never pass each other), because a ball in play means she's running. Presumed movement **renders in motion — a third of the way up the line** — never parked on the next base: the canvas shows runners running, and the difference between "she's going there" and "she got there" stays visible until the scorer answers. **A runner nothing forced stands off her bag (v0.73)** — a sixth of the way toward the next base, short of running — so she and the base read as two things. Nothing is presumed for her: left alone, she commits where she stood. Mark, 2026-11-19: *"This clears up any confusion as far as base or runner if they are separate. On a force, we imply that they move up a base. With no force, we leave them where they are if the user doesn't move them."* A resolved runner stands on her base. The presumption resolves, never lingers: a **caught first touch** voids it — the unattributed walk-up comes off and the batter is out in the air, putout to the catch; an **out marked at the base a runner's last leg reached** absorbs that leg into the out (no phantom advance ever commits); and **a misplay raises the hit-vs-error question rather than answering it** (v0.56): the presumed reach stays unattributed until the scorer says how far the batter earned. She is asked in the one place she has not already answered — the SAFE popup when the batter is dragged past first, the force play's SAFE pill when a throw settles her at first, and the ✓ when nobody touched her at all. Only the reach is ever in question; every base beyond it was answered by its own popup when she was dragged there.
 
@@ -895,15 +895,24 @@ The play canvas shows the field with fielders at their positions. Entry order is
 
 ### 15.2 The Play Chain Strip
 
-As the sequence builds, a horizontal strip above the canvas renders it as nodes: **⚾ → 6 → 4 → 3**, with runner consequences hanging beneath the touch that caused them. This strip is the play's visible event log — and every node is a live control.
+As the sequence builds, a horizontal strip above the canvas renders it as steps, with runner consequences hanging beneath the step that caused them. This strip is the play's visible event log — and every step is a live control.
 
-### 15.3 The Modifier Chip — "something else happened here"
+**Every part of the strip is a button that says what happened (v0.77).** Mark, 2026-11-24: *"the text is really small. it's kind of weird and unclear what it does. you can't even tell that these events are clickable."* So:
 
-Every node in the chain carries a small **"+" chip**. Tapping it opens a compact radial/sheet menu scoped to what makes sense *at that point in the sequence*:
+- **A step reads as a fielder and a verb**, *1 · SS · booted*, at body size or larger on a raised button at least 64 px tall, with a chevron saying it opens. A misplay fills the step with Rosin (§23.2); a clean step is outlined. The ball leads the strip as its own step, *Grounder · to short*.
+- **A runner consequence reads in words**, *Jones safe at 1st*, *Ortiz to 3rd*, on a row under the step it hangs from. A run's row carries its rulings, *Simmons scored · unearned · no RBI* (§13.5). No arrows, no ⌂, no code: a symbol the scorer has to translate is a symbol she can misread, and ⚾ and ⌂ were not in the bundled fonts.
+- **The strip scrolls sideways** when a play outgrows it, and keeps the newest step in view.
+- **The sentence form is tabled.** Board 16B read the play back as the play log's sentences, with tappable words. It was not chosen, because the words are small targets that move as the text reflows, and the sentences speak in rulings (*fielding error*) where the scorer records physics (*booted*). It is not ruled out either: Mark wants to use the strip without it first. The sentences stay where §15.5 already puts them, above the ✓.
+
+### 15.3 The Step's Menu — "something else happened here"
+
+**Tapping a step opens its menu (v0.77)**, a §23.7 dialog scoped to what makes sense *at that point in the sequence*, with what is recorded now already selected. Until v0.77 every node carried a small dashed **"+" chip** beside it, and the chips were the only thing on the strip that looked like it did anything, at the smallest type on the screen. They are gone: the step itself is the control, and the rarer options sit in its menu under a section label rather than behind a second tap. The menus offer:
 
 - **On a touch node:** the misplay set — `dropped`, `booted`, `bobbled`, `wild_throw` (converts the following drag's meaning), `missed_catch`, `tag_missed`. A **receiving** node also offers *"the throw was wild"*, which retypes the **thrower** — the throw arrives badly, so the finger goes to the node that just appeared, while the charge belongs to whoever authored it — and **takes the reception off (v0.56)**: nobody receives a wild throw, and leaving the node committed a `received_throw` by a fielder who never touched the ball. A throw she *did* catch after a scramble is a `received_throw` with arrival quality `wide`, which the same sheet records. On a **receiving** node (`received_throw` and friends), the same chip also offers throw-arrival quality: `short hop` / `high` / `wide` — one tap, recorded as `receivedQuality`, zero effect on official scoring. Selecting a misplay recolors the node (misplays render amber; non-clean arrivals render with a subtle underline, not amber — they're information, not fault); a misplay that left the batter's reach unresolved raises §13.2's question — which error, and how much she earned — wherever she is next settled, at the ✓ if nowhere else.
 - **On a runner consequence (v0.43):** the `RuleCall` set — obstruction, interference variants, ground rule, dead-ball award. These are baserunning facts, so they live on the runner-consequence chips' menus — never on a standing button, and **never among the first-pass SAFE/OUT answers either**: a call this rare offered on every play is noise, so it is found where it is looked for. Selecting one inserts a call node (rendered ⚖) into the chain just before that consequence, links it (an advance re-attributes to the call; an out's `how` becomes `interference`), and asks which fielder it was against, since obstruction is charged to her (§13.2).
 - **On the ball's landing node:** infield fly, fair/foul dispute → `umpire_reversal`, spectator interference.
+
+- **On a run's row:** earned and RBI (§13.5).
 
 One mechanic, uniformly placed, covering errors *and* the weird stuff — no modes, no menu maze. The common case costs zero extra taps; the exceptional case costs exactly one tap plus one selection, at the exact spot in the play where it happened.
 
@@ -928,7 +937,7 @@ Nothing enters the event stream until the play is committed (tap the ✓ when th
 - **Leave field** is labeled with where it goes — *Back to pitch 4's result*. It voids the `in_play` pitch (§6) and reopens that pitch's outcome step with its call and location still entered, so the scorer chooses the result again; a wrong *In play*, or a wrong *Bunt* on the outcome sheet, is corrected here. Nothing is left half-recorded, and nothing the scorer entered before the result is lost. With anything on the chain it asks once first — *Keep this play* / *Discard play* — and the question says what is kept as well as what is lost; with an empty chain it goes straight back.
 - **Start play over** clears the chain and every runner move and brings the trajectory question back to the front. The field stays up. It means "I got this play wrong, let me redo it."
 - **Back one** steps back a single entry and names the one it will remove — *SS catch*. It works on snapshots of the immutable draft, so there is no inverse operation per action. It stops at the trajectory question: leaving the field is Leave field's job, never the end of a run of Back ones. **Back one only goes backward (v0.70).** Removing a part from the chain strip takes it out of the saved steps too, so Back one never puts back what was just removed. Mark: after taking off the most recent part, the next option should be the part before it, not a redo. A step that only added the removed part is no step at all and drops out.
-- **Commit play ✓**, with the result in words above it, *SCORES AS b1 singled to right-center. On a fielding error by the RF, b1 advanced to second.*, so the scorer reads what she is about to save (v0.65). It is the play log's own sentence for the uncommitted play, not a second grammar, so it says only what happened: runners who stayed put get no clause. It is hidden until the play can be committed, and its space is kept.
+- **Commit play ✓**, with the result in words above it, *SCORES AS b1 singled to right-center. On a fielding error by the RF, b1 advanced to second.*, so the scorer reads what she is about to save (v0.65). It is the play log's own sentence for the uncommitted play, not a second grammar, so it says only what happened: runners who stayed put get no clause. It is hidden until the play can be committed, and its space is kept. **When the play leaves a question open, the ✓ opens one review card (v0.77)** instead of asking in a row of dialogs: the play's sentences, then every open question together — §13.2's reach question, the sacrifice (§13.6) — with Diamond's answer selected where it has one, and *Back to the field* beside *Commit play*. Each run's earned and RBI rulings appear on the card when it opens, since they are on the same play, but **they never open it**: Mark, 2026-11-25, *"correct on when 16D appears"*. A play with nothing open commits on the ✓, as before.
 
 Only Leave field is always there. The other three appear when they can act (v0.63, §23.1): Start play over and Back one once there is a step to take back, Commit play once the play can be committed. Each keeps its space while hidden, so the bar never rearranges under the scorer's thumb.
 
@@ -1506,5 +1515,25 @@ rather than by size**, then labels for text inside components.
 Frontend work runs through the frontend-design review pass. **"Serviceable" is the failure bar, not the
 target.** Where a decision is genuinely contested, settle it on a real tablet in daylight rather than in
 prose — the pattern §11.4 sets for canvas fidelity and §9 #9 sets for perspective tilt.
+
+### 23.7 Dialogs (v0.77)
+
+**Every popup in the app is one kind of dialog** (design board 16E; Mark, 2026-11-24: *"16E menu
+styling should be used app wide"*). The stock Material lists and chips it replaces didn't follow 14B,
+and showed the current answer as a grey check.
+
+- **Centered, sized to its content**, a Card surface inside a scrim (§15.1).
+- **The title names what was tapped**: a fielder and her step, a runner and where she ended, a run,
+  the ball. A line under it asks the question in words.
+- **Every answer is a button at least 56 px tall**, in a grid. No list tiles, no chips.
+- **What is recorded now is selected**, in solid Ink, or in Rosin when the answer is a misplay. Never a
+  grey check.
+- **Rarer answers sit below a small section label in the same dialog**, never behind a second tap.
+- **A ruling Diamond derived and the scorer can change** shows Diamond's answer labeled *Diamond's
+  call*. The scorer's own answer is solid accent, labeled *Your call*, and the dialog offers *Use
+  Diamond's call* to take it back. It is the one datum the scorer put there, so it carries the accent
+  (§23.1).
+- **It closes with Done**, or with the one action it exists for, named for what it does (*Discard
+  play*, *Commit play*). A removal (*Remove this step*) is a quiet text button, apart from the answers.
 
 ---
