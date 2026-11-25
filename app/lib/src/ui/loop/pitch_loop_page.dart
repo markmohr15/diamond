@@ -5,6 +5,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
 import 'package:diamond/src/ui/call/pending_call.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/loop/bailout_step.dart';
@@ -272,13 +273,9 @@ class PitchLoopPage extends ConsumerWidget {
               'No batter is due — the lineup is missing.',
           },
           key: pitchNotRecordedKey,
-          textAlign: TextAlign.center,
+          style: Theme.of(dialogContext).textTheme.bodyLarge,
         ),
-        const SizedBox(height: 12),
-        FilledButton(
-          onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('OK'),
-        ),
+        const DialogDone(label: 'OK'),
       ],
     );
   }
@@ -312,22 +309,27 @@ class PitchLoopPage extends ConsumerWidget {
       context,
       title: '$play — what did the ${lone ? 'runner' : 'runners'} do?',
       children: (dialogContext) => [
-        FilledButton(
-          key: getawayAdvanceAllKey,
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            unawaited(controller.getawayAdvanceAll());
-          },
-          child: Text(advance),
-        ),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          key: getawayToFieldKey,
-          onPressed: () {
-            Navigator.pop(dialogContext);
-            unawaited(controller.getawayToField());
-          },
-          child: const Text('Go to the field'),
+        AnswerGrid(
+          columns: 1,
+          children: [
+            AnswerButton(
+              key: getawayAdvanceAllKey,
+              label: advance,
+              primary: true,
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                unawaited(controller.getawayAdvanceAll());
+              },
+            ),
+            AnswerButton(
+              key: getawayToFieldKey,
+              label: 'Go to the field',
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                unawaited(controller.getawayToField());
+              },
+            ),
+          ],
         ),
       ],
     );
@@ -339,23 +341,21 @@ class PitchLoopPage extends ConsumerWidget {
       context,
       title: 'Dropped 3rd strike — called or swinging?',
       children: (dialogContext) => [
-        Wrap(
-          spacing: 12,
-          alignment: WrapAlignment.center,
+        AnswerGrid(
           children: [
             // Swinging first: a third strike that gets away is usually one
             // she chased, so the likelier answer takes the likelier thumb.
-            FilledButton(
+            AnswerButton(
               key: d3kSwingingKey,
+              label: 'Swinging',
               onPressed: () =>
                   Navigator.pop(dialogContext, Outcome.SWINGING_STRIKE),
-              child: const Text('Swinging'),
             ),
-            FilledButton(
+            AnswerButton(
               key: d3kCalledKey,
+              label: 'Called',
               onPressed: () =>
                   Navigator.pop(dialogContext, Outcome.CALLED_STRIKE),
-              child: const Text('Called'),
             ),
           ],
         ),
@@ -375,10 +375,7 @@ class PitchLoopPage extends ConsumerWidget {
       context,
       title: 'What happened to the batter?',
       children: (dialogContext) => [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
+        AnswerGrid(
           children: [
             for (final (key, label, action) in <(Key, String, VoidCallback)>[
               (d3kOutThrowKey, 'Out at first', controller.d3kOutOnThrow),
@@ -391,13 +388,13 @@ class PitchLoopPage extends ConsumerWidget {
               ),
               (d3kFieldKey, 'Go to field', controller.d3kToField),
             ])
-              FilledButton(
+              AnswerButton(
                 key: key,
+                label: label,
                 onPressed: () {
                   Navigator.pop(dialogContext);
                   action();
                 },
-                child: Text(label),
               ),
           ],
         ),

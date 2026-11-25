@@ -317,6 +317,33 @@ List<CascadedMove> cascadeRunnerMove(
 }
 
 @immutable
+/// The scorer's answer to a run's two rulings (§13.5 v0.77), held on the
+/// draft until the ✓ writes it as `EarnedRunOverride` / `RbiOverride` in the
+/// play's own batch. Null on either side means Diamond's call stands: the
+/// run's menu clears an answer that agrees with the derivation rather than
+/// storing it, so nothing here ever restates what the projection says.
+@immutable
+class RunRuling {
+  const RunRuling({this.earned, this.rbi});
+
+  factory RunRuling.fromJson(Map<String, dynamic> json) =>
+      RunRuling(earned: json['earned'] as bool?, rbi: json['rbi'] as bool?);
+
+  final bool? earned;
+  final bool? rbi;
+
+  bool get isEmpty => earned == null && rbi == null;
+
+  Map<String, dynamic> toJson() => {'earned': earned, 'rbi': rbi};
+
+  @override
+  bool operator ==(Object other) =>
+      other is RunRuling && other.earned == earned && other.rbi == rbi;
+
+  @override
+  int get hashCode => Object.hash(earned, rbi);
+}
+
 class PlayDraft {
   const PlayDraft({
     required this.pitchEventId,
@@ -334,6 +361,7 @@ class PlayDraft {
     this.bunted = false,
     this.heldBy,
     this.looseAfterKey,
+    this.runRulings = const {},
   });
 
   factory PlayDraft.fromJson(Map<String, dynamic> json) => PlayDraft(
@@ -365,6 +393,13 @@ class PlayDraft {
     bunted: json['bunted'] as bool? ?? false,
     heldBy: json['heldBy'] as int?,
     looseAfterKey: json['looseAfterKey'] as int?,
+    runRulings: {
+      for (final entry
+          in (json['runRulings'] as Map<String, dynamic>? ?? {}).entries)
+        int.parse(entry.key): RunRuling.fromJson(
+          entry.value as Map<String, dynamic>,
+        ),
+    },
   );
 
   /// The committed `PitchThrown` this play hangs off (§4.2's link).
@@ -486,6 +521,11 @@ class PlayDraft {
 
   /// The chain, in entry order — which is stream order at commit.
   final List<PlayEntry> entries;
+
+  /// The scorer's earned and RBI answers, by the scoring leg's key (§13.5
+  /// v0.77). Written at the ✓ only for a leg that still scores, so taking
+  /// the run off the play takes its answer with it.
+  final Map<int, RunRuling> runRulings;
 
   /// Where the fielder drag left each dragged fielder this play — render
   /// state for this canvas only. Deliberately never an event: per-play
@@ -686,6 +726,7 @@ class PlayDraft {
     int? nextKey,
     Object? heldBy = _unset,
     Object? looseAfterKey = _unset,
+    Map<int, RunRuling>? runRulings,
   }) {
     return PlayDraft(
       pitchEventId: pitchEventId,
@@ -705,8 +746,18 @@ class PlayDraft {
       looseAfterKey: looseAfterKey == _unset
           ? this.looseAfterKey
           : looseAfterKey as int?,
+      runRulings: runRulings ?? this.runRulings,
     );
   }
+
+  /// The draft with [legKey]'s ruling replaced; an empty one is dropped.
+  PlayDraft withRunRuling(int legKey, RunRuling ruling) => copyWith(
+    runRulings: {
+      for (final entry in runRulings.entries)
+        if (entry.key != legKey) entry.key: entry.value,
+      if (!ruling.isEmpty) legKey: ruling,
+    },
+  );
 
   PlayDraft _appending(PlayEntry Function(int key) build) =>
       copyWith(entries: [...entries, build(nextKey)], nextKey: nextKey + 1);
@@ -1563,6 +1614,10 @@ class PlayDraft {
     'bunted': bunted,
     'heldBy': heldBy,
     'looseAfterKey': looseAfterKey,
+    'runRulings': {
+      for (final entry in runRulings.entries)
+        '${entry.key}': entry.value.toJson(),
+    },
   };
 
   /// The atomic commit sequence (§15.5): `BallInPlay` first, then the chain
@@ -1671,6 +1726,26 @@ class PlayDraft {
             ).toJson(),
           ),
         },
+      // §13.5 v0.77: the scorer's rulings, in the play's own batch, so
+      // undoing the play takes them too. The run's anchor is its own
+      // advance — new in this batch, so it is its own correction root.
+      for (final MapEntry(key: legKey, value: ruling) in runRulings.entries)
+        if (entryByKey(legKey) case LegEntry(to: 4)) ...[
+          if (ruling.earned case final earned?)
+            PendingEvent(
+              type: 'EarnedRunOverride',
+              payload: EarnedRunOverride(
+                runEventId: '',
+                earned: earned,
+              ).toJson()..['runEventId'] = localRef(entryKey(legKey)),
+            ),
+          if (ruling.rbi case final rbi?)
+            PendingEvent(
+              type: 'RbiOverride',
+              payload: RbiOverride(runEventId: '', rbi: rbi).toJson()
+                ..['runEventId'] = localRef(entryKey(legKey)),
+            ),
+        ],
     ];
   }
 

@@ -1,4 +1,5 @@
 import 'package:diamond/src/field/field_profile.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -11,11 +12,16 @@ import 'package:material_ui/material_ui.dart';
 /// history, and nothing outside the field got it at all. DIA-016d moved those
 /// decisions onto the theme (`buildTheme`), so what is left here is the only
 /// part that was ever specific to this dialog: **its layout**.
+///
+/// §23.7 (v0.77) makes this the frame for **every** dialog in the app, not
+/// just the field's: the title names what was tapped, [question] asks in
+/// words, and the answers are `dialog_parts.dart`'s.
 Future<T?> showFieldDialog<T>(
   BuildContext context, {
   required String title,
   required List<Widget> Function(BuildContext) children,
-  CrossAxisAlignment alignment = CrossAxisAlignment.center,
+  String? question,
+  CrossAxisAlignment alignment = CrossAxisAlignment.stretch,
 }) {
   final theme = Theme.of(context);
 
@@ -32,8 +38,23 @@ Future<T?> showFieldDialog<T>(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: alignment,
             children: [
-              Text(title, style: theme.textTheme.headlineSmall),
-              const SizedBox(height: BrandMetrics.spaceXl),
+              Text(
+                title,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              if (question != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: BrandMetrics.spaceXs),
+                  child: Text(
+                    question,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: BrandMetrics.spaceLg),
               // Built against the dialog's own context: anything that
               // pops with a result must pop *this* route.
               ...children(context),
@@ -56,21 +77,21 @@ Future<int?> showPositionPicker(BuildContext context, String title) {
   return showFieldDialog<int>(
     context,
     title: title,
+    question: 'The fielder the call is against.',
     children: (dialogContext) => [
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
+      AnswerGrid(
+        columns: 3,
         children: [
           for (final entry in positionAbbreviations.entries)
             if (entry.key <= 9)
-              ActionChip(
+              AnswerButton(
                 key: positionPickKey(entry.key),
-                label: Text(entry.value),
+                label: entry.value,
                 onPressed: () => Navigator.pop(dialogContext, entry.key),
               ),
         ],
       ),
+      const DialogDone(),
     ],
   );
 }

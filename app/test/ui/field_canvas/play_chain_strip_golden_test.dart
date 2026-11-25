@@ -10,14 +10,14 @@ import 'package:drift/native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-const _stripSize = Size(700, 130);
+const _stripSize = Size(900, 220);
 
-/// §15.2's strip as the fixtures render it. What to look at: misplay nodes
-/// (booted, wild throw) carry the semantic amber — fault not yet
-/// adjudicated — while the short-hop receiving node gets only an underline
-/// (information, not fault); runner consequences hang beneath the entry
-/// that caused them, unattributed movement beneath ⚾; the trailing + is
-/// the ⚖ insertion point.
+/// §15.2's strip as the fixtures render it (v0.77, board 16A). What to look
+/// at: every step is a button that says what happened — *SS booted*, *SS
+/// threw wild* filled with Rosin (fault not yet adjudicated), the short-hop
+/// reception only underlined (information, not fault); runners read in
+/// words beneath the step that moved them, unattributed movement beneath
+/// the ball; no "+" chips anywhere, and no ⚾ or ⌂ glyphs.
 void main() {
   final base = const PlayDraft(
     pitchEventId: 'p',
@@ -62,8 +62,8 @@ void main() {
       children: [
         GoldenTestScenario(
           name:
-              'play 02: boot (amber) → advance, wild throw (amber) → '
-              'advance',
+              'play 02: boot (Rosin) then the batter safe at 1st; wild throw '
+              '(Rosin) then the batter to 3rd',
           constraints: BoxConstraints.tight(_stripSize),
           child: strip(
             base
@@ -76,7 +76,7 @@ void main() {
         GoldenTestScenario(
           name:
               'play 03 shape: clean touches, short-hop underline, R3 '
-              'scored under ⚾, tag out under its touch',
+              'scored under the ball, the batter out under her tag',
           constraints: BoxConstraints.tight(_stripSize),
           child: strip(
             base

@@ -1,5 +1,6 @@
 import 'package:diamond/src/events/generated/events.dart';
 import 'package:diamond/src/rules/batted_ball.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Keys the widget tests resolve against. Production code has no reason to
@@ -67,44 +68,53 @@ class _TrajectoryRowState extends State<TrajectoryRow> {
 
   @override
   Widget build(BuildContext context) {
-    Widget chip(Key key, String label, Trajectory trajectory) => ChoiceChip(
+    Widget answer(Key key, String label, Trajectory trajectory) => AnswerButton(
       key: key,
-      label: Text(label),
+      label: label,
       selected: widget.selected == trajectory,
-      onSelected: (_) => widget.onChosen(trajectory),
+      onPressed: () => widget.onChosen(trajectory),
     );
 
-    return Wrap(
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
-      children: _bunt
-          ? [
-              // Sheet said bunt: nothing to go back to — changing that
-              // answer is the outcome sheet's job, through undo.
-              if (!widget.bunted)
-                // Labeled, not a tooltip: a tablet has no hover to show
-                // one (14B draws the words beside the arrow).
-                TextButton.icon(
-                  key: trajectoryBackKey,
-                  onPressed: () => setState(() => _bunt = false),
-                  icon: const Icon(Icons.arrow_back),
-                  label: const Text('Not a bunt'),
-                ),
-              for (final entry in _buntLabels.entries)
-                chip(trajectoryKey(entry.key), entry.value, entry.key),
-            ]
-          : [
-              for (final entry in _labels.entries)
-                chip(trajectoryKey(entry.key), entry.value, entry.key),
-              ChoiceChip(
-                key: trajectoryBuntKey,
-                label: const Text('Bunt'),
-                selected: false,
-                onSelected: (_) => setState(() => _bunt = true),
+    // 14B's grid (§23.7): two across, Bunt… alone on the last row.
+    if (_bunt) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Sheet said bunt: nothing to go back to — changing that answer
+          // is the outcome sheet's job, through undo.
+          if (!widget.bunted)
+            Align(
+              alignment: Alignment.centerLeft,
+              // Labeled, not a tooltip: a tablet has no hover to show one
+              // (14B draws the words beside the arrow).
+              child: QuietAction(
+                key: trajectoryBackKey,
+                icon: Icons.arrow_back,
+                label: 'Not a bunt',
+                onPressed: () => setState(() => _bunt = false),
               ),
+            ),
+          AnswerGrid(
+            columns: 1,
+            children: [
+              for (final entry in _buntLabels.entries)
+                answer(trajectoryKey(entry.key), entry.value, entry.key),
             ],
+          ),
+        ],
+      );
+    }
+    return AnswerGrid(
+      children: [
+        for (final entry in _labels.entries)
+          answer(trajectoryKey(entry.key), entry.value, entry.key),
+        AnswerButton(
+          key: trajectoryBuntKey,
+          label: 'Bunt…',
+          onPressed: () => setState(() => _bunt = true),
+        ),
+      ],
     );
   }
 }

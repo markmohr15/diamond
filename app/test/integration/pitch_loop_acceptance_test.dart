@@ -5,6 +5,7 @@ import 'package:diamond/src/game/game_controller.dart';
 import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/play/play_draft_controller.dart';
 import 'package:diamond/src/ui/call/call_screen.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/field_canvas/field_entry_surface.dart';
 import 'package:diamond/src/ui/field_canvas/field_geometry.dart';
 import 'package:diamond/src/ui/field_canvas/trajectory_row.dart';
@@ -133,7 +134,7 @@ void main() {
     await tester.longPress(find.byKey(countHudCountKey));
     await tester.pumpAndSettle();
     // Both chip rows show a '2'; the balls row renders first.
-    await tester.tap(find.widgetWithText(ChoiceChip, '2').first);
+    await tester.tap(find.widgetWithText(AnswerButton, '2').first);
     await tester.pumpAndSettle();
     await tapText(tester, 'Make it 2-1');
     expect(find.text('2-1', findRichText: true), findsOneWidget);

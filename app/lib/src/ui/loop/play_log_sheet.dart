@@ -17,6 +17,7 @@ import 'package:diamond/src/game/game_session.dart';
 import 'package:diamond/src/rules/logical_order.dart';
 import 'package:diamond/src/rules/official_scoring.dart';
 import 'package:diamond/src/rules/play_line.dart';
+import 'package:diamond/src/ui/dialog/dialog_parts.dart';
 import 'package:diamond/src/ui/field_canvas/field_dialog.dart';
 import 'package:diamond/src/ui/theme/brand_metrics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -72,17 +73,9 @@ void showPlayLog(BuildContext context) {
       alignment: CrossAxisAlignment.start,
       children: (context) => [
         const PlayLogBody(),
-        const SizedBox(height: BrandMetrics.spaceXl),
         // Nothing here commits anything, so the only way out is out — and
         // it is drawn rather than left to the barrier, which is invisible.
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            key: playLogCloseKey,
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ),
+        const DialogDone(doneKey: playLogCloseKey, label: 'Close'),
       ],
     ),
   );

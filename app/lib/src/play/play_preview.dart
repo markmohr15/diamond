@@ -32,12 +32,68 @@ String? previewPlayLine(
   required BaseState before,
   required int outs,
   PlayerLabel? label,
+  bool evenIfAsking = false,
 }) {
   if (!draft.committable) return null;
-  if (reachAtCommit(draft, before) == ReachAtCommit.ask) return null;
-  final settled = withReachSettled(draft, before);
-  if (settled.invitesSacrifice(outs: outs)) return null;
-  final pending = settled.toEvents();
+  if (!evenIfAsking) {
+    if (reachAtCommit(draft, before) == ReachAtCommit.ask) return null;
+    if (withReachSettled(draft, before).invitesSacrifice(outs: outs)) {
+      return null;
+    }
+  }
+  final (preview, _) = _previewEvents(visible, withReachSettled(draft, before));
+
+  List<String> said(List<GameEvent> stream) {
+    final lines = label == null
+        ? playLines(foldOfficialScoring(stream))
+        : playLines(foldOfficialScoring(stream), label: label);
+    return [
+      for (final line in lines)
+        if (line.pitchEventId == draft.pitchEventId) ...line.sentences,
+    ];
+  }
+
+  final already = said(visible);
+  final added = [
+    for (final sentence in said([...visible, ...preview]))
+      if (!already.contains(sentence)) sentence,
+  ];
+  return added.isEmpty ? null : added.join(' ');
+}
+
+/// Each run the open play scores, with Diamond's earned and RBI rulings and
+/// any answer the scorer has already given (§13.5 v0.77), keyed by the
+/// scoring leg's [PlayEntry.key] — what the strip's run rows read.
+///
+/// Folded the same way [previewPlayLine] is, from what the ✓ would save if
+/// nothing else were entered. Empty when the draft can't be committed yet.
+Map<int, ScoredRun> previewRuns(
+  List<GameEvent> visible,
+  PlayDraft draft, {
+  required BaseState before,
+}) {
+  if (!draft.committable) return const {};
+  final (preview, idsByKey) = _previewEvents(
+    visible,
+    withReachSettled(draft, before),
+  );
+  final legKeyById = <String, int>{
+    for (final MapEntry(:key, :value) in idsByKey.entries)
+      if (key.startsWith('e')) value: int.parse(key.substring(1)),
+  };
+  return {
+    for (final run in foldOfficialScoring([...visible, ...preview]).runs)
+      if (legKeyById[run.eventId] case final legKey?) legKey: run,
+  };
+}
+
+/// The draft's events as they would be appended, under stand-in ids, and
+/// the stand-in id of each batch-local key.
+(List<GameEvent>, Map<String, String>) _previewEvents(
+  List<GameEvent> visible,
+  PlayDraft draft,
+) {
+  final pending = draft.toEvents();
   String idOf(int i) => 'preview-$i';
   final idsByKey = {
     for (var i = 0; i < pending.length; i++)
@@ -57,21 +113,5 @@ String? previewPlayLine(
         payload: resolveLocalRefs(pending[i].payload, idsByKey),
       ),
   ];
-
-  List<String> said(List<GameEvent> stream) {
-    final lines = label == null
-        ? playLines(foldOfficialScoring(stream))
-        : playLines(foldOfficialScoring(stream), label: label);
-    return [
-      for (final line in lines)
-        if (line.pitchEventId == draft.pitchEventId) ...line.sentences,
-    ];
-  }
-
-  final already = said(visible);
-  final added = [
-    for (final sentence in said([...visible, ...preview]))
-      if (!already.contains(sentence)) sentence,
-  ];
-  return added.isEmpty ? null : added.join(' ');
+  return (preview, idsByKey);
 }
