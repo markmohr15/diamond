@@ -6,7 +6,7 @@ entries; everything else lives here. Newest first.
 ## v0.76
 
 **§13.5's overrides get types and an anchor rule, §13.3's reconstruction runs per half-inning, and
-the play log is where a run's ruling is overridden.** DIA-010, ruled by Mark on 2026-11-24.
+an override is entered with its play.** DIA-010, ruled by Mark on 2026-11-24.
 
 **Why.** DIA-010 found the override events had never reached `schema/`, and that §13.5 never said
 what type `rbi` is. Wiring them into a screen found that the earned-run reconstruction had only ever
