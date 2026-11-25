@@ -3,6 +3,28 @@
 Full version history for `docs/spec.md`. The spec's own status line carries the three most recent
 entries; everything else lives here. Newest first.
 
+## v0.76
+
+**§13.5's overrides get types and an anchor rule, §13.3's reconstruction runs per half-inning, and
+the play log is where a run's ruling is overridden.** DIA-010, ruled by Mark on 2026-11-24.
+
+**Why.** DIA-010 found the override events had never reached `schema/`, and that §13.5 never said
+what type `rbi` is. Wiring them into a screen found that the earned-run reconstruction had only ever
+run on one half-inning: over a whole game, it carried its three reconstructed outs forward, so every
+run after the first half derived unearned. Nothing in the app displayed an earned run or an RBI, so
+there was nowhere to override one. A first cut put the override in the play log. Mark rejected it:
+*"you have to leave the play to enter the play. that makes no sense."*
+
+**What changed.**
+- `rbi` is a boolean on one run, not a count. A count goes stale when a correction removes a run it
+  covered; a per-run answer simply stops applying.
+- `runEventId` names the run's correction root, so an override follows its run through corrections
+  and goes quiet if the run is voided or stops scoring.
+- §13.3's reconstruction starts each half-inning fresh.
+- An override is entered with its play, from the scoring runner's node on the chain strip, in the
+  play's own batch. The menu is DIA-032's design pass.
+- The play log shows each run's rulings, read-only. Editing a committed play's ruling is deferred.
+
 ## v0.75
 
 **Dark mode's callable wash is built from Grass-as-line, and the dashed off step sits below it

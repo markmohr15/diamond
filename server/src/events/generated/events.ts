@@ -4,16 +4,18 @@
 
 // To parse this data:
 //
-//   import { Convert, GameEvent, BallInPlay, CountCorrection, FielderTouch, InningHalfEnd, InningHalfStart, LineupSet, PitchThrown, RuleCall, RunnerAdvance, RunnerOut, VoidEvent } from "./events";
+//   import { Convert, GameEvent, BallInPlay, CountCorrection, EarnedRunOverride, FielderTouch, InningHalfEnd, InningHalfStart, LineupSet, PitchThrown, RbiOverride, RuleCall, RunnerAdvance, RunnerOut, VoidEvent } from "./events";
 //
 //   const gameEvent = Convert.toGameEvent(json);
 //   const ballInPlay = Convert.toBallInPlay(json);
 //   const countCorrection = Convert.toCountCorrection(json);
+//   const earnedRunOverride = Convert.toEarnedRunOverride(json);
 //   const fielderTouch = Convert.toFielderTouch(json);
 //   const inningHalfEnd = Convert.toInningHalfEnd(json);
 //   const inningHalfStart = Convert.toInningHalfStart(json);
 //   const lineupSet = Convert.toLineupSet(json);
 //   const pitchThrown = Convert.toPitchThrown(json);
+//   const rbiOverride = Convert.toRbiOverride(json);
 //   const ruleCall = Convert.toRuleCall(json);
 //   const runnerAdvance = Convert.toRunnerAdvance(json);
 //   const runnerOut = Convert.toRunnerOut(json);
@@ -128,6 +130,17 @@ export type Trajectory = "ground" | "line" | "fly" | "popup" | "bunt" | "bunt_ai
 export interface CountCorrection {
     balls:   number;
     strikes: number;
+}
+
+/**
+ * The scorer's ruling on whether one run was earned (spec §13.5), used in place of §13.3's
+ * derivation. runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest
+ * visible override for a run wins; flip it with corrects, clear it with VoidEvent.
+ */
+export interface EarnedRunOverride {
+    earned:     boolean;
+    note?:      string;
+    runEventId: string;
 }
 
 /**
@@ -344,6 +357,18 @@ export interface BounceCoord {
 export type Outcome = "ball" | "called_strike" | "swinging_strike" | "strike_unspecified" | "foul" | "foul_tip" | "foul_bunt" | "in_play" | "hit_by_pitch" | "catcher_interference" | "ball_intentional" | "illegal_pitch" | "unknown";
 
 /**
+ * The scorer's ruling on whether one run counts as an RBI (spec §13.5), used in place of
+ * the derivation. Per run, never a batter's total: rbi is whether this run counts.
+ * runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest visible
+ * override for a run wins; flip it with corrects, clear it with VoidEvent.
+ */
+export interface RbiOverride {
+    note?:      string;
+    rbi:        boolean;
+    runEventId: string;
+}
+
+/**
  * Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).
  */
 export interface RuleCall {
@@ -445,6 +470,14 @@ export class Convert {
         return JSON.stringify(uncast(value, r("CountCorrection")), null, 2);
     }
 
+    public static toEarnedRunOverride(json: string): EarnedRunOverride {
+        return cast(JSON.parse(json), r("EarnedRunOverride"));
+    }
+
+    public static earnedRunOverrideToJson(value: EarnedRunOverride): string {
+        return JSON.stringify(uncast(value, r("EarnedRunOverride")), null, 2);
+    }
+
     public static toFielderTouch(json: string): FielderTouch {
         return cast(JSON.parse(json), r("FielderTouch"));
     }
@@ -483,6 +516,14 @@ export class Convert {
 
     public static pitchThrownToJson(value: PitchThrown): string {
         return JSON.stringify(uncast(value, r("PitchThrown")), null, 2);
+    }
+
+    public static toRbiOverride(json: string): RbiOverride {
+        return cast(JSON.parse(json), r("RbiOverride"));
+    }
+
+    public static rbiOverrideToJson(value: RbiOverride): string {
+        return JSON.stringify(uncast(value, r("RbiOverride")), null, 2);
     }
 
     public static toRuleCall(json: string): RuleCall {
@@ -703,6 +744,11 @@ const typeMap: any = {
         { json: "balls", js: "balls", typ: 0 },
         { json: "strikes", js: "strikes", typ: 0 },
     ], false),
+    "EarnedRunOverride": o([
+        { json: "earned", js: "earned", typ: true },
+        { json: "note", js: "note", typ: u(undefined, "") },
+        { json: "runEventId", js: "runEventId", typ: "" },
+    ], false),
     "FielderTouch": o([
         { json: "anchorEventId", js: "anchorEventId", typ: "" },
         { json: "fielderId", js: "fielderId", typ: u(undefined, "") },
@@ -751,6 +797,11 @@ const typeMap: any = {
     "BounceCoord": o([
         { json: "depth", js: "depth", typ: u(undefined, 3.14) },
         { json: "x", js: "x", typ: 3.14 },
+    ], false),
+    "RbiOverride": o([
+        { json: "note", js: "note", typ: u(undefined, "") },
+        { json: "rbi", js: "rbi", typ: true },
+        { json: "runEventId", js: "runEventId", typ: "" },
     ], false),
     "RuleCall": o([
         { json: "againstPosition", js: "againstPosition", typ: u(undefined, 0) },

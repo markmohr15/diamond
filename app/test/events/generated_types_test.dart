@@ -15,6 +15,8 @@ final _roundtripByType =
       'RuleCall': (json) => RuleCall.fromJson(json).toJson(),
       'VoidEvent': (json) => VoidEvent.fromJson(json).toJson(),
       'CountCorrection': (json) => CountCorrection.fromJson(json).toJson(),
+      'EarnedRunOverride': (json) => EarnedRunOverride.fromJson(json).toJson(),
+      'RbiOverride': (json) => RbiOverride.fromJson(json).toJson(),
     };
 
 void main() {
@@ -111,6 +113,33 @@ void main() {
         ).toJson().entries.where((e) => e.value != null),
       );
       expect(withNullsStripped, payload);
+    });
+  });
+
+  // No §14 fixture uses an override (DIA-010), so their payloads are checked
+  // here: with the optional note and without it.
+  group('scoring overrides (§13.5) round-trip through the generated types', () {
+    Map<String, dynamic> stripped(Map<String, dynamic> json) => {
+      for (final e in json.entries)
+        if (e.value != null) e.key: e.value,
+    };
+
+    test('EarnedRunOverride, with and without a note', () {
+      for (final json in const <Map<String, dynamic>>[
+        {'runEventId': 'adv-1', 'earned': true},
+        {'runEventId': 'adv-1', 'earned': false, 'note': 'would have scored'},
+      ]) {
+        expect(stripped(EarnedRunOverride.fromJson(json).toJson()), json);
+      }
+    });
+
+    test('RbiOverride, with and without a note', () {
+      for (final json in const <Map<String, dynamic>>[
+        {'runEventId': 'adv-2', 'rbi': false},
+        {'runEventId': 'adv-2', 'rbi': true, 'note': 'scored on the throw'},
+      ]) {
+        expect(stripped(RbiOverride.fromJson(json).toJson()), json);
+      }
     });
   });
 }

@@ -16,9 +16,17 @@ import 'package:diamond/src/rules/official_scoring.dart';
 
 /// One happening, as one or more sentences.
 class PlayLine {
-  const PlayLine({required this.pitchEventId, required this.sentences});
+  const PlayLine({
+    required this.pitchEventId,
+    required this.sentences,
+    this.runs = const [],
+  });
 
   final String pitchEventId;
+
+  /// The runs that scored on this play, each with its earned and RBI
+  /// rulings (§13.3, §13.5), in the order they scored.
+  final List<ScoredRun> runs;
 
   /// **One sentence per cause** — the batted ball is one, each charged
   /// misplay is another. Two misplays therefore read as two errors rather
@@ -45,8 +53,20 @@ List<PlayLine> playLines(
   for (final play in scoring.plays)
     if (!play.isEmpty)
       if (_sentences(play, scoring, label) case final said when said.isNotEmpty)
-        PlayLine(pitchEventId: play.pitchEventId, sentences: said),
+        PlayLine(
+          pitchEventId: play.pitchEventId,
+          sentences: said,
+          runs: _runsOn(play, scoring),
+        ),
 ];
+
+List<ScoredRun> _runsOn(PlayRecord play, OfficialScoring scoring) {
+  final here = {for (final a in play.advances) a.eventId};
+  return [
+    for (final run in scoring.runs)
+      if (here.contains(run.eventId)) run,
+  ];
+}
 
 List<String> _sentences(
   PlayRecord play,

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/rbi_override.schema.json",
+  "title": "RbiOverride",
+  "description": "The scorer's ruling on whether one run counts as an RBI (spec §13.5), used in place of the derivation. Per run, never a batter's total: rbi is whether this run counts. runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest visible override for a run wins; flip it with corrects, clear it with VoidEvent.",
+  "type": "object",
+  "properties": {
+    "runEventId": { "type": "string" },
+    "rbi":        { "type": "boolean" },
+    "note":       { "type": "string" }
+  },
+  "required": ["runEventId", "rbi"],
+  "additionalProperties": false
+}

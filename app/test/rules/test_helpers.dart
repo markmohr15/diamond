@@ -204,6 +204,44 @@ class EventBuilder {
     );
   }
 
+  GameEvent earnedRunOverride({
+    required String id,
+    required String runEventId,
+    required bool earned,
+    String? note,
+    String? corrects,
+  }) {
+    return make(
+      id: id,
+      type: 'EarnedRunOverride',
+      payload: EarnedRunOverride(
+        runEventId: runEventId,
+        earned: earned,
+        note: note,
+      ).toJson(),
+      corrects: corrects,
+    );
+  }
+
+  GameEvent rbiOverride({
+    required String id,
+    required String runEventId,
+    required bool rbi,
+    String? note,
+    String? corrects,
+  }) {
+    return make(
+      id: id,
+      type: 'RbiOverride',
+      payload: RbiOverride(
+        runEventId: runEventId,
+        rbi: rbi,
+        note: note,
+      ).toJson(),
+      corrects: corrects,
+    );
+  }
+
   GameEvent voidEvent({required String id, required String targetId}) {
     return make(
       id: id,

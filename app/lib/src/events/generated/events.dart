@@ -7,11 +7,13 @@
 //     final gameEvent = gameEventFromJson(jsonString);
 //     final ballInPlay = ballInPlayFromJson(jsonString);
 //     final countCorrection = countCorrectionFromJson(jsonString);
+//     final earnedRunOverride = earnedRunOverrideFromJson(jsonString);
 //     final fielderTouch = fielderTouchFromJson(jsonString);
 //     final inningHalfEnd = inningHalfEndFromJson(jsonString);
 //     final inningHalfStart = inningHalfStartFromJson(jsonString);
 //     final lineupSet = lineupSetFromJson(jsonString);
 //     final pitchThrown = pitchThrownFromJson(jsonString);
+//     final rbiOverride = rbiOverrideFromJson(jsonString);
 //     final ruleCall = ruleCallFromJson(jsonString);
 //     final runnerAdvance = runnerAdvanceFromJson(jsonString);
 //     final runnerOut = runnerOutFromJson(jsonString);
@@ -30,6 +32,10 @@ String ballInPlayToJson(BallInPlay data) => json.encode(data.toJson());
 CountCorrection countCorrectionFromJson(String str) => CountCorrection.fromJson(json.decode(str));
 
 String countCorrectionToJson(CountCorrection data) => json.encode(data.toJson());
+
+EarnedRunOverride earnedRunOverrideFromJson(String str) => EarnedRunOverride.fromJson(json.decode(str));
+
+String earnedRunOverrideToJson(EarnedRunOverride data) => json.encode(data.toJson());
 
 FielderTouch fielderTouchFromJson(String str) => FielderTouch.fromJson(json.decode(str));
 
@@ -50,6 +56,10 @@ String lineupSetToJson(LineupSet data) => json.encode(data.toJson());
 PitchThrown pitchThrownFromJson(String str) => PitchThrown.fromJson(json.decode(str));
 
 String pitchThrownToJson(PitchThrown data) => json.encode(data.toJson());
+
+RbiOverride rbiOverrideFromJson(String str) => RbiOverride.fromJson(json.decode(str));
+
+String rbiOverrideToJson(RbiOverride data) => json.encode(data.toJson());
 
 RuleCall ruleCallFromJson(String str) => RuleCall.fromJson(json.decode(str));
 
@@ -291,6 +301,34 @@ class CountCorrection {
     Map<String, dynamic> toJson() => {
         "balls": balls,
         "strikes": strikes,
+    };
+}
+
+
+///The scorer's ruling on whether one run was earned (spec §13.5), used in place of §13.3's
+///derivation. runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest
+///visible override for a run wins; flip it with corrects, clear it with VoidEvent.
+class EarnedRunOverride {
+    final bool earned;
+    final String? note;
+    final String runEventId;
+
+    EarnedRunOverride({
+        required this.earned,
+        this.note,
+        required this.runEventId,
+    });
+
+    factory EarnedRunOverride.fromJson(Map<String, dynamic> json) => EarnedRunOverride(
+        earned: json["earned"],
+        note: json["note"],
+        runEventId: json["runEventId"],
+    );
+
+    Map<String, dynamic> toJson() => {
+        "earned": earned,
+        "note": note,
+        "runEventId": runEventId,
     };
 }
 
@@ -772,6 +810,35 @@ final outcomeValues = EnumValues({
     "swinging_strike": Outcome.SWINGING_STRIKE,
     "unknown": Outcome.UNKNOWN
 });
+
+
+///The scorer's ruling on whether one run counts as an RBI (spec §13.5), used in place of
+///the derivation. Per run, never a batter's total: rbi is whether this run counts.
+///runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest visible
+///override for a run wins; flip it with corrects, clear it with VoidEvent.
+class RbiOverride {
+    final String? note;
+    final bool rbi;
+    final String runEventId;
+
+    RbiOverride({
+        this.note,
+        required this.rbi,
+        required this.runEventId,
+    });
+
+    factory RbiOverride.fromJson(Map<String, dynamic> json) => RbiOverride(
+        note: json["note"],
+        rbi: json["rbi"],
+        runEventId: json["runEventId"],
+    );
+
+    Map<String, dynamic> toJson() => {
+        "note": note,
+        "rbi": rbi,
+        "runEventId": runEventId,
+    };
+}
 
 
 ///Umpire rulings as first-class events — the judicial sibling of FielderTouch (spec §4.5).

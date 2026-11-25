@@ -26,6 +26,12 @@ enum RunRuling { earned, unearned }
 ///   exactly what the coming scoring-override events are for.
 /// - Runs scoring after the reconstruction reaches three outs are
 ///   unearned regardless of how the runner got around.
+/// - Each half-inning starts fresh (v0.76): its own outs, nobody tainted,
+///   no broken chains. Without the reset, a whole game's stream carried the
+///   three reconstructed outs forward and ruled every later run unearned.
+///
+/// This is the derivation alone. A scorer's override (§13.5) is applied on
+/// top of it, in [ScoredRun].
 ///
 /// Wild pitches are the pitcher's own doing and never launder a run.
 Map<String, RunRuling> reconstructEarnedRuns(
@@ -57,6 +63,12 @@ Map<String, RunRuling> reconstructEarnedRuns(
 
   for (final event in visibleLogicalOrder) {
     switch (event.type) {
+      case 'InningHalfStart':
+        reconOuts = 0;
+        batterOfRecord = null;
+        atBatProlonged = false;
+        removedRunners.clear();
+        chainBrokenRunners.clear();
       case 'PitchThrown':
         final pitch = PitchThrown.fromJson(event.payload);
         if (pitch.batterId != batterOfRecord) {

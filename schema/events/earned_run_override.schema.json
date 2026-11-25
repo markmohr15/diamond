@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://diamond.app/schema/events/earned_run_override.schema.json",
+  "title": "EarnedRunOverride",
+  "description": "The scorer's ruling on whether one run was earned (spec §13.5), used in place of §13.3's derivation. runEventId is the scoring RunnerAdvance{to: 4}'s correction root. The latest visible override for a run wins; flip it with corrects, clear it with VoidEvent.",
+  "type": "object",
+  "properties": {
+    "runEventId": { "type": "string" },
+    "earned":     { "type": "boolean" },
+    "note":       { "type": "string" }
+  },
+  "required": ["runEventId", "earned"],
+  "additionalProperties": false
+}

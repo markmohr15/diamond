@@ -4,6 +4,10 @@
 /// review rather than chrome. It answers *what did that score as*; the
 /// other half of the need, *did that take what I meant*, is confirmation at
 /// the ✓ and belongs to DIA-021's redesign.
+///
+/// Each run scored shows its earned and RBI rulings under its play (DIA-010).
+/// Until a box score exists, this is the only place either ruling is
+/// visible. Like everything else here, they are read, never entered.
 library;
 
 import 'dart:async';
@@ -21,6 +25,9 @@ import 'package:material_ui/material_ui.dart';
 const Key playLogKey = Key('playLog');
 const Key playLogEmptyKey = Key('playLogEmpty');
 const Key playLogCloseKey = Key('playLogClose');
+
+/// One run's ruling row, keyed by its scoring advance.
+Key playLogRunKey(String runEventId) => Key('playLogRun-$runEventId');
 
 /// The half-inning in front of her, in the order it happened.
 ///
@@ -126,7 +133,13 @@ class PlayLogBody extends ConsumerWidget {
                       padding: const EdgeInsets.only(
                         bottom: BrandMetrics.spaceMd,
                       ),
-                      child: Text(line.text, style: text.bodyLarge),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(line.text, style: text.bodyLarge),
+                          for (final run in line.runs) _RunRow(run: run),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -135,6 +148,46 @@ class PlayLogBody extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// A run's rulings in one line under its play: *b1 · earned · RBI b2*.
+///
+/// Quiet, because the play's sentence is what the log is for. The accent goes
+/// on *edited* alone: it is the one datum here the scorer put in herself, and
+/// it is what she is looking for when she comes back to check.
+///
+/// Read-only. Overrides are entered with the play (§13.5 v0.76), and the play
+/// log edits nothing (Mark, 2026-11-24).
+class _RunRow extends StatelessWidget {
+  const _RunRow({required this.run});
+
+  final ScoredRun run;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Text.rich(
+      key: playLogRunKey(run.eventId),
+      TextSpan(
+        style: theme.textTheme.labelLarge?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        children: [
+          TextSpan(
+            text:
+                '${run.runnerId} · '
+                '${run.earned ? 'earned' : 'unearned'} · '
+                '${run.rbi ? 'RBI ${run.batterId}' : 'no RBI'}',
+          ),
+          if (run.edited)
+            TextSpan(
+              text: ' · edited',
+              style: TextStyle(color: theme.colorScheme.primary),
+            ),
+        ],
+      ),
     );
   }
 }
