@@ -168,6 +168,13 @@ class _RunRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Not `colorScheme.primary`: that is the raw accent, which as text in dark
+    // mode is 2.2:1 against the dialog (§23.3). The outlined button's label is
+    // the accent already lifted against this same surface (the dialog's
+    // `surfaceContainerLow`), so this reads it rather than lifting it again.
+    final edited =
+        theme.outlinedButtonTheme.style?.foregroundColor?.resolve(const {}) ??
+        theme.colorScheme.primary;
     return Text.rich(
       key: playLogRunKey(run.eventId),
       TextSpan(
@@ -184,7 +191,7 @@ class _RunRow extends StatelessWidget {
           if (run.edited)
             TextSpan(
               text: ' · edited',
-              style: TextStyle(color: theme.colorScheme.primary),
+              style: TextStyle(color: edited),
             ),
         ],
       ),
